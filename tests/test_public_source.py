@@ -25,6 +25,7 @@ class PublicSourceTests(unittest.TestCase):
         self.manifest = json.loads((ROOT / "resources/release-manifest.json").read_text(encoding="utf-8"))
         self.public_manifest = json.loads((ROOT / public.PUBLIC_FILES).read_text(encoding="utf-8"))
         self.public_manifest["files"].append("tests/unit/nested.lua")
+        self.public_manifest["files"].append("docs/releases/0.10.25.md")
         runtime = self.manifest["main_actions"] + self.manifest["media_explorer_actions"]
         runtime += self.manifest["support_files"] + [self.manifest["license_file"]]
         inputs = set(self.public_manifest["files"]) | set(self.public_manifest["aliases"].values())
@@ -72,11 +73,12 @@ class PublicSourceTests(unittest.TestCase):
         for target, source in public.REQUIRED_ALIASES.items():
             self.assertEqual((self.output / target).read_bytes(), (self.root / source).read_bytes())
         for path in ("native/preview.cpp", "native/vendor/README.md", "CMakeLists.txt",
-                     "worker/analyze.py", "worker/prepare.py", "worker/prepare.lua", "tests/native_drop_host.mm",
+                     "worker/prepare.py", "worker/prepare.lua", "tests/native_drop_host.mm",
                      "tests/unit/nested.lua", "tests/native-bar-cases.json",
                      ".github/workflows/windows.yml", ".github/workflows/release.yml"):
             self.assertTrue((self.output / path).is_file(), path)
         self.assertNotIn("worker/analyze.py", runtime)
+        self.assertFalse((self.output / "worker/analyze.py").exists())
         self.assertIn("native/vendor/mosqito.LICENSE.md", runtime)
         self.assertIn("native/vendor/ebur128.LICENSE.MIT", runtime)
         self.assertFalse((self.output / "native/README.md").exists())

@@ -1,26 +1,8 @@
-local root_names={'',' - Install actions',' - Diagnostics',' - Restore native preview',' - Render selected drops',
-  ' - Restore selected source FX',' - Offline inactive source FX'}
 local actions={
   {'Reverse','reverse'},{'AB','ab'},{'Play Stop','play'},{'Replay','replay'},{'Stop','stop'},
   {'Export','export'},{'Analyse','analyse'},{'Edit','edit'},{'Quit','quit'},
 }
 for i=0,9 do actions[#actions+1]={'Slot '..i,'slot:'..i}end
-
--- Legacy file paths are part of REAPER's action identity. Each still exists and
--- forwards once to the same-directory canonical action, including on Windows.
-local function check_alias(directory,suffix)
-  local old=directory..'Audition Macro'..suffix..'.lua'
-  local canonical=directory..'SoundPrep'..suffix..'.lua'
-  assert(loadfile(canonical),'Missing canonical action: '..canonical)
-  local forwarded
-  local environment=setmetatable({dofile=function(path)
-    assert(not forwarded,'Legacy action dispatched twice');forwarded=path;return 'forwarded'
-  end},{__index=_G})
-  assert(assert(loadfile(old,'t',environment))()=='forwarded')
-  assert(forwarded==canonical,'Legacy action changed its target directory: '..old)
-end
-for _,suffix in ipairs(root_names)do check_alias('./',suffix)end
-for _,action in ipairs(actions)do check_alias('./actions/',' - '..action[1])end
 
 local old_reaper,old_path=reaper,package.path
 local modules={}
@@ -32,26 +14,24 @@ local ok,err=xpcall(function()
     assert(r==reaper);sent[#sent+1]=command
   end}
   for _,action in ipairs(actions)do
-    for _,prefix in ipairs{'SoundPrep','Audition Macro'}do
-      local before=#sent
-      dofile('./actions/'..prefix..' - '..action[1]..'.lua')
-      assert(#sent==before+1 and sent[#sent]==action[2],'Action command changed: '..prefix..' - '..action[1])
-    end
+    local before=#sent
+    dofile('./actions/SoundPrep - '..action[1]..'.lua')
+    assert(#sent==before+1 and sent[#sent]==action[2],'Action command changed: '..action[1])
   end
 
-  -- Both names share the original heartbeat and request Edit on an existing
-  -- session. Renaming the launcher must never create a second preview bank.
+  -- Reopening the launcher requests Edit on the existing session instead of
+  -- starting a second preview bank. Its persisted heartbeat name stays stable.
   package.loaded['am.app']={EXT='AuditionMacro.v1',new=function()error('Duplicate application started')end}
   reaper={GetExtState=function(section,key)
     assert(section=='AuditionMacro.v1' and key=='heartbeat');return '100'
   end,time_precise=function()return 101 end}
-  for _,name in ipairs{'./SoundPrep.lua','./Audition Macro.lua'}do
-    local before=#sent;dofile(name)
+  for _=1,2 do
+    local before=#sent;dofile('./SoundPrep.lua')
     assert(#sent==before+1 and sent[#sent]=='edit','Launcher did not reuse the active application')
   end
 
-  -- The installer only registers canonical actions; pre-existing legacy IDs
-  -- and their shortcuts remain untouched across repeated installs.
+  -- The installer registers SoundPrep actions idempotently. It never edits
+  -- unrelated or obsolete registrations in the user's Action List.
   local registered={['0:./Audition Macro.lua']=41,['32063:./actions/Audition Macro - Play Stop.lua']=42}
   local shortcuts={[41]='Ctrl+Alt+A',[42]='Space'}
   local calls,new_id=0,100
@@ -72,7 +52,7 @@ local ok,err=xpcall(function()
     end}
   dofile('./SoundPrep - Install actions.lua')
   assert(calls==25 and new_id==125,'Expected 6 Main and 19 Media Explorer registrations')
-  dofile('./Audition Macro - Install actions.lua')
+  dofile('./SoundPrep - Install actions.lua')
   assert(calls==50 and new_id==125,'Reinstall changed action identities')
   assert(registered['0:./Audition Macro.lua']==41 and registered['32063:./actions/Audition Macro - Play Stop.lua']==42)
   assert(shortcuts[41]=='Ctrl+Alt+A' and shortcuts[42]=='Space','Legacy shortcuts were changed')

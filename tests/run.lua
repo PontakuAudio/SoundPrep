@@ -12,7 +12,7 @@ test('Native app settings persist shared values and preserve modeless panel stat
 test('Native Presets and Tools preserve drafts, validate edits and guard stale events',function()dofile('tests/editor_panel.lua')end)
 local J=require('am.json');local M=require('am.model');local U=require('am.util')
 test('Cache folder selection persists, validates writes and preserves running analysis',function()dofile('tests/cache_directory.lua')end)
-test('SoundPrep and legacy action paths share commands, heartbeat and preserved shortcuts',function()dofile('tests/entrypoint_compatibility.lua')end)
+test('SoundPrep actions dispatch commands, reuse the active session and register idempotently',function()dofile('tests/entrypoint_compatibility.lua')end)
 test('Native helper compatibility is checked by features on both OSes before project changes',function()dofile('tests/native.lua')end)
 test('Withdrawn dictionary assistance leaves startup and native search untouched',function()dofile('tests/search_omission.lua')end)
 test('Media Explorer display preferences survive selection, failures, close and legacy recovery',function()dofile('tests/media_explorer.lua')end)

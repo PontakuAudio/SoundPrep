@@ -1,6 +1,6 @@
 # ソースとバイナリの配布方針
 
-SoundPrepの公開先は[PontakuAudio/SoundPrep](https://github.com/PontakuAudio/SoundPrep)です。公開ソースには既存のLua、Nativeコード、旧Python解析コードを含みます。
+SoundPrepの公開先は[PontakuAudio/SoundPrep](https://github.com/PontakuAudio/SoundPrep)です。公開ソースには現在使用しているLua、Nativeコードと検証・配布用ツールを含みます。旧名のLua転送スクリプト、旧Python解析コード、廃止したZIP作成ツールは現行の公開ツリーから除外しています。過去の変更内容は[GitHub Releases](https://github.com/PontakuAudio/SoundPrep/releases)で参照できます。
 
 今回追加したC++解析エンジンの実装は非公開とし、Windowsの `reaper_audition_macro.dll` とmacOSの `reaper_audition_macro.dylib` に同梱します。解析専用の追加DLLを利用者が導入する必要はありません。非公開の対象は新しいLUFS MaxM・True Peak・Zwickerの実装と、その内部検証コード・最適化参照実装です。LuaのUI、REAPER連携、既存Nativeコードと公開APIの定義は引き続き読めます。
 

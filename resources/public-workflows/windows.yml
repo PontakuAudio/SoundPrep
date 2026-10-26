@@ -25,7 +25,6 @@ jobs:
       - name: Run public packaging and contract regressions
         run: |
           python -m unittest discover -s tests -p 'test_package_release.py' -v
-          python -m unittest discover -s tests -p 'test_package_windows.py' -v
           python -m unittest discover -s tests -p 'test_public_source.py' -v
           python -m unittest discover -s tests -p 'test_prebuilt_helpers.py' -v
           python -m unittest discover -s tests -p 'test_native_contract.py' -v

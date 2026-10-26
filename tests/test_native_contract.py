@@ -29,7 +29,7 @@ class NativeContractVersions(unittest.TestCase):
         self.contract['version'] = helper
         (self.root / 'resources/native-contract.json').write_text(
             json.dumps(self.contract), encoding='utf-8')
-        (self.root / 'Audition Macro.lua').write_text(
+        (self.root / 'SoundPrep.lua').write_text(
             '' if package is None else f'-- @version {package}\n', encoding='utf-8')
         (self.root / 'CMakeLists.txt').write_text(
             f'project(AuditionMacro VERSION {helper if cmake is None else cmake} LANGUAGES C CXX)\n',
@@ -64,7 +64,7 @@ class NativeContractVersions(unittest.TestCase):
         for value in (None, '', 'v0.10.25', '0.10', '0.10.25.1', '0.10.025', '0.10.25 extra', '0.10.25-beta1'):
             with self.subTest(version=value):
                 self.write_versions(package=value)
-                with self.assertRaisesRegex(SystemExit, r'Audition Macro.lua version must be'):
+                with self.assertRaisesRegex(SystemExit, r'SoundPrep.lua version must be'):
                     generator.outputs()
 
     def test_malformed_helper_and_cmake_versions_are_rejected(self):

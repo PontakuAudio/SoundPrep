@@ -331,17 +331,12 @@ class PackageReleaseTests(unittest.TestCase):
         self.assertEqual(manifest["package_name"], "SoundPrep.lua")
         self.assertEqual(manifest["main_actions"], ["SoundPrep.lua"])
         self.assertEqual(manifest["media_explorer_actions"], [])
-        # Optional actions and old aliases stay at their original paths, so an
-        # update does not delete existing action registrations or shortcuts.
+        # Only the launcher is registered automatically. Optional SoundPrep
+        # actions keep their paths; obsolete forwarding scripts no longer ship.
         self.assertIn("SoundPrep - Install actions.lua", manifest["support_files"])
         for path in ROOT.glob("SoundPrep - *.lua"):
             self.assertIn(path.name, manifest["support_files"])
-        for group in ("main_actions", "media_explorer_actions"):
-            for name in manifest[group]:
-                self.assertIn("SoundPrep", name)
-                legacy = name.replace("SoundPrep", "Audition Macro")
-                self.assertIn(legacy, manifest["support_files"])
-                self.assertNotIn(legacy, manifest[group])
+        self.assertFalse(any("Audition Macro" in name for name in listed))
 
 
 if __name__ == "__main__":

@@ -22,7 +22,6 @@ import struct
 import tempfile
 from urllib.parse import quote, urlsplit
 import xml.etree.ElementTree as ET
-import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORMS = {"macos": ("darwin64", "darwin-arm64"), "windows": ("win64",)}
@@ -257,17 +256,6 @@ def build_index(previous, index_name, category_name, manifest, version, sources,
             raise ValueError("Previous index website differs; update repository metadata deliberately")
     ET.indent(root, space="  ")
     return ET.tostring(root, encoding="utf-8", xml_declaration=True) + b"\n"
-
-
-def write_zip(path, entries):
-    # Kept for the legacy local package_windows utility; releases do not call it.
-    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for name, data in sorted(entries.items()):
-            info = zipfile.ZipInfo("SoundPrep/" + name, date_time=(1980, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.create_system = 3
-            info.external_attr = (0o100755 if name.endswith(".sh") else 0o100644) << 16
-            archive.writestr(info, data)
 
 
 def package_release(*, root, output, repository=None, base=None, version=None, tag=None,

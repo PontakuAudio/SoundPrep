@@ -103,7 +103,7 @@ for _,modal in ipairs{false,true}do
   local Bar=require('am.bar');local new=Bar.new
   Bar.new=function()return {tick=function()assert(not fake.cleaned,'Bar ran after project close')end}end
   local launched,e=xpcall(function()
-    dofile('./Audition Macro.lua')
+    dofile('./SoundPrep.lua')
     if modal then assert(callback);callback()end
   end,debug.traceback)
   Bar.new=new;App.new=create;_G.reaper=old_reaper
