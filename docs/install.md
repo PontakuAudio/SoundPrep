@@ -1,165 +1,101 @@
-# SoundPrepの導入
+# SoundPrepの導入手順
 
-以下は**SoundPrep v0.11.7**の導入手順です。v0.11.6以前のZIPでは `SoundPrep - Install actions.lua` でセットアップ後、`SoundPrep.lua` を起動してください。
+SoundPrepはReaPackからインストールします。**起動するには `SoundPrep.lua` を実行してください。** 起動後は、Media Explorerに表示される操作バーを使います。
 
-**普段使うのは `SoundPrep.lua` だけです。** 起動後はMedia Explorerの操作バーから操作できます。
+## 1. 必要な環境を準備する
 
-配布先は[SoundPrep Releases](https://github.com/PontakuAudio/SoundPrep/releases)です。掲載されたReaPack indexとOS別ZIPを利用してください。
-
-## 必要な環境
-
-| 項目 | 必要なもの |
+| 項目 | 対応・入手先 |
 |---|---|
-| REAPER | 7.35以降 |
-| macOS | Apple Silicon / Intel向けuniversal helper |
-| Windows | Windows 10/11、REAPER x64 |
-| 拡張 | SWS、JS_ReaScriptAPI |
-| ReaPackで導入する場合 | ReaPack |
+| REAPER | [REAPER 7.35以降](https://www.reaper.fm/download.php) |
+| Windows | Windows 10 / 11、REAPER x64版 |
+| macOS | Apple Silicon / Intel |
+| SWS Extension | [公式サイト](https://www.sws-extension.org/)から、使用するREAPERに合う版を導入 |
+| ReaPack | [公式サイト](https://reapack.com/)の案内に従って導入 |
+| JS_ReaScriptAPI | ReaPackから導入（下記参照） |
 
-Native helperは配布パッケージに同梱します。利用者によるビルドは不要です。REAPER本体と上記の拡張は同梱しません。Normalize／source peak guardも同梱helper内で処理するため、Python／FFmpeg／ffprobeの導入は不要です。Windows ARM64/32bitとLinuxは対象外です。
+SWSとReaPackを導入したら、作業を保存してREAPERを再起動します。メニューバーに `Extensions → ReaPack` があることを確認してください。
 
-v0.11.0の解析はmacOS arm64の実REAPERでLUFS・Zwicker Max/P95、44.1／48／96 kHz、多ch・AmbiXと再生中のゲイン移行を確認しています。加工D&Dの実レンダー11ケースでもチャンネル数・ピーク・極性・共通ゲイン・Downmix OFF時のMacro FXバイパスを確認しました。新しい解析経路のWindows実機確認は未完了です。
+### JS_ReaScriptAPIを導入する
 
-## ReaPackから導入
+1. `Extensions → ReaPack → Browse packages…` を開きます。
+2. `js_ReaScriptAPI` を検索し、該当する拡張パッケージを右クリックして `Install` を選びます。
+3. `Apply` を押してインストールし、作業を保存してREAPERを再起動します。
 
-1. REAPERにSWS、JS_ReaScriptAPI、ReaPackを導入します。
-2. `Extensions → ReaPack → Import repositories…` に、次のURLを指定します。
+見つからない場合は、`Extensions → ReaPack → Import repositories…` で次のURLを追加してから、もう一度検索してください。
+
+```text
+https://raw.githubusercontent.com/ReaTeam/Extensions/master/index.xml
+```
+
+詳しくは[JS_ReaScriptAPIの配布元](https://github.com/juliansader/ReaExtensions)を参照してください。すでに導入済みなら、この作業は不要です。
+
+## 2. SoundPrepをインストールする
+
+1. `Extensions → ReaPack → Import repositories…` を開き、次のURLを追加します。
 
    ```text
    https://github.com/PontakuAudio/SoundPrep/releases/latest/download/index.xml
    ```
 
-3. `Extensions → ReaPack → Browse packages…` で `SoundPrep` を検索し、パッケージを選んでInstallを適用します。主スクリプトは `SoundPrep.lua` です。
-4. Native helperも導入されるため、作業を保存してREAPERを再起動します。
-5. Main Action Listで `SoundPrep.lua` を実行します。Media Explorerの一覧上に操作バーが表示されます。
+2. `Extensions → ReaPack → Browse packages…` を開き、`SoundPrep` を検索します。
+3. SoundPrepのパッケージを右クリックし、`Install` を選んで `Apply` を押します。
+4. インストールが完了したら、作業を保存してREAPERを再起動します。これでNative helperが読み込まれます。
 
-新規導入時にReaPackが登録するActionは、Mainの `SoundPrep.lua` ひとつです。キー操作・診断用Actionsは同梱しますが、自動登録しません。必要な場合は下記の「追加Actions」を参照してください。
+パッケージ内のLua・リソース・ライセンス類は一緒に配置されます。Luaファイルが複数あっても、個別に登録・実行する必要はありません。
 
-### テスト配布から正式配布へ切替
+## 3. SoundPrepを起動する
 
-SoundPrep-TestingのURLを登録済みの場合は、`ReaPack → Manage repositories…` でSoundPrepのURLを上記の正式配布URLへ変更し、パッケージを同期してください。リポジトリ名と配置先は同じなので、アンインストールは不要です。設定・キー割当を保持できます。テスト版0.11.7と正式版0.11.7の実行用Lua・helperは同じで、正式配布用の案内のみ更新しています。
+1. REAPERの `Actions → Show action list…` を開きます。
+2. `Section` を **Main** にして、`SoundPrep.lua` を検索します。
+3. `Script: SoundPrep.lua` を選び、**Run** を押します。
+4. Media Explorerに操作バーが表示されたら起動完了です。音声ファイルを選んで試聴してください。
 
-## ZIPから導入
+次回以降も同じActionから起動します。よく使う場合は、このActionにショートカットを割り当てられます。SoundPrepを終了するには、SoundPrepの `Quit` を使います。
 
-[Releaseページ](https://github.com/PontakuAudio/SoundPrep/releases)から、`soundprep-0.11.7-macos-universal.zip` または `soundprep-0.11.7-windows-x64.zip` を選びます。ZIP内の `SoundPrep` フォルダーを、書き込み可能な固定の場所へ展開します。Windowsの例は `Documents/SoundPrep` です。
+新規導入時に自動登録されるActionは、この起動用の1個です。内部処理用の `lib/` や `internal/` にあるLuaは読み込まないでください。
 
-フォルダー内の配置を維持してください。主な内容は次のとおりです。
+## 更新する
 
-```text
-SoundPrep/
-  SoundPrep.lua
-  SoundPrep - Install actions.lua
-  actions/
-  internal/
-  lib/
-  resources/
-  build/reaper_audition_macro.dylib または .dll
-  tools/install_native.sh
-  tools/install_native.ps1
-  LICENSE
-  THIRD_PARTY_NOTICES.md
-  native/vendor/（第三者ライセンス）
-```
+1. 実行中のSoundPrepを `Quit` で終了します。
+2. `Extensions → ReaPack → Synchronize packages` で更新します。
+3. Native helperの更新や再起動の案内がある場合は、作業を保存してREAPERを再起動します。
+4. Main Action Listから `SoundPrep.lua` を実行します。
 
-1. REAPERにSWS、JS_ReaScriptAPIを導入します。
-2. Main Action Listの `New action → Load ReaScript` から **`SoundPrep.lua` だけ**を読み込み、実行します。フォルダー内のLuaをまとめて読み込む必要はありません。
-3. helperが未導入なら、自動で同梱helperをREAPER Resource Pathの `UserPlugins` へ配置し、再起動を案内します。作業を保存してREAPERを再起動します。
-4. 同じ `SoundPrep.lua` を実行します。以後も、このActionから起動します。
+設定や保存したPresetは、インストール先の `data/` に保存されます。このフォルダーは削除せず、必要に応じてバックアップしてください。
 
-既存helperがある場合は上書きしません。下記のZIP更新手順で、REAPER終了中に更新してください。
+SoundPrep本体とNative helperの版番号は異なることがあります。たとえばSoundPrep 0.11.7にはhelper 0.11.6を同梱しています。ReaPackでSoundPrepを更新すれば、その版に対応した組み合わせが導入されます。
 
 ## 追加Actions（任意）
 
-通常の試聴・Preset選択・解析・書き出しはSoundPrepの画面から行えます。専用キーやメンテナンス用Actionが必要な場合だけ、Main Action Listの `New action → Load ReaScript` から、`SoundPrep.lua` と同じフォルダーの `SoundPrep - Install actions.lua` を読み込んで実行します。ReaPack版の場所はREAPER Resource Path内の `Scripts/SoundPrep/Media Explorer/` です。
+起動後の操作はSoundPrepの画面から行えます。Play / StopやPreset切替などに専用キーを割り当てたい場合だけ、追加Actionsを登録してください。
 
-- Media ExplorerにSlot 0〜9、Play Stop、Replay、Stop、Reverse、AB、Analyse、Export、Edit、Quitの19個を登録します。必要なものにキーを割り当ててください。
-- MainにDiagnostics、Restore native preview、Render selected drops、Restore selected source FX、Offline inactive source FXの5個を登録します。
+1. `Options → Show REAPER resource path in explorer/finder` で、使用中のREAPERのResource Pathを開きます。
+2. `Scripts/SoundPrep/Media Explorer/` フォルダーを開きます。
+3. REAPERのMain Action Listで `New action → Load ReaScript` を選び、その中の **`SoundPrep - Install actions.lua`** を読み込んで実行します。
+4. Action Listの `Section` を切り替えて、必要なActionにキーを割り当てます。
 
-これらは起動後の操作や診断のためのものです。起動するのは引き続き `SoundPrep.lua` です。必要なActionのLuaだけを、それぞれのセクションで個別に読み込むこともできます。
+| Section | 登録される追加Actions |
+|---|---|
+| Media Explorer | Slot 0〜9、Play Stop、Replay、Stop、Reverse、AB、Analyse、Export、Edit、Quit |
+| Main | Diagnostics、Restore native preview、Render selected drops、Restore selected source FX、Offline inactive source FX |
 
-既存のAction登録やキー割当は自動で削除・変更しません。そのため、以前の版から更新した環境では登録済みの追加Actionsが残ります。不要なものだけREAPERのAction Listから手動で登録解除できます。スクリプトファイル自体は削除しないでください。
+追加Actionsの登録後も、起動するのは `SoundPrep.lua` です。必要なLuaだけを、それぞれのSectionで個別に読み込むこともできます。
 
-## Normalizeの設定
+以前の版で登録したActionやキー割当は、自動削除しません。不要になったものはAction Listから手動で登録解除できます。パッケージ内のスクリプトファイル自体は削除しないでください。
 
-追加の実行環境は不要です。`Edit…` のNormalizeタブで `Loudness meter` を選び、Normalizeを有効にします。設定はRaw／各Presetごとに保持します。Macroの変更は `Save preset` またはQuitで保存します。
+## うまく起動しないとき
 
-- `LUFS MaxM` は既定の方式です。400 ms窓・100 ms間隔で得た最大LUFSを目標値へ合わせます。初期目標は−18 LUFS-M Maxです。旧Presetもこの方式を維持します。
-- `Zwicker` は時間変動・自由音場モデルでsonesを評価します。`Max` が既定で、短い効果音に使えます。`P95` は時間系列の95パーセンタイルです。いずれも原音全体と400 msの応答用末尾を対象とし、P95には原音内の無音と末尾も含めます。
-- Zwickerの目標は初期値36 sones、校正はRMS −20 dBFS = 79 dB SPLです。目標と校正はPresetごとに保存します。校正値は評価上の仮定で、実際のスピーカー音圧を自動測定しません。モノは1本、ステレオは左右を個別に測って `sqrt(NL² + NR²)` で合成します。バイノーラル処理ではありません。
-- Normalize中は常に原音True PeakとSource ceiling（既定−1 dBTP）でゲインを制限します。`Peak guard also when Normalize is off` はNormalize OFFでも制限を使う設定です。Pitch／Rate／FX後の出力limiterではありません。
+| 症状 | 確認すること |
+|---|---|
+| ReaPackメニューがない | ReaPackが使用中のREAPERへ導入されているか確認し、REAPERを再起動します。Portable版では、起動しているREAPERのResource Pathを確認してください。 |
+| SoundPrepが見つからない／古い版しか表示されない | `Manage repositories…` でSoundPrepのURLが上記の `/releases/latest/download/index.xml` になっているか確認し、`Synchronize packages` を実行します。Browse packagesのフィルターや、特定の版に固定していないかも確認します。 |
+| Action Listに見当たらない | ReaPackでInstall後にApplyしたか確認し、Action ListのSectionをMainにして `SoundPrep.lua` を検索します。 |
+| SWS／JS_ReaScriptAPI不足と表示される | 該当する拡張を使用中のREAPERへ導入し、REAPERを再起動します。 |
+| Native helper不足／更新が必要と表示される | ReaPackの更新がエラーなく完了しているか確認し、REAPERを再起動します。別のREAPERやPortable版を起動していないかも確認してください。 |
+| 以前の追加Actionsがたくさん残っている | 既存のキー割当を保持するため、そのまま残しています。通常起動には `SoundPrep.lua` だけを使ってください。 |
 
-新しい初期値は、新規Raw／Presetと欠けているZwicker目標の補完に適用します。保存済みの−16 LUFSや8 sones等は変更しません。既存Presetにも使う場合は、目標を−18 LUFS／36 sonesへ変更して `Save preset` を押してください。36 sonesは31本・13種類の効果音で選定した開始点で、全素材が−18 LUFSになる換算値ではありません。[検証結果](loudness-defaults.md)。
+解決しない場合は、上の「追加Actions」の方法で `SoundPrep - Diagnostics.lua` をMainに登録して実行すると、依存関係やhelperの状態を確認できます。診断を共有するときは、REAPERの版、OS、表示されたエラーを添えてください。診断結果にはローカルのパスが含まれます。
 
-素材を選んでNormalizeを有効にすると、最初は無補正で試聴し、解析完了後に再生中の音量が徐々に変わります。停止／Pause中に解析が完了しても自動再生しません。Normalize付きD&Dは解析中でも受け付け、配置したアイテムを一時ミュートして待機します。解析完了後にドロップ時の設定による補正を適用してミュートを解除します。Previewのゲイン移行中でも最終的な補正値を使います。
+---
 
-解析はローカルのNative helperがREAPERのデコーダーを使って行います。対応形式は利用中のREAPERが読める1〜128ch音声です。Zwickerでは推定メモリー量が1ジョブ1 GiBを超える素材（ステレオでおおむね8分超）をエラーにします。長い素材にはLUFS MaxMまたは短い素材を使ってください。Zwickerの一時ディスク容量と解析時間も長さ・ch数に応じて増えます。
-
-## キャッシュの保存先
-
-`Edit… → App settings → Choose cache folder...` から保存先フォルダーを選びます。選択先には解析結果と `jobs/` 内の解析用一時ファイル（Zwickerの一時PCMを含む）を保存します。書き込み可能か確認してから設定を保存し、新しい解析ジョブから反映します。処理中のジョブは元の場所で完了します。
-
-`Use default cache folder` で従来の `data/cache/`・`data/jobs/` に戻せます。既存のキャッシュは移動・削除しません。D&Dで配置する生成音声はプロジェクトが参照するメディアのため、この設定では移動しません。
-
-## 更新
-
-更新前にSoundPrepをQuitします。設定と保存したMacroはインストール先の `data/` にあるため、このフォルダーを保持してください。更新は導入時と同じ方法を使います。
-
-ReaPack版はReaPackでパッケージを同期・更新します。Native helperを更新した場合は、作業を保存してREAPERを再起動します。互換性のあるLuaだけの更新なら、SoundPrepを起動し直すことで反映します。
-
-ZIP版は既存の `data/` を保持して新しいファイルを展開します。Native helperの更新は、すべてのREAPERを終了してから、展開した `SoundPrep` フォルダーで実行します。
-
-macOS:
-
-```sh
-sh tools/install_native.sh
-# Resource Pathが標準と異なる場合:
-sh tools/install_native.sh "/path/to/REAPER resource"
-```
-
-Windows PowerShell:
-
-```powershell
-./tools/install_native.ps1
-# Portable版など、Resource Pathが標準と異なる場合:
-./tools/install_native.ps1 -ResourcePath 'D:\REAPER portable'
-```
-
-Resource PathはREAPERの `Options → Show REAPER resource path in explorer/finder` で確認できます。更新ツールは起動中のREAPERがあると置換を拒否し、既存helperのバックアップを残します。REAPERを起動し直した後は `SoundPrep.lua` を実行します。追加Actionsを使う場合だけAction Installerを実行してください。
-
-v0.11.7にはNative helper 0.11.6を同梱します。0.11.6からの更新ではhelperの変更はなく、SoundPrepの終了・再起動で反映できます。**v0.11.0以前からの更新ではLuaパッケージとNative helperをともに更新し、REAPERを再起動してください。** bar revision 9・waveform revision 7のhelperが必要です。互換性は機能revisionと必要APIで判定し、不足するhelperでは更新を案内します。旧FFmpeg解析キャッシュは新しい解析結果として再利用しません。
-
-## 旧Audition Macroからの切替
-
-### ZIP版・開発フォルダーを同じ場所で更新
-
-旧Audition MacroをQuitし、bank・FXチェーンなどを含む `data/` 全体をバックアップしてください。既存フォルダーの名前を変える必要はありません。`data/` を保持したまま、新しいファイルと同梱の旧名互換スクリプトを同じ場所へ展開します。この場合は旧Action IDとキー割当を維持でき、設定の移行作業も不要です。現在の開発フォルダーをそのまま使う場合も同じです。
-
-### 旧ReaPackパッケージから切替
-
-旧Audition MacroとSoundPrepは、同じ `UserPlugins/reaper_audition_macro.dll`（macOSでは `.dylib`）を所有するため、両パッケージを共存導入できません。SoundPrepは `Scripts/SoundPrep/` 以下の別パッケージで、設定は自動移行しません。
-
-1. 旧Audition MacroをQuitし、bank・FXチェーンなどを含む旧 `data/` 全体をバックアップします。必要なキー割当も記録してください。
-2. ReaPackの `Browse packages…` で旧Audition Macroパッケージを選び、`Uninstall` をApplyします。作業を保存してREAPERを再起動し、旧パッケージの削除が完了したことを確認します。
-3. このページのSoundPrep用ReaPack URLを登録し、新パッケージを導入します。新しいhelperを読み込むため、作業を保存してREAPERを再起動します。
-4. SoundPrepを起動する前に、バックアップした `data/` 全体を、新しい `SoundPrep.lua` と同じ階層の `data/` へ引き継ぎます。
-5. `SoundPrep.lua` を実行します。専用キーを使う場合は「追加Actions」の手順で登録し、必要なキーを手動で割り当てます。
-
-旧パッケージのアンインストールでは旧Actionsの登録も解除されます。この切替では、同じフォルダーの旧名互換スクリプトによるAction ID・キー割当の維持は適用されません。
-
-設定を引き継いでからSoundPrepを起動してください。新旧を同時に起動せず、切り替えるときは実行中の方をQuitします。
-
-## 最初の確認
-
-Ambisonicsは1〜10次AmbiX（ACN/SN3D、4〜121ch）を入力として扱い、W/Yのみで簡易ステレオ試聴します。高次成分の空間デコードは行いません。
-
-短い音声ファイルでPlay／StopとMacro切替を確認します。Normalizeを使う場合は、解析中にD&Dしても一時ミュートで配置され、完了後に補正が適用されることを確認します。3ch以上ではDownmixを選べます。OFFは元ch数とch間の比率を保持し、Macro FXをバイパスします。ONはステレオへまとめ、Macro FXを適用します。
-
-Masterが2chのプロジェクトで3ch目以降も聴きたい場合は、DownmixをONにするか、プロジェクトの出力ルーティングを設定してください。SoundPrepはMaster設定を変更しません。
-
-helperや依存APIが見つからない場合はMain Actionの `SoundPrep - Diagnostics.lua` で状態を確認できます。旧helperの更新後も案内が出る場合は、REAPERを再起動したことと、使用中のResource Pathを確認してください。
-
-多chのSource + FXを別の環境で開く場合は、使用したMacro FXに加えて `Effects/AuditionMacro/channels_v1` が必要です。この専用JSFXは最初の多ch D&Dで配置します。
-
-本プロジェクトの独自部分のライセンスは[MIT](../LICENSE)です。MoSQITo由来のコードにはApache-2.0など、それぞれの第三者ライセンスが適用されます。第三者コードの出典とライセンスは[第三者ライセンスと出典](../THIRD_PARTY_NOTICES.md)に記載しています。
-
-公開済みのLua・Nativeソースは維持し、v0.11.0で追加した解析エンジンは既存helperのDLL／dylibに同梱して配布します。独自部分のMITは変更しません。ソースの公開範囲は[配布方針](source-distribution.md)を参照してください。
+[READMEに戻る](../README.md) · [MIT Licenseの案内](license.md) · [第三者ライセンスと出典](../THIRD_PARTY_NOTICES.md)

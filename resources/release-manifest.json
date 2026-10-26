@@ -10,6 +10,7 @@
   ],
   "media_explorer_actions": [],
   "support_files": [
+    "docs/releases/0.11.8.md",
     "docs/releases/0.11.7.md",
     "SoundPrep - Install actions.lua",
     "SoundPrep - Diagnostics.lua",
@@ -88,6 +89,7 @@
     "native/vendor/mosqito.LICENSE.md",
     "native/vendor/ebur128.LICENSE.MIT",
     "docs/install.md",
+    "docs/license.md",
     "docs/loudness-defaults.md",
     "docs/loudness-defaults-2026-10-22.json",
     "docs/source-distribution.md",

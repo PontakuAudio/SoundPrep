@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Package the Windows runtime allowlist and validated native helper as a ZIP.
+"""Legacy local ZIP utility, retained for development and regression checks.
 
-This CI artifact has the same manual-install layout as a release ZIP. Native
+Release workflows and CI no longer publish this manual-install archive. Native
 sources, development tools/tests, the worker helper, and debug symbols are not
 included. Inputs are checked before creating a temporary archive; an existing
 output is replaced only after the new archive has been written successfully.

@@ -7,7 +7,6 @@ import tempfile
 import unittest
 from urllib.parse import unquote, urlsplit
 import xml.etree.ElementTree as ET
-import zipfile
 
 ROOT = Path(__file__).parents[1]
 spec = importlib.util.spec_from_file_location("package_release", ROOT / "tools/package_release.py")
@@ -110,31 +109,30 @@ class PackageReleaseTests(unittest.TestCase):
         self.assertEqual(len([source for source in sources if source.get("main") == "main"]), 3)
         self.assertFalse(any(source.get("main") == "mediaexplorer" for source in sources))
 
-    def test_manual_zips_preserve_runtime_layout_and_exclude_user_or_host_data(self):
+    def test_reapack_assets_preserve_runtime_layout_and_exclude_user_or_host_data(self):
         for name in ("data/bank.json", "data/inserted-media/private.wav", "build/host/reaper-license.rk",
                      "tests/artifacts/capture.png", "docs/private-report.json", "worker/prepare.py", "worker/analyze.py"):
             self.write(name, b"private fixture must not ship")
-        output, _ = self.package()
+        output, report = self.package()
         expected = set(self.manifest["main_actions"] + self.manifest["media_explorer_actions"]
                        + self.manifest["support_files"] + ["LICENSE"])
-        for platform in ("macos", "windows"):
-            archive_path = output / f"soundprep-0.10.25-{packager.ZIP_LABELS[platform]}.zip"
-            with zipfile.ZipFile(archive_path) as archive:
-                names = {name.removeprefix("SoundPrep/") for name in archive.namelist()}
-                self.assertEqual(names, expected | {"build/" + packager.NATIVE_NAMES[platform]})
-                self.assertIn("resources/audition_macro_channels_v1.jsfx", names)
-                self.assertIn("THIRD_PARTY_NOTICES.md", names)
-                self.assertIn("native/vendor/json.LICENSE.MIT", names)
-                self.assertIn("native/vendor/json.THIRD_PARTY_NOTICES.md", names)
-                self.assertIn("native/vendor/abseil.LICENSE", names)
-                self.assertIn("native/vendor/mosqito.LICENSE.md", names)
-                self.assertIn("native/vendor/ebur128.LICENSE.MIT", names)
-                self.assertNotIn("worker/analyze.py", names)
-                self.assertEqual(archive.read("SoundPrep/lib/am/app.lua"), (self.root / "lib/am/app.lua").read_bytes())
-                self.assertEqual(archive.read("SoundPrep/README.md"), (self.root / "docs/release-readme.md").read_bytes())
+        self.assertEqual({entry["path"] for entry in report["files"]}, expected)
+        for entry in report["files"]:
+            source = self.manifest.get("aliases", {}).get(entry["path"], entry["path"])
+            self.assertEqual((output / entry["asset"]).read_bytes(), (self.root / source).read_bytes())
+        for platform, helper in (("macos", self.mac), ("windows", self.win)):
+            self.assertEqual((output / packager.NATIVE_NAMES[platform]).read_bytes(), helper.read_bytes())
         for path in output.iterdir():
-            if path.suffix != ".zip":
-                self.assertNotIn(b"private fixture must not ship", path.read_bytes())
+            self.assertNotIn(b"private fixture must not ship", path.read_bytes())
+
+    def test_releases_contain_only_reapack_assets_and_metadata_without_zips(self):
+        for platform in ("all", "macos", "windows"):
+            with self.subTest(platform=platform):
+                output, report = self.package(platform=platform)
+                expected = {entry["asset"] for entry in report["files"] + report["native_helpers"]}
+                expected.update({"index.xml", "release.json", "SHA256SUMS"})
+                self.assertEqual({path.name for path in output.iterdir()}, expected)
+                self.assertFalse(list(output.glob("*.zip")))
 
     def test_checksums_cover_every_other_output_and_are_deterministic(self):
         first, _ = self.package()

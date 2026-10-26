@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Create allowlisted runtime ZIPs and a ReaPack index from local release inputs.
+"""Create allowlisted ReaPack assets and an index from local release inputs.
 
 All output files are flat GitHub Release assets. ReaPack downloads each file
-individually; it does not unpack our manual-install ZIPs. No network, git writes,
+individually. No manual-install ZIP is generated. No network, git writes,
 installation, upload, or publication occurs here.
 
 ReaPack's Source::targetPath puts script sources in
@@ -27,7 +27,6 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORMS = {"macos": ("darwin64", "darwin-arm64"), "windows": ("win64",)}
 NATIVE_NAMES = {"macos": "reaper_audition_macro.dylib", "windows": "reaper_audition_macro.dll"}
-ZIP_LABELS = {"macos": "macos-universal", "windows": "windows-x64"}
 EXCLUDED_PARTS = {"data", "build", "tests", ".git", ".codex", ".agents", "__pycache__"}
 
 
@@ -261,6 +260,7 @@ def build_index(previous, index_name, category_name, manifest, version, sources,
 
 
 def write_zip(path, entries):
+    # Kept for the legacy local package_windows utility; releases do not call it.
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, data in sorted(entries.items()):
             info = zipfile.ZipInfo("SoundPrep/" + name, date_time=(1980, 1, 1, 0, 0, 0))
@@ -331,10 +331,6 @@ def package_release(*, root, output, repository=None, base=None, version=None, t
         for filename, data in assets.items():
             (staging / filename).write_bytes(data)
         (staging / "index.xml").write_bytes(index)
-        for name in selected:
-            contents = {entry["path"]: entry["data"] for entry in runtime}
-            contents["build/" + NATIVE_NAMES[name]] = helpers[name]
-            write_zip(staging / f"soundprep-{version}-{ZIP_LABELS[name]}.zip", contents)
         (staging / "release.json").write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
         sums = "".join(f"{digest(path.read_bytes())}  {path.name}\n" for path in sorted(staging.iterdir()))
         (staging / "SHA256SUMS").write_text(sums, encoding="utf-8")

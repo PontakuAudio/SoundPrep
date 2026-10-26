@@ -8,15 +8,11 @@ Windows CIにはMSVCビルドと自動試験がある。2026-09-30にWindows実R
 
 ## 導入
 
-ReaPackのImport URLと導入手順は[導入ガイド](install.md)を参照。ReaPack版ではNative helperも導入されるため、インストール後にREAPERを再起動する。以下はZIPを使う場合の手順。
+[導入ガイド](install.md)に従って、SWS・JS_ReaScriptAPI・ReaPackを準備し、ReaPackからSoundPrepをインストールする。Native helperも一緒に導入されるため、作業を保存してREAPERを再起動する。
 
-1. [Releaseページ](https://github.com/PontakuAudio/SoundPrep/releases)から `soundprep-0.11.7-windows-x64.zip` を選ぶ。
-2. ZIPの `SoundPrep` フォルダーを書込み可能な固定の場所に展開する。例: `Documents/SoundPrep`。`Program Files` 配下は避ける。スクリプトと `lib` / `resources` / `build` / `native/vendor` の配置を維持する。
-3. REAPER **x64** にSWS、JS_ReaScriptAPIのWindows x64版を導入する。REAPER 7.35以降が必要。
-4. REAPERのMain Action List → New action → Load ReaScriptから `SoundPrep.lua` だけを読み込んで実行する。初回は `build/reaper_audition_macro.dll` をResource Pathの `UserPlugins` に配置する。案内に従い作業を保存してREAPERを再起動する。v0.11.6以前のZIPでは、この初回セットアップに `SoundPrep - Install actions.lua` を使う。
-5. Mainの `SoundPrep.lua` を実行する。キー操作・診断用Actionsが必要な場合だけ、[追加Actionsの手順](install.md#追加actions任意)で登録する。既存のキー割当は自動で変更しない。
+Main Action Listの **`SoundPrep.lua`** を実行すると起動する。キー操作・診断用Actionsが必要な場合だけ、[追加Actionsの手順](install.md#追加actions任意)で登録する。既存のキー割当は自動で変更しない。
 
-Normalizeは追加の実行環境なしで利用できる。Editの `Loudness meter` で既定のLUFS MaxMまたはZwickerを選ぶ。ZwickerはMaxが既定、P95も選択可能。目標sones・校正値・原音Peak guardの設定は[導入ガイド](install.md#normalizeの設定)を参照。
+Normalizeは追加の実行環境なしで利用できる。Editの `Loudness meter` で既定のLUFS MaxMまたはZwickerを選ぶ。ZwickerはMaxが既定、P95も選択可能。目標sones・校正値・原音Peak guardも同じNormalizeタブで設定する。
 
 v0.10.7以降のWindows D&Dは同じREAPER内で直接レンダーする。別REAPER・レンダーworker・Pythonは不要。v0.11.0ではラウドネス解析にもPython / FFmpegは不要。現在の自動焼き込みONでは、キャッシュ済みなら再生を続けて配置し、未キャッシュならタイムラインを停止してD&D内でRenderedまで作成する。完了後は停止状態を維持する。録音中はSource + FXで挿入し、停止後にRenderedを追加する。このD&D変更はLua更新とcompanion再起動で反映される。
 
@@ -26,17 +22,9 @@ v0.10.8ではD&D完了でMEPの試聴を停止し、波形の範囲選択・変�
 
 ## 更新とPortable版
 
-ReaPack版はReaPackから更新する。Native helperを更新した場合はREAPERを再起動する。ZIP版では既存の `data` を保存したまま新しいパッケージのファイルを展開する。すべてのREAPERを終了し、パッケージのフォルダーでPowerShellから実行する。
+SoundPrepをQuitし、ReaPackの `Synchronize packages` から更新する。Native helperを更新した場合は、作業を保存してREAPERを再起動する。再起動後はMain Action Listから `SoundPrep.lua` を実行する。設定を保存した `data/` フォルダーは保持する。
 
-```powershell
-./tools/install_native.ps1
-# Portable版など、標準の %APPDATA%/REAPER と異なる場合:
-./tools/install_native.ps1 -ResourcePath 'D:\REAPER portable'
-```
-
-Resource PathはREAPERのOptions → Show REAPER resource path in explorer/finderで確認できる。更新ツールは起動中のREAPERがあると停止し、x64 DLLを確認してから置換する。以前のDLLを `.backup` に保持する。再起動後は `SoundPrep.lua` を実行する。追加Actionsの登録は任意。
-
-PowerShellの実行ポリシーでスクリプトを実行できない場合は、REAPER終了中に `build/reaper_audition_macro.dll` をResource Pathの `UserPlugins` へ手動コピーしてもよい。システムの実行ポリシーを変える必要はない。旧先読みworker用DLLは現在の実行に不要で、公開用ZIPに含めない。
+Portable版でも同じReaPackの手順を使える。拡張が見つからない場合は、起動しているREAPERの `Options → Show REAPER resource path in explorer/finder` でResource Pathを確認する。SWS・ReaPack・JS_ReaScriptAPIは、そのREAPERに導入する必要がある。
 
 ## Windows実機での確認
 
@@ -77,7 +65,7 @@ v0.10.4は `Waveform seek` にクリック通知数・キュー経由のrelease�
 
 「白い線はクリック位置に出るが、緑の線と加工音は以前の位置を進む」という報告への修正。従来は波形WndProcに `WM_LBUTTONUP` が届くことを前提としていた。Windowsの標準側が内部のマウス処理ループでreleaseを消費する場合に備え、当該処理中だけREAPER UIスレッドのキューを観察し、標準側が位置を確定した後でシークする。範囲ドラッグ、修飾キー付き操作、Escapeやcapture喪失によるキャンセルではシークしない。緑線と早送りの座標計算は、スクロール座標単位と実際の波形幅を分ける。
 
-**git pullだけではDLLは更新されない。** REAPER終了後、更新ZIPの `build` 内のDLLをpullしたリポジトリの `build` へコピーして `./tools/install_native.ps1` を実行し、REAPERを再起動する。スクリプトとDLLの両方を揃える。Windows実REAPERでのユーザー環境の再確認は必要。
+**git pullだけでは読み込み中のDLLは更新されない。** 通常利用ではReaPackから対応するスクリプトとDLLを更新し、REAPERを再起動する。Windows実REAPERでのユーザー環境の再確認は必要。
 
 ### FXプレビューのタイミング修正（v0.10.3）
 
@@ -91,7 +79,7 @@ FXが内部で必要とするlookaheadやデバイスバッファはこの修正
 
 ## ソースからビルド
 
-v0.11.0の公開リポジトリには既存Nativeコードを残しますが、新しい解析エンジンの実装はDLL内のバイナリとして配布します。公開ソースのみで完全なhelperをビルドすることはできません。通常はRelease ZIP／ReaPackを使用し、公開用の検証済みDLLは `prebuilt/` にも置きます。[配布方針](source-distribution.md)を参照してください。以下のフルビルド手順は、解析実装を含む開発環境向けです。
+v0.11.0の公開リポジトリには既存Nativeコードを残しますが、新しい解析エンジンの実装はDLL内のバイナリとして配布します。公開ソースのみで完全なhelperをビルドすることはできません。通常はReaPackを使用し、公開用の検証済みDLLは `prebuilt/` にも置きます。[配布方針](source-distribution.md)を参照してください。以下のフルビルド手順は、解析実装を含む開発環境向けです。
 
 Windows実ホスト回帰は、ビルド後に `python tools/run_windows_integration.py` で実行する。開発用のSWS / JS_ReaScriptAPI / Pythonと、比較試験用のFFmpegを導入する。これらの検証用Python／FFmpegは通常利用の必要条件ではない。通常の設定を変更せず、`build/windows-review-*/host` に専用Resource Pathと合成WAVを作る。検索UIの目視には `--inspect-seconds 60`、実D&Dの検証には `--drag-test` を追加できる。専用起動DLL `reaper_am_test_host.dll` はテスト用で、通常のUserPluginsへは入れない。
 
@@ -103,6 +91,6 @@ Visual Studio 2022 C++ Build Tools、Windows SDK、CMakeを導入する。PowerS
 ./native/build-windows.ps1 -LuaTests
 ```
 
-MSVC x64のDLLが `build` に作られる。REAPERの[公開C++ SDK](https://github.com/justinfrankel/reaper-sdk/blob/main/sdk/reaper_plugin.h)のABIに合わせ、MinGW DLL、x86、ARM64は対象にしない。公開用ZIPには実行用スクリプトとビルド済みDLL・ライセンス通知を同梱し、個人の設定・FX・解析キャッシュ・REAPERのライセンスファイルは含めない。
+MSVC x64のDLLが `build` に作られる。REAPERの[公開C++ SDK](https://github.com/justinfrankel/reaper-sdk/blob/main/sdk/reaper_plugin.h)のABIに合わせ、MinGW DLL、x86、ARM64は対象にしない。ReaPackパッケージには実行用スクリプトとビルド済みDLL・ライセンス通知を含め、個人の設定・FX・解析キャッシュ・REAPERのライセンスファイルは含めない。
 
 Preset／ToolsもWin32の常設パネルを使います。詳細は[ネイティブ編集パネル](preset-tools.md)を参照してください。

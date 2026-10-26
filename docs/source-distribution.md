@@ -8,9 +8,9 @@ SoundPrepの公開先は[PontakuAudio/SoundPrep](https://github.com/PontakuAudio
 
 ## 利用者向けの配布物
 
-通常の導入にはReaPackまたはOS別のRelease ZIPを使います。これらにはLua、必要なリソース、ライセンスとビルド済みhelperを含めます。解析ソース、開発用試験、PDBなどのデバッグ情報は含めません。公開リポジトリの自動生成「Source code」アーカイブは通常のインストーラーではありません。
+通常の導入にはReaPackを使います。パッケージにはLua、必要なリソース、ライセンスとビルド済みhelperを含めます。解析ソース、開発用試験、PDBなどのデバッグ情報は含めません。今後のリリースでは手動インストール用のOS別ZIPを生成しません。公開済みのZIPは履歴として残します。GitHubが自動生成する「Source code」アーカイブは通常のインストーラーではありません。
 
-公開リポジトリの `prebuilt/` には、公開用に選んだ両OSのhelperと `manifest.json` を置きます。manifestはパッケージ版、helper版、ファイル名、サイズ、SHA-256を記録します。公開CIは版・機能revision・形式・ハッシュと公開Luaの試験を確認し、このバイナリからZIPとReaPack indexを作ります。SHA-256は内容の一致を確認するもので、安全性の保証や独立監査の証明ではありません。
+公開リポジトリの `prebuilt/` には、公開用に選んだ両OSのhelperと `manifest.json` を置きます。manifestはパッケージ版、helper版、ファイル名、サイズ、SHA-256を記録します。公開CIは版・機能revision・形式・ハッシュと公開Luaの試験を確認し、このバイナリと実行用ファイルを個別のRelease assetsとして用意し、ReaPack indexを作ります。SHA-256は内容の一致を確認するもので、安全性の保証や独立監査の証明ではありません。
 
 ## 公開ソースからの検証
 

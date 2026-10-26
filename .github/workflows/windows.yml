@@ -38,7 +38,7 @@ jobs:
           tar -xzf build/lua-5.4.8.tar.gz -C build
           make -C build/lua-5.4.8 linux
           build/lua-5.4.8/src/lua tests/run.lua
-      - name: Smoke-test both runtime packages and ReaPack index
+      - name: Smoke-test ReaPack assets and index for both platforms
         env:
           DOWNLOAD_REPOSITORY: ${{ github.repository }}
         run: |

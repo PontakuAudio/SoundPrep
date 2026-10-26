@@ -71,6 +71,7 @@
     "actions/SoundPrep - Slot 9.lua",
     "actions/SoundPrep - Stop.lua",
     "docs/install.md",
+    "docs/license.md",
     "docs/loudness-defaults.md",
     "docs/loudness-defaults-2026-10-22.json",
     "docs/media-explorer-workflow.md",
@@ -319,6 +320,7 @@
     "docs/releases/0.11.6.md",
     "lib/am/setup.lua",
     "tests/setup.lua",
-    "docs/releases/0.11.7.md"
+    "docs/releases/0.11.7.md",
+    "docs/releases/0.11.8.md"
   ]
 }

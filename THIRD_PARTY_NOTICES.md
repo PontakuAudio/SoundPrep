@@ -1,68 +1,68 @@
-# Third-party notices
+# 第三者ライセンスと出典
 
-SoundPrepの独自部分には[MIT License](LICENSE)を適用します。以下の第三者コードにはそれぞれのライセンスが適用されます。この文書と同梱のライセンス通知は、バイナリ配布にも含めます。
+SoundPrepは、以下の第三者コードを使用しています。SoundPrep独自部分の[MIT License](LICENSE)とは別に、それぞれのコードに元のライセンスが適用されます。この文書とリンク先のライセンスファイルは、ソースとReaPack配布物の両方に含めています。
 
-v0.11.0の新しい解析実装はビルド済みhelper内で配布し、そのソースは非公開とします。既存の公開ソースとMITは維持します。以下の解析用ソースパスは開発環境での対応箇所を示し、公開チェックアウトにファイルがあることを意味しません。第三者コードのライセンス・改変表示はこの配布方針でも保持します。[配布方針](docs/source-distribution.md)を参照してください。
+## 一覧
+
+| コード・ライブラリー | 使用箇所 | ライセンス・通知全文 |
+|---|---|---|
+| nlohmann/json 3.12.0 | Native helperのJSON処理 | [MIT](native/vendor/json.LICENSE.MIT) |
+| nlohmann/json内のUTF-8 decoder・Grisu2・Hedley | 同ヘッダーに含まれるコード | [追加の著作権表示・MIT通知](native/vendor/json.THIRD_PARTY_NOTICES.md) |
+| nlohmann/json内のAbseil由来コード | 同ヘッダーのC++11互換処理 | [Apache-2.0](native/vendor/abseil.LICENSE)・[追加通知](native/vendor/json.THIRD_PARTY_NOTICES.md) |
+| MoSQITo 1.2.1由来の改変コード | 時間変動Zwickerラウドネス解析 | [Apache-2.0](native/vendor/mosqito.LICENSE.md) |
+| libebur128 1.2.6由来の改変コード | K-weighting・True Peak補間 | [MIT](native/vendor/ebur128.LICENSE.MIT) |
+| Cockos REAPER Plug-in APIの抜粋 | REAPERとの音声処理の接続 | [このページに掲載したCockosの通知](#cockos-reaper-plug-in-api) |
+
+第三者コードを含むものを再配布する際は、対応する著作権表示とライセンス通知を保持し、各ライセンスの条件に従ってください。以下に出典と改変内容を記載します。
 
 ## nlohmann/json
 
-macOS／WindowsのNative helperは解析要求・結果などにnlohmann/json v3.12.0を使用します。ソースの `native/vendor/json.hpp` は変更していないsingle-header版です。
-
 - 出典: [nlohmann/json v3.12.0](https://github.com/nlohmann/json/releases/tag/v3.12.0)
-- 同梱ライセンス: [native/vendor/json.LICENSE.MIT](native/vendor/json.LICENSE.MIT)
-- 同ヘッダー内のUTF-8 decoder、Grisu2、Hedley、Abseil由来コードの追加通知: [native/vendor/json.THIRD_PARTY_NOTICES.md](native/vendor/json.THIRD_PARTY_NOTICES.md)。追加作者のMIT通知と[AbseilのApache-2.0本文](native/vendor/abseil.LICENSE)をソース・バイナリの両配布へ含めます。
+- 著作権表示: Copyright (c) 2013-2025 Niels Lohmann
+- ライセンス: [MIT全文](native/vendor/json.LICENSE.MIT)
 
-```text
-MIT License
+macOS／WindowsのNative helperで、解析要求や結果などのJSONを扱うために使用しています。公開ソースの `native/vendor/json.hpp` は、上流のsingle-header版を変更せずに収録したものです。
 
-Copyright (c) 2013-2025 Niels Lohmann
+同ヘッダーには以下の作者によるコード・通知も含まれます。
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+| コード | 著作権表示 |
+|---|---|
+| UTF-8 decoder | Copyright (c) 2008-2009 Björn Hoehrmann |
+| Grisu2 | Copyright (c) 2009 Florian Loitsch |
+| Hedley | Copyright (c) 2016-2021 Evan Nemerson |
+| Abseil由来コード | Copyright 2017 The Abseil Authors、およびSPDXの2018年表記 |
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+原文の著作権表示とMIT通知は[追加通知](native/vendor/json.THIRD_PARTY_NOTICES.md)に保持しています。Hedleyの単体配布はCC0ですが、このヘッダー内のコピーに記載されたMIT通知を保持します。Abseil由来部分には[Apache-2.0全文](native/vendor/abseil.LICENSE)を同梱しています。SoundPrepのビルドはC++17ですが、配布するヘッダーにC++11用の処理も含まれるため、その通知も残しています。
 
 ## MoSQITo / time-varying Zwicker loudness
 
-`native/zwicker.cpp`、`native/zwicker.h` の時間変動Zwickerカーネルは、MoSQITo 1.2.1由来の最適化Python実装をC++へ移植した改変版です。元のMoSQIToをそのまま組み込んだものではありません。
-
+- 出典: [MoSQITo](https://github.com/Eomys/MoSQITo)、[参照した配布パッケージ1.2.1](https://pypi.org/project/mosqito/1.2.1/)
 - 提供元: MoSQITo Developers
-- 出典: [MoSQITo](https://github.com/Eomys/MoSQITo)、[固定した参照パッケージ1.2.1](https://pypi.org/project/mosqito/1.2.1/)
-- ライセンス: Apache License 2.0。参照に使用した1.2.1配布パッケージの `LICENSE` を変更せず、[native/vendor/mosqito.LICENSE.md](native/vendor/mosqito.LICENSE.md) に収録しています。
-- 上流の帰属情報: `_main_loudness.py` はE. Zwicker / H. FastlのBASICプログラム（J.A.S.J. (E), 12(1), 1991）を基にすると記載し、ISO 532-1:2017の対応処理を挙げています。`_third_octave_levels.py` の係数は同規格Table A.1 / A.2への参照を保持します。MoSQITo 1.2.1のwheelには独立したNOTICEファイルはありません。
-- 対応する処理: 1/3 octave filters、main loudness、nonlinear decay、critical-band slopes、temporal weighting。
-- Audition Macroでの変更: 最適化済みPythonカーネルのC++ double精度への移植、帯域powerの再利用、ゲイン候補の反復評価、固定長の作業領域、キャンセル対応、時間系列のMax／P95集計。呼出し側で校正、400 msの応答用末尾、ch合成、メモリー上限を加えています。
+- ライセンス: [Apache License 2.0全文](native/vendor/mosqito.LICENSE.md)。参照パッケージの `LICENSE` を変更せずに収録しています。
 
-元の最適化実装は提供されたZwickerプロジェクトの `analyzer/fast_loudness.py`（SHA-256 `d8d524fb825f1eaa495dfb91cb8100427fd0467d9e983586b7cda4c4c8ddeebb`）です。最適化変更部分はメンテナーが作成したものです。参照ライブラリーやPython実行環境は通常利用の配布物には含めません。移植した派生部分にはApache-2.0が適用され、本プロジェクト独自部分のMIT表記で置き換えません。
+Native helperの時間変動Zwickerカーネルは、MoSQITo 1.2.1由来の最適化Python実装をC++へ移植した改変版です。ライブラリー全体をそのまま組み込んだものではありません。対象となる処理は、1/3 octave filters、main loudness、nonlinear decay、critical-band slopes、temporal weightingです。
+
+上流の `_main_loudness.py` は、E. Zwicker / H. FastlによるBASICプログラム（J.A.S.J. (E), 12(1), 1991）を基にすると記載し、ISO 532-1:2017の対応処理を挙げています。`_third_octave_levels.py` の係数には同規格のTable A.1 / A.2への参照があります。MoSQITo 1.2.1のwheelには独立したNOTICEファイルはありません。
+
+**SoundPrepでの改変:** C++のdouble精度への移植、帯域powerの再利用、ゲイン候補の反復評価、固定長の作業領域、キャンセル対応、時間系列のMax／P95集計を行っています。呼出し側では校正、400 msの応答用末尾、チャンネル合成、メモリー上限を加えています。対応する開発ソースは `native/zwicker.cpp` と `native/zwicker.h` です。
+
+移植元の最適化参照実装は `analyzer/fast_loudness.py`（SHA-256: `d8d524fb825f1eaa495dfb91cb8100427fd0467d9e983586b7cda4c4c8ddeebb`）です。最適化変更部分は本プロジェクトのメンテナーが作成しました。派生部分にはApache-2.0を適用し、SoundPrepのMIT Licenseで置き換えません。
 
 ## libebur128
 
-`native/lufs_meter.cpp`、`native/lufs_meter.h` のK-weightingとTrue Peak補間は、libebur128 v1.2.6を参照・改変したC++実装です。
-
 - 出典: [libebur128 v1.2.6](https://github.com/jiixyj/libebur128/tree/v1.2.6)
-- Copyright (c) 2011 Jan Kokemüller
-- ライセンス: MIT。上流のv1.2.6 `COPYING` を変更せず、[native/vendor/ebur128.LICENSE.MIT](native/vendor/ebur128.LICENSE.MIT) に収録しています。
-- Audition Macroでの変更: 400 ms／100 msのMax Momentary専用ストリーミング処理、dual-monoと独立ch方針、C++の状態管理、異常値検査、source-rate別のTrue Peak補間。libebur128のライブラリー全体・公開APIを同梱するものではありません。True Peak推定は旧FFmpeg解析の数値と完全一致することを保証しません。
+- 著作権表示: Copyright (c) 2011 Jan Kokemüller
+- ライセンス: [MIT全文](native/vendor/ebur128.LICENSE.MIT)。上流の `COPYING` を変更せずに収録しています。
+
+Native helperのK-weightingとTrue Peak補間に、libebur128 v1.2.6を参照・改変したC++実装を使用しています。
+
+**SoundPrepでの改変:** 400 ms窓／100 ms間隔のMax Momentary専用ストリーミング処理、dual-monoと独立チャンネルの扱い、C++の状態管理、異常値検査、ソースのサンプルレート別のTrue Peak補間を実装しています。対応する開発ソースは `native/lufs_meter.cpp` と `native/lufs_meter.h` です。ライブラリー全体や公開APIを同梱するものではなく、旧FFmpeg解析との数値の完全一致も保証しません。
 
 ## Cockos REAPER Plug-in API
 
-`native/reaper_audio_abi.h` はCockosの `reaper_plugin.h` から音声ABI部分を抜粋した改変版です。macOS / Windows x64用の宣言を含み、元のSDK全体ではありません。ソース内に改変表示、出典、次の通知を保持しています。
-
 出典: [Cockos REAPER SDK — reaper_plugin.h](https://github.com/justinfrankel/reaper-sdk/blob/main/sdk/reaper_plugin.h)
+
+公開ソースの `native/reaper_audio_abi.h` は、`reaper_plugin.h` から音声ABI部分を抜粋した改変版です。macOS／Windows x64用の宣言を含みます。元のSDK全体ではありません。ソース内にも改変表示、出典、以下の通知を保持しています。
 
 ```text
 REAPER Plug-in API
@@ -88,10 +88,21 @@ Copyright (C) 2006-2015, Cockos Incorporated
 Notes: the C++ interfaces used require MSVC on win32, or at least the MSVC-compatible C++ ABI. Sorry, mingw users :(
 ```
 
-## REAPER付属JSFXと実行時の依存
+## REAPER付属JSFXと別途導入するソフトウェア
 
-既定のFX chainとモノ／ステレオ用の出力ゲインは、利用者のREAPER環境にある `filters/resonantlowpass`、`loser/TransientController`、`loser/Saturation`、`utility/volume_pan` を参照します。これらのJSFXの実装コードはAudition Macroの配布物に含めません。それぞれの提供元のライセンスが適用されます。
+既定のFX chainとモノ／ステレオ用の出力ゲインは、利用者のREAPER環境にある以下のJSFXを参照します。これらの実装コードはSoundPrepに同梱せず、それぞれの提供元のライセンスが適用されます。
 
-`resources/audition_macro_channels_v1.jsfx` はAudition Macroのチャンネル変換・出力ゲイン用コードです。本プロジェクトのライセンス対象に含まれます。
+- `filters/resonantlowpass`
+- `loser/TransientController`
+- `loser/Saturation`
+- `utility/volume_pan`
 
-REAPER、SWS、JS_ReaScriptAPI、ReaPackは利用者が別途導入するソフトウェアです。v0.11.0の通常利用にPython、FFmpeg / ffprobe、MoSQIToのインストールは不要です。これらは任意の開発用比較試験で使用する場合があります。Audition MacroのMIT Licenseは、これらのソフトウェアのライセンスを置き換えません。
+同梱する `resources/audition_macro_channels_v1.jsfx`、`resources/audition_macro_channels_v2.jsfx`、`resources/audition_macro_channels_v3.jsfx` はSoundPrep独自のチャンネル変換・出力ゲイン用コードで、本プロジェクトのMIT Licenseの対象です。
+
+REAPER、SWS、JS_ReaScriptAPI、ReaPackは、利用者が別途導入するソフトウェアです。各提供元の利用条件に従ってください。Python、FFmpeg／ffprobe、MoSQIToのインストールは通常利用には不要で、任意の開発用比較試験で使用する場合があります。SoundPrepのMIT Licenseは、これらのソフトウェアのライセンスを置き換えません。
+
+## ソースと通知の収録範囲
+
+解析エンジンはビルド済みNative helper内で配布しています。この文書に示す解析用ソースパスは開発環境での対応箇所であり、公開リポジトリにその実装が含まれることを意味しません。第三者コードのライセンス・改変表示は、バイナリ配布でも保持しています。詳しくは[ソースとバイナリの配布方針](docs/source-distribution.md)を参照してください。
+
+[READMEに戻る](README.md) · [SoundPrepのMIT Licenseの案内](docs/license.md)

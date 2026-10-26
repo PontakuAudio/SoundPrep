@@ -1,8 +1,8 @@
 # SoundPrep
 
-REAPER Media Explorer用の試聴・音量調整ツール。Windows / macOSに対応しています。
+REAPER Media Explorer用のサウンドデザイン向け拡張スクリプトです。Windows / macOSに対応しています。
 
-**起動するのは `SoundPrep.lua` だけです。** 起動後はMedia Explorerに表示される操作バーを使います。
+**使用時に `SoundPrep.lua` をRunしてください。** 起動後はMedia Explorerに表示される操作バーを使います。
 
 ## ReaPackから導入
 
@@ -17,10 +17,8 @@ REAPER Media Explorer用の試聴・音量調整ツール。Windows / macOSに�
 2. `Browse packages…` で **SoundPrep** を検索してInstallします。
 3. REAPERを再起動し、Main Action Listから `SoundPrep.lua` を実行します。
 
-Native helperは同梱済みです。Python / FFmpegは不要です。同じSoundPrepパッケージの更新はReaPackから行います。旧Audition Macroパッケージから切り替える場合は、[設定の引継ぎ手順](docs/install.md#旧audition-macroからの切替)を参照してください。
-
-ZIP版も、Main Action Listの `New action → Load ReaScript…` から `SoundPrep.lua` を読み込んで実行します。初回に再起動の案内が出たら、作業を保存してREAPERを再起動し、同じ `SoundPrep.lua` を実行してください。
+Native helperが同時にインストールされます。同じSoundPrepパッケージの更新はReaPackから行います。
 
 新規導入時に自動登録するActionは起動用の1個です。キー操作・診断用Actionsが必要な場合だけ、同梱の `SoundPrep - Install actions.lua` を読み込んで実行します。通常の起動には不要です。既存のAction登録・キー割当は自動削除しません。
 
-[ZIP配布](https://github.com/PontakuAudio/SoundPrep/releases/latest) · [詳しい導入手順](docs/install.md) · [MIT License](LICENSE) · [第三者ライセンス](THIRD_PARTY_NOTICES.md)
+[詳しい導入手順](docs/install.md) · [MIT License](docs/license.md) · [第三者ライセンス](THIRD_PARTY_NOTICES.md)
