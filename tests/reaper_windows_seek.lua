@@ -8,6 +8,7 @@ local app,done;local phase=0;local began=r.time_precise();local untilTime
 local path=host.."/media 素材/test one's 音.wav"
 local result={status='RUNNING',checks=J.array{},clicks=J.array{},version=r.GetAppVersion()}
 local starts,loads,sequence,expected,handle
+local wave_before
 local function check(name)
   result.checks[#result.checks+1]=name;assert(U.write(host..'/windows-review-progress.json',J.encode(result)))
 end
@@ -55,6 +56,7 @@ local initialized,why=xpcall(function()
   local ancestor=r.OpenMediaExplorer(path,false)
   for _=1,8 do if not ancestor then break end;r.JS_Window_Show(ancestor,'SHOW');ancestor=r.JS_Window_GetParent(ancestor)end
   app=App.new(r,root,host..'/seek-data');app.definition.settings.autoplay=false;app.definition.settings.loop=false
+  app.definition.settings.channel_selections['1']={channels={1}}
   app.explorer:toggle(1068,false);app.explorer:toggle(42004,false);app.explorer:command(42093)
 end,debug.traceback)
 if not initialized then finish(false,why);return end
@@ -65,7 +67,22 @@ local function tick()
     app:tick()
     if phase==0 then
       if r.time_precise()-began<.6 or not U.path_equal(app.path,path)then return end
-      app:play();near_end();phase=1
+      app:play();untilTime=r.time_precise()+.4;phase=-1
+    elseif phase==-1 then
+      if r.time_precise()<untilTime then return end
+      wave_before=J.decode(r.AM_WaveCursorState())
+      assert(wave_before.selected_visible and wave_before.peak_count>0,'Selected waveform did not load')
+      untilTime=r.time_precise()+.4;phase=-2
+    elseif phase==-2 then
+      if r.time_precise()<untilTime then return end
+      local after=J.decode(r.AM_WaveCursorState())
+      assert(after.selected_visible and after.x~=wave_before.x,'Selected waveform cursor did not advance')
+      assert(after.cursor_updates>wave_before.cursor_updates,'Cursor did not use incremental painting')
+      assert(after.peak_repaints==wave_before.peak_repaints,'Cursor movement repainted all waveform peaks')
+      result.waveform={cursor_updates=after.cursor_updates-wave_before.cursor_updates,
+        full_repaints=after.peak_repaints-wave_before.peak_repaints,from_x=wave_before.x,to_x=after.x}
+      check('Selected-channel playback moves its cursor without repainting peaks or labels')
+      near_end();phase=1
     elseif phase==1 then
       if app.preview:playing()then assert(r.time_precise()<untilTime,'Preview never reached EOF');return end
       assert(not app.preview.handle and app.preview.eof_path and not app.preview.ended_path)

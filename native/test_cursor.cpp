@@ -25,6 +25,10 @@ static std::map<std::string,int> theme={{"col_mi_bg2",0x918171},{"col_tr1_peaks"
 struct Fill {int x,y,w,h,color;double alpha;std::string mode;};
 static std::vector<Fill> fills;
 static std::vector<int> cleared_colors;
+struct TestBitmap {int width,height;std::vector<int> pixels;};
+struct Damage {int left,right,bottom;bool erase;};
+static std::vector<Damage> damage;
+static int blits=0;
 static int composite_width=0,composite_source_width=0,allocated_width=0;
 static int viewport_syncs=0;
 static bool stale_scroll=false;
@@ -74,21 +78,30 @@ static void* api(const char* name) {
     for(int i=0;i<count;++i)for(int c=0;c<channels;++c){values[i*channels+c]=(c+1)*.1;values[(count+i)*channels+c]=-(c+1)*.1;}
     return count;
   });
-  if(!std::strcmp(name,"JS_LICE_FillRect"))return reinterpret_cast<void*>(+[](void*,int x,int y,int w,int h,int color,double alpha,const char* mode){
+  if(!std::strcmp(name,"JS_LICE_FillRect"))return reinterpret_cast<void*>(+[](void* bitmap,int x,int y,int w,int h,int color,double alpha,const char* mode){
     fills.push_back({x,y,w,h,color,alpha,mode});
+    auto& b=*static_cast<TestBitmap*>(bitmap);
+    for(int row=std::max(0,y);row<std::min(b.height,y+h);++row)
+      for(int col=std::max(0,x);col<std::min(b.width,x+w);++col)b.pixels[row*b.width+col]=color;
     if(w==1 && color==theme_pixel("col_tr1_peaks",0xff404040))painted_channels.push_back(h);
   });
   if(!std::strcmp(name,"JS_LICE_DrawChar"))return reinterpret_cast<void*>(+[](void*,int,int,char,int,double,const char* mode){assert(!std::strcmp(mode,"COPY"));});
   if(!std::strcmp(name,"JS_Window_IsWindow"))return reinterpret_cast<void*>(+[](void*){return exists;});
   if(!std::strcmp(name,"JS_Window_IsVisible"))return reinterpret_cast<void*>(+[](void*){return shown;});
   if(!std::strcmp(name,"JS_Window_GetClientSize"))return reinterpret_cast<void*>(+[](void*,int* w,int* h){*w=800;*h=100;return true;});
-  if(!std::strcmp(name,"JS_Window_InvalidateRect"))return reinterpret_cast<void*>(+[](void*,int l,int t,int r,int b,bool){assert(l>=0 && t==0 && r<=800 && b==100);return true;});
+  if(!std::strcmp(name,"JS_Window_InvalidateRect"))return reinterpret_cast<void*>(+[](void*,int l,int t,int r,int b,bool erase){assert(l>=0 && l<r && t==0 && r<=800 && b>0 && b<=100);damage.push_back({l,r,b,erase});return true;});
   if(!std::strcmp(name,"JS_Window_GetScrollInfo"))return reinterpret_cast<void*>(+[](void*,const char*,int* p,int* page,int* min,int* max,int* track){*p=scrollbar_at;*page=scrollbar_page;*max=scrollbar_max;*min=*track=0;return true;});
   if(!std::strcmp(name,"JS_Window_GetTitle"))return reinterpret_cast<void*>(+[](void*,char* out,int size){std::snprintf(out,size,"%s",label.c_str());});
   if(!std::strcmp(name,"JS_Window_SetTitle"))return reinterpret_cast<void*>(+[](void*,const char* t){label=t;return true;});
-  if(!std::strcmp(name,"JS_LICE_CreateBitmap"))return reinterpret_cast<void*>(+[](bool,int width,int)->void*{allocated_width=width;return &storage[2];});
-  if(!std::strcmp(name,"JS_LICE_DestroyBitmap"))return reinterpret_cast<void*>(+[](void*){});
-  if(!std::strcmp(name,"JS_LICE_Clear"))return reinterpret_cast<void*>(+[](void*,int color){cleared_colors.push_back(color);});
+  if(!std::strcmp(name,"JS_LICE_CreateBitmap"))return reinterpret_cast<void*>(+[](bool system,int width,int height)->void*{if(system)allocated_width=width;return new TestBitmap{width,height,std::vector<int>(width*height)};});
+  if(!std::strcmp(name,"JS_LICE_DestroyBitmap"))return reinterpret_cast<void*>(+[](void* b){delete static_cast<TestBitmap*>(b);});
+  if(!std::strcmp(name,"JS_LICE_Clear"))return reinterpret_cast<void*>(+[](void* b,int color){cleared_colors.push_back(color);auto& pixels=static_cast<TestBitmap*>(b)->pixels;std::fill(pixels.begin(),pixels.end(),color);});
+  if(!std::strcmp(name,"JS_LICE_Blit"))return reinterpret_cast<void*>(+[](void* dst,int dx,int dy,void* src,int sx,int sy,int w,int h,double alpha,const char* mode){
+    assert(alpha==1 && !std::strcmp(mode,"COPY"));++blits;
+    auto& d=*static_cast<TestBitmap*>(dst);auto& s=*static_cast<TestBitmap*>(src);
+    assert(dx>=0 && dy>=0 && sx>=0 && sy>=0 && dx+w<=d.width && dy+h<=d.height && sx+w<=s.width && sy+h<=s.height);
+    for(int y=0;y<h;++y)for(int x=0;x<w;++x)d.pixels[(dy+y)*d.width+dx+x]=s.pixels[(sy+y)*s.width+sx+x];
+  });
   if(!std::strcmp(name,"JS_Composite"))return reinterpret_cast<void*>(+[](void*,int,int,int w,int,void*,int,int,int sw,int,bool automatic){assert(!automatic);composite_width=w;composite_source_width=sw;++paints;return 1;});
   if(!std::strcmp(name,"JS_Composite_Unlink"))return reinterpret_cast<void*>(+[](void*,void*,bool){++unlinks;});
   if(!std::strcmp(name,"MediaExplorerGetLastPlayedFileInfo"))return reinterpret_cast<void*>(+[](char* path,int size,int* mode,double* a,double* b,double*,double*,double*,double*,char*,int){std::snprintf(path,size,"%s",file.c_str());*mode=native_selection;*a=.25;*b=.75;return native_file;});
@@ -194,7 +207,25 @@ int main() {
     AMCursorZoom(42093);
   }
   native_selection=0;tick();
-  state=1;fraction=.25;tick();fraction=.3;tick();assert(peak_reads==reads);
+  const auto clean_peaks=static_cast<TestBitmap*>(peak_bitmap)->pixels;
+  const auto redraws=peak_repaints;
+  painted_channels.clear();painted_labels.clear();damage.clear();const int composites=paints;
+  state=1;
+  // Include overlapping moves, reverse motion, wraparound and a clipped cursor
+  // at the right edge. Restoring the strip must leave no cursor trails.
+  for(double f:{.25,.25125,.25,.9,0.0,.99875,1.0,-.1}) {
+    fraction=f;tick();
+    const auto& b=*static_cast<TestBitmap*>(peak_bitmap);
+    for(int y=0;y<b.height;++y)for(int x=0;x<b.width;++x)
+      assert(b.pixels[y*b.width+x]==(peak_cursor>=0 && x>=peak_cursor && x<peak_cursor+2?wave_style().cursor:clean_peaks[y*b.width+x]));
+  }
+  assert(peak_reads==reads && peak_repaints==redraws && paints==composites && blits>0);
+  assert(painted_channels.empty() && painted_labels.empty() && !damage.empty());
+  for(const auto& d:damage)assert(d.right-d.left<=2 && !d.erase);
+  fraction=.3;tick();
+  // A busy audio thread cannot hold up a new channel waveform/peak build.
+  state=-1;labels_dirty=true;const auto busy_redraws=peak_repaints;tick();
+  assert(peak_repaints==busy_redraws+1 && peak_cursor==240);state=1;
   // Native selection feedback is transient during the modal Windows mouse
   // loop. A full opaque channel overlay must not hide it, even if the timer
   // runs while the audio thread holds its lock or the source changes.
@@ -234,7 +265,7 @@ int main() {
   for(const char* bad:{"","1,1","1,7","1,","0","129","1;3","3,2,1"})
     assert(!AMWaveSetChannelSubset("/test.wav",bad,"v2"));
   assert(AMWaveSetChannels("",0,0,""));assert(!peak_linked && !peak_source && peak_closes==2);
-  assert(AMWaveSetChannels("/test.wav",1,1,"v3"));AMCursorDetach();assert(peak_closes==3 && !peak_bitmap);
+  assert(AMWaveSetChannels("/test.wav",1,1,"v3"));AMCursorDetach();assert(peak_closes==3 && !peak_bitmap && !cursor_underlay);
   assert(fonts_created==1 && fonts_destroyed==1 && gdi_created==gdi_destroyed);
 #ifndef _WIN32
   backing_scale=2;state=1;fraction=.5;scrollbar_at=0;scrollbar_page=scrollbar_max=800;
@@ -242,6 +273,10 @@ int main() {
   assert(peak_count==1600 && composite_width==800 && composite_source_width==1600);
   assert(last_x==400 && peak_cursor==800 && peak_height==156);
   reads=peak_reads;tick();assert(peak_reads==reads);
+  const auto retina_redraws=peak_repaints;damage.clear();fraction=.50125;tick();
+  assert(peak_cursor==802 && peak_repaints==retina_redraws && cursor_underlay);
+  for(const auto& d:damage)assert(d.right-d.left<=2 && !d.erase);
+  fraction=.5;tick();
   backing_scale=1;tick();assert(peak_count==800 && peak_cursor==400 && peak_reads==reads+1);
   // Native menu/wheel zoom can leave CoolSB stale until the unchanged size is
   // reapplied. Refresh only after input, then use the updated position/page.
@@ -269,6 +304,16 @@ int main() {
   window_dpi=saved_dpi;AMCursorDetach();
   assert(fonts_created==fonts_destroyed && gdi_created==gdi_destroyed);
 #endif
+  // A new file's peaks still become ready when audio snapshots are busy.
+  // Missing optional blit support retains the complete-paint fallback.
+  assert(AMCursorAttach(&storage[0],&storage[1],+[](const char* name)->void*{
+    return !std::strcmp(name,"JS_LICE_Blit")?nullptr:api(name);
+  }));
+  state=-1;assert(AMWaveSetChannels("/test.wav",1,1,"busy"));tick();
+  assert(peak_linked && peak_count>0 && !cursor_underlay && last_fraction<0);
+  state=1;fraction=.2;tick();const auto fallback_redraws=peak_repaints;
+  fraction=.4;tick();assert(peak_repaints==fallback_redraws+1);
+  AMCursorDetach();assert(fonts_created==fonts_destroyed && gdi_created==gdi_destroyed);
   theme.clear();assert(wave_style().background==static_cast<int>(0xffcccccc));
   assert(wave_style().selection_mode==0x26600);
   std::cout<<"PASS: cursor mapping, unchanged-frame budget, clock ownership, pause, hidden/stale sources, detach\n";

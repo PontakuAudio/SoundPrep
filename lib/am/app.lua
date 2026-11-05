@@ -23,7 +23,10 @@ function M.new(r,root,data)
   local required={'CF_CreatePreview','CF_PCM_Source_SetSectionInfo','JS_Window_Find','JS_File_Stat','MediaExplorerGetLastPlayedFileInfo'}
   for _,api in ipairs(required)do assert(r.APIExists(api),'Missing '..api..'. Requires REAPER 7.35+, SWS and JS_ReaScriptAPI.')end
   M.initialize(r,root,data)
-  require('am.recovery').restore(r,data)
+  -- The settings visible at this launch are the baseline for Quit. Applying
+  -- an old recovery record here would replace them before attach snapshots
+  -- them, reverting user changes made since an interrupted session.
+  -- Explicit Restore native preview remains available before launching.
   local recovered=require('am.recovery').reveal_orphans(r)
   if recovered>0 then r.ShowConsoleMsg(('SoundPrep: %d saved preview tracks recovered, muted and made visible.\n'):format(recovered))end
   local self=setmetatable({r=r,root=root,data=data,session=U.hash(r.genGuid()),message='',last_poll=0,
@@ -133,14 +136,14 @@ function M:clear_source()
   self.playback_identity=nil;self.playback_analysis=nil
   if self.path then self.bank:clear_buffers()end
 end
-function M:select_source(path,reason)
+function M:select_source(path,reason,defer_analysis)
   self:clear_source();self.paused_position=nil;self.paused_source=nil;self.last_seek=nil
   self.path=path;self.identity=path and Loudness.identity(self.r,path) or nil;self.range=nil
   self:read_source_channels()
   self.message=reason or '';self.applied_gain=nil
   if self.identity then
     self:sync_range(false)
-    if self:effective().normalization.enabled or self:effective().source_peak_guard.enabled then self:request_analysis()end
+    if not defer_analysis and (self:effective().normalization.enabled or self:effective().source_peak_guard.enabled)then self:request_analysis()end
   end
 end
 function M:gain()
@@ -672,24 +675,26 @@ function M:check_project()
   return true
 end
 function M:tick()
+  require('am.selection').consume(self)
   if not self:check_project()then return end
   if self.r.GetExtState(require('am.drop').EXT,'busy')=='1'then self:publish();return end
-  self:publish();self.loudness:poll()
+  self:publish()
   if self.r.EnumProjects(-1)~=self.project then
+    self.loudness:poll()
     self.preview:stop();self:commands(true);self.message='Paused: return to the attached project.';return
   end
   local now=self.r.time_precise()
-  if now-(self.last_live_pdc or 0)>.25 then
-    self.last_live_pdc=now
-    for _,t in ipairs(self.bank.tracks)do self.bank:live_pdc(t)end
-  end
-  if now-self.last_poll>=self.definition.settings.poll_ms/1000 then
+  if now-self.last_poll>=self.definition.settings.poll_ms/1000 or
+      self.explorer.selection_changed and self.explorer:selection_changed()then
     self.last_poll=now
     local path,reason=self.explorer:selection()
     if path~=self.path then
-      self:select_source(path,reason)
+      local autoplay=self.definition.settings.autoplay or self.advance_path==path
+      -- play() starts audio before submitting uncached analysis (decoder open,
+      -- job-file writes). Do not do that work twice or ahead of the first block.
+      self:select_source(path,reason,autoplay)
       if self.identity then
-        if self.definition.settings.autoplay or self.advance_path==path then
+        if autoplay then
           self.advance_path=nil
           local ok,e=pcall(self.play,self);if not ok then self.message=tostring(e)end
         end
@@ -702,6 +707,13 @@ function M:tick()
         self.message='Source changed. Replay to reload.'
       end
     end
+  end
+  -- File/result I/O and queued worker starts must not precede a new audition.
+  -- activate() already sets the chosen chain's PDC policy before playback.
+  self.loudness:poll()
+  if now-(self.last_live_pdc or 0)>.25 then
+    self.last_live_pdc=now
+    for _,t in ipairs(self.bank.tracks)do self.bank:live_pdc(t)end
   end
   self:sync_wave()
   self:sync_channel_waveform()
@@ -732,6 +744,7 @@ function M:tick()
 end
 function M:close()
   if self.cleaned then return end;self.cleaned=true;self.closed=true
+  require('am.selection').close(self)
   if self.bar then pcall(self.bar.close,self.bar)end
   if self.drop then pcall(self.drop.close,self.drop)end
   if self.preview then pcall(self.preview.stop,self.preview)end
@@ -768,8 +781,9 @@ function M:close()
     pcall(self.bank.close,self.bank)
   end
   if self.explorer then
-    local ok=pcall(self.explorer.restore,self.explorer)
-    if ok then os.remove(self.data..'/recovery.json')end
+    local ok,err=pcall(self.explorer.restore,self.explorer)
+    if ok then os.remove(self.data..'/recovery.json')
+    else self.r.ShowConsoleMsg('SoundPrep: Media Explorer settings could not be restored; recovery record retained: '..tostring(err)..'\n')end
   end
   if self.r.GetExtState(M.EXT,'session')==self.session then
     self.r.DeleteExtState(M.EXT,'heartbeat',false);self.r.DeleteExtState(M.EXT,'session',false);self.r.DeleteExtState(M.EXT,'queue',false)

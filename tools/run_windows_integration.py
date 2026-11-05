@@ -19,6 +19,12 @@ def main():
     parser.add_argument('--resource', type=Path, default=Path(os.environ.get('APPDATA', '')) / 'REAPER')
     parser.add_argument('--executable', type=Path, default=Path('C:/Program Files/REAPER (x64)/reaper.exe'))
     parser.add_argument('--inspect-seconds', type=int, default=0, help='Keep the tested search UI open briefly for visual inspection (0-60)')
+    parser.add_argument('--preview-bank', type=Path, help='Read-only bank directory to copy into the disposable preview benchmark')
+    parser.add_argument('--preview-policy', choices=('compare', 'on_demand', 'legacy_all_fx'), default='compare')
+    parser.add_argument('--preview-native-selection', action='store_true', help='Include the real Media Explorer selection path and polling delay')
+    parser.add_argument('--preview-poll-ms', type=int, choices=range(10, 201), metavar='10..200', help='Metadata polling interval for the selection benchmark')
+    parser.add_argument('--preview-interval-only', action='store_true', help='Benchmark the previous interval-only selection detection')
+    parser.add_argument('--preview-samples', type=int, choices=range(1, 21), metavar='1..20', help='Samples per preview mode')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--drag-test', action='store_true', help='Wait for real list/waveform drags in the disposable host (10 minutes)')
     mode.add_argument('--direct-test', action='store_true', help='Measure in-process item rendering without a visible test window')
@@ -26,11 +32,19 @@ def main():
     mode.add_argument('--seek-test', action='store_true', help='Exercise real waveform clicks after preview EOF, Stop and Pause')
     mode.add_argument('--preset-test', action='store_true', help='Verify unified preset saving, drafts, settings and direct buttons')
     mode.add_argument('--playback-test', action='store_true', help='Verify range repeat and item rendering during timeline playback')
+    mode.add_argument('--preview-test', action='store_true', help='Measure source switching and first audio callbacks with a loaded FX bank')
+    mode.add_argument('--source-buffer-test', action='store_true', help='Verify stale FX audio and first transients across source switches')
+    mode.add_argument('--selection-test', action='store_true', help='Verify native selection handoff, normalization, VST state, Stop and rapid selection')
+    mode.add_argument('--restore-test', action='store_true', help='Verify Media Explorer preferences after Quit, window close and recovery')
     args = parser.parse_args()
     if os.name != 'nt':
         parser.error('This integration runner requires Windows')
     if not 0 <= args.inspect_seconds <= 60:
         parser.error('--inspect-seconds must be between 0 and 60')
+    if args.preview_bank and not args.preview_test:
+        parser.error('--preview-bank requires --preview-test')
+    if (args.preview_native_selection or args.preview_poll_ms or args.preview_interval_only or args.preview_samples) and not args.preview_test:
+        parser.error('Preview benchmark options require --preview-test')
     root = Path(__file__).resolve().parents[1]
     spec = importlib.util.spec_from_file_location('prepare', root / 'worker/prepare.py')
     worker = importlib.util.module_from_spec(spec)
@@ -63,8 +77,39 @@ def main():
         wav.setparams((1, 2, 48000, 0, 'NONE', 'not compressed'))
         wav.writeframes(b''.join(struct.pack('<h', int(4096 * math.sin(2 * math.pi * 440 * i / 48000))) for i in range(96000)))
     script = root / ('tests/reaper_playback.lua' if args.playback_test else 'tests/reaper_presets.lua' if args.preset_test else 'tests/reaper_windows_seek.lua' if args.seek_test else 'tests/reaper_editor_lifecycle.lua' if args.editor_test else 'tests/reaper_windows_direct.lua' if args.direct_test else 'tests/reaper_windows_drag.lua' if args.drag_test else 'tests/reaper_windows_review.lua')
+    if args.preview_test:
+        script = root / 'tests/reaper_preview_performance.lua'
+        (host / '.preview-policy').write_text(args.preview_policy, encoding='utf-8')
+        (host / '.preview-options.json').write_text(json.dumps({'poll_ms': args.preview_poll_ms,
+            'interval_only': args.preview_interval_only, 'samples': args.preview_samples}), encoding='utf-8')
+        if args.preview_native_selection:
+            (host / '.preview-native-selection').write_text('Real list selection\n', encoding='utf-8')
+            shutil.copy2(root / 'tests/audio_response_probe.jsfx', host / 'Effects/am_response_probe')
+        if args.preview_bank:
+            bank_root = args.preview_bank.resolve()
+            bank = json.loads((bank_root / 'bank.json').read_text(encoding='utf-8'))
+            fixture = host / 'preview-performance'
+            fixture.mkdir()
+            for macro in bank['macros']:
+                source = (bank_root / macro['fx_chain']).resolve()
+                target = (fixture / macro['fx_chain']).resolve()
+                if not source.is_relative_to(bank_root) or not target.is_relative_to(fixture.resolve()):
+                    raise ValueError('FX chain must stay within its bank')
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+            (fixture / 'bank.json').write_text(json.dumps(bank), encoding='utf-8')
+            (host / '.preview-custom-bank').write_text('Copied bank fixture\n', encoding='utf-8')
+    if args.source_buffer_test:
+        script = root / 'tests/reaper_source_buffers.lua'
+        shutil.copy2(root / 'tests/audio_response_probe.jsfx', host / 'Effects/am_response_probe')
+    if args.selection_test:
+        script = root / 'tests/reaper_native_selection.lua'
+    if args.restore_test:
+        script = root / 'tests/reaper_explorer_restore.lua'
     (host / '.audition-macro-test-command').write_text(script.as_posix() + '\n', encoding='utf-8')
     result = host / 'windows-review.json'
+    if args.source_buffer_test:
+        result = host / 'source-buffers/results.json'
     startup = subprocess.STARTUPINFO()
     startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     startup.wShowWindow = subprocess.SW_HIDE

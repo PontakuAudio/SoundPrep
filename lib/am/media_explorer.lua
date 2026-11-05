@@ -2,11 +2,32 @@ local U=require('am.util')
 local M={};M.__index=M
 local SECTION=32063
 function M.new(r)return setmetatable({r=r,controls={}},M)end
+local function owned_window(r,w)
+  local main=r.GetMainHwnd()
+  for _=1,32 do
+    if not w then return false end
+    if w==main then return true end
+    w=r.JS_Window_GetParent(w) -- Includes the owner of a floating native window.
+  end
+  return false
+end
 function M:window(open)
   local r=self.r
   if self.hwnd and r.JS_Window_IsWindow(self.hwnd) and r.JS_Window_IsVisible(self.hwnd)then return self.hwnd end
-  self.hwnd=nil;self.controls={};self.selected=nil
-  local w=r.JS_Window_Find(r.JS_Localize('Media Explorer','common'),true)
+  self.hwnd=nil;self.controls={};self.selected=nil;self.polled_index=nil
+  -- JS_Window_Find searches the whole desktop on Windows. Never borrow another
+  -- REAPER instance's Explorer (and its preferences), even when ours is closed.
+  local w
+  local name=r.JS_Localize('Media Explorer','common')
+  if r.GetOS():match('^Win')then
+    local _,handles=r.JS_Window_ListFind(name,true)
+    for address in (handles or ''):gmatch('[^,]+')do
+      local candidate=r.JS_Window_HandleFromAddress(tonumber((address:gsub('0[xX]','')),16))
+      if owned_window(r,candidate) and r.JS_Window_IsVisible(candidate)then w=candidate;break end
+    end
+  else
+    w=r.JS_Window_Find(name,true) -- SWELL's enumeration is already process-local.
+  end
   -- REAPER may hide and reuse this HWND instead of destroying it on Close.
   if w and not r.JS_Window_IsVisible(w)then w=nil end
   if not w and open then w=r.OpenMediaExplorer('',false)end
@@ -147,7 +168,7 @@ function M:restore()
     if self.saved.fader_position then self:fader(self.saved.fader_position)
     elseif self.saved.volume then self:volume(tonumber(self.saved.volume) or -150)end
     if self.saved.transform then self:set_transform(self.saved.transform)end
-    local restore={1011,42014,40068,42182,42348,1068,42055,42183}
+    local restore={42014,40068,42182,42348,1068,42055,42183}
     -- Older sessions forced these options on. Recover those snapshots, but
     -- leave display preferences (including edits made while attached) alone.
     if not self.saved.preserve_display then
@@ -159,8 +180,14 @@ function M:restore()
     end
     if self.saved.toggles['40015']==1 then self:command(40015)
     elseif self.saved.toggles['40070']==1 then self:command(40070)end
+    -- Selection-mode commands can disable autoplay. Restore it last, including
+    -- recovery snapshots that retain both a mode and an enabled autoplay flag.
+    local autoplay=self.saved.toggles['1011']
+    if autoplay and autoplay>=0 then self:toggle(1011,autoplay==1)end
     if was_closed then self:command(40069)end
     if focus and self.r.JS_Window_IsWindow(focus)then self.r.JS_Window_SetFocus(focus)end
+  else
+    error('Cannot open Media Explorer to restore its settings')
   end
   self.saved=nil
 end
@@ -219,6 +246,14 @@ local function selected_index(r,list)
   for v in indices:gmatch('[^,]+')do if tonumber(v)==focused then index=focused;break end end
   return index
 end
+function M:selection_changed()
+  -- A cheap row probe lets a new user selection bypass the slower metadata
+  -- polling interval. Resolve names/paths only after a real row change.
+  local list=self:control(1001)
+  if not list then return false end
+  local index=selected_index(self.r,list)
+  return index~=self.polled_index
+end
 function M:full_selection_name(list)
   local saved={}
   for _,id in ipairs{42091,42026,42134}do saved[id]=self.r.GetToggleCommandStateEx(SECTION,id)end
@@ -243,6 +278,7 @@ end
 function M:selection()
   local list=self:control(1001);if not list then return nil,'Media Explorer is closed' end
   local index=selected_index(self.r,list)
+  self.polled_index=index
   if not index then return nil,'Select a file in Media Explorer' end
   local name=self.r.JS_ListView_GetItemText(list,index,0)
   local kind=self.r.JS_ListView_GetItemText(list,index,3)

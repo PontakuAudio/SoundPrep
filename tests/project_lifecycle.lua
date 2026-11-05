@@ -98,8 +98,9 @@ for _,modal in ipairs{false,true}do
     close=function(self)self.closed=true;self.cleaned=true end}
   App.new=function()return fake end
   _G.reaper={GetOS=function()return 'Linux'end,GetExtState=function()return ''end,atexit=function()end,
-    APIExists=function()return true end,AM_DropContext=function()return modal and 'drag' or ''end,
+    APIExists=function(name)return name=='AM_DropContext'end,AM_DropContext=function()return modal and 'drag' or ''end,
     defer=function(fn)callback=fn end,ShowMessageBox=function(text)error('Unexpected error dialog: '..text)end}
+  fake.r=_G.reaper
   local Bar=require('am.bar');local new=Bar.new
   Bar.new=function()return {tick=function()assert(not fake.cleaned,'Bar ran after project close')end}end
   local launched,e=xpcall(function()

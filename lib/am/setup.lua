@@ -1,4 +1,4 @@
--- First-run ZIP setup shared by the launcher and optional action installer.
+-- Bundled-helper setup shared by the launcher and optional action installer.
 local P=require('am.platform')
 local M={}
 M.restart_notice='SoundPrep is ready. Save your work and restart REAPER, then run SoundPrep.lua again.'
@@ -15,7 +15,7 @@ function M.install_native_if_missing(r,root)
   local target=directory..'/'..name
   if r.file_exists(target)then return false end
   local input=io.open(root..'/build/'..name,'rb')
-  assert(input,'Native helper is missing. Extract the complete SoundPrep release ZIP, or reinstall the SoundPrep package through ReaPack.')
+  assert(input,'Native helper is missing. Reinstall the SoundPrep package through ReaPack, then restart REAPER.')
   local bytes,read_error=input:read('*a');input:close()
   assert(bytes and #bytes>0,read_error or 'The bundled native helper is empty.')
   r.RecursiveCreateDirectory(directory,0)

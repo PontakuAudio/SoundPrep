@@ -75,6 +75,7 @@ PCM_source* (*open_source)(const char*);
 void (*close_source)(PCM_source*);
 int (*get_peaks)(PCM_source*,double,double,int,int,int,double*);
 void (*fill_rect)(void*,int,int,int,int,int,double,const char*);
+void (*blit)(void*,int,int,void*,int,int,int,int,double,const char*);
 void (*draw_char)(void*,int,int,char,int,double,const char*);
 void* (*create_font)();
 void* (*gdi_font)(int,int,int,bool,bool,bool,const char*);
@@ -87,6 +88,8 @@ int label_dpi=0,label_font_height=0,peak_label_dpi=0,peak_scale=0;
 unsigned int (*window_dpi)(void*)=+[](void* window){return GetDpiForWindow(static_cast<HWND>(window));};
 #endif
 void* peak_bitmap=nullptr;
+void* cursor_underlay=nullptr;
+unsigned long long peak_repaints=0,cursor_updates=0;
 std::vector<std::string> peak_names;
 std::string peak_names_json;
 bool labels_dirty=true,label_native=false;
@@ -108,6 +111,7 @@ void clear_peaks() {
     close_source(peak_source);peak_source=nullptr;
   }
   if(peak_bitmap){destroy_bitmap(peak_bitmap);peak_bitmap=nullptr;}
+  if(cursor_underlay){destroy_bitmap(cursor_underlay);cursor_underlay=nullptr;}
   peak_path.clear();peak_stamp.clear();peak_values.clear();peak_channels.clear();peak_names.clear();peak_names_json.clear();labels_dirty=true;peak_left=peak_right=peak_count=0;
   peak_width=peak_height=0;peak_start=peak_span=-1;peak_building=false;peak_dirty=true;
 }
@@ -160,11 +164,30 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
     peak_source->PeaksBuild_Finish();peak_building=false;peak_dirty=true;
   }
   const bool reload=peak_dirty || scale_factor!=peak_scale || width!=peak_width || start!=peak_start || span!=peak_span;
-  const bool repaint=reload || labels_dirty || text_dpi!=peak_label_dpi || !(style==peak_style) || h!=peak_height || a!=peak_a || b!=peak_b || cursor!=peak_cursor || !peak_linked;
-  if(!repaint)return true;
-  if(width!=peak_width || h!=peak_height) {
+  const bool repaint=reload || labels_dirty || text_dpi!=peak_label_dpi || !(style==peak_style) || h!=peak_height || a!=peak_a || b!=peak_b || !peak_linked;
+  if(!repaint && cursor==peak_cursor)return true;
+  // Keep just the pixels covered by the cursor. Moving it must not redraw
+  // every peak and microphone label, or invalidate the whole waveform.
+  const int cursor_width=2*scale_factor;
+  auto cursor_visible=[width](int x){return x>=0 && x<width;};
+  auto save_cursor=[&] {
+    if(cursor_underlay && cursor_visible(cursor))
+      blit(cursor_underlay,0,0,peak_bitmap,cursor,0,std::min(cursor_width,width-cursor),h,1,"COPY");
+    if(cursor_visible(cursor))fill_rect(peak_bitmap,cursor,0,cursor_width,h,style.cursor,1,"COPY");
+  };
+  if(!repaint && cursor_underlay && blit) {
+    const int old=peak_cursor;
+    if(cursor_visible(old))blit(peak_bitmap,old,0,cursor_underlay,0,0,std::min(cursor_width,width-old),h,1,"COPY");
+    save_cursor();peak_cursor=cursor;++cursor_updates;
+    for(int x:{old,cursor})if(cursor_visible(x))
+      invalidate(wave,x/scale_factor,0,std::min(client_width,x/scale_factor+2),client_height,false);
+    return true;
+  }
+  if(!peak_bitmap || width!=peak_width || h!=peak_height || scale_factor!=peak_scale) {
     hide_peaks();if(peak_bitmap)destroy_bitmap(peak_bitmap);
+    if(cursor_underlay){destroy_bitmap(cursor_underlay);cursor_underlay=nullptr;}
     peak_bitmap=create_bitmap(true,width,h);if(!peak_bitmap)return false;
+    if(blit)cursor_underlay=create_bitmap(false,cursor_width,h);
   }
   if(reload) {
     peak_values.assign(static_cast<size_t>(width)*channels*2,0);
@@ -235,7 +258,7 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
     const double alpha=((style.selection_mode>>8)&255)/256.0;
     fill_rect(peak_bitmap,sa,0,sb-sa,h,style.selection,alpha,modes[mode<6?mode:0]);
   }
-  if(cursor>=0 && cursor<width)fill_rect(peak_bitmap,cursor,0,2*scale_factor,h,style.cursor,1,"COPY");
+  save_cursor();++peak_repaints;
   peak_linked=composite(wave,0,0,client_width,client_height,peak_bitmap,0,0,width,h,false)>0;
   if(peak_linked)invalidate(wave,0,0,client_width,height,true);
   peak_width=width;peak_height=h;peak_scale=scale_factor;peak_label_dpi=text_dpi;peak_start=start;peak_span=span;peak_a=a;peak_b=b;peak_cursor=cursor;peak_style=style;peak_dirty=false;labels_dirty=false;
@@ -287,10 +310,11 @@ void tick() {
   }
   char playing_path[4096]{};double fraction=0,position=0,length=0;
   const int playing=AMPreviewWavePosition(playing_path,sizeof(playing_path),&fraction,&position,&length);
-  if(playing<0)return; // Audio owns the lock: skip a frame instead of waiting.
+  // Audio owns the lock: retain the last cursor snapshot, but let a newly
+  // selected waveform and its incremental peak build progress independently.
   const auto style=wave_style();
   if(cursor_color!=style.cursor){unpaint();clear_bitmap(bitmap,style.cursor);cursor_color=style.cursor;}
-  if(playing && am_path_equal(path,playing_path)) {
+  if(playing>0 && am_path_equal(path,playing_path)) {
     std::snprintf(last_path,sizeof(last_path),"%s",path);
     last_fraction=fraction;last_position=position;last_length=length;
   } else if(!am_path_equal(path,last_path)) {
@@ -380,6 +404,7 @@ extern "C" void AMCursorDetach() {
   clear_peaks();AMCursorClear();wave=clock_view=nullptr;suspended=false;label_native=false;label_font_height=0;
   view_span=0;view_at=view_page=view_width=view_units=-1;*view_path=0;
   actual_width=scroll_at=scroll_page=scroll_min=scroll_max=0;
+  peak_repaints=cursor_updates=0;
   viewport_dirty=true;
   if(bitmap){destroy_bitmap(bitmap);bitmap=nullptr;}
 }
@@ -396,6 +421,7 @@ extern "C" bool AMCursorAttach(void* w,void* c,void*(*lookup)(const char*)) {
   GET(composite,"JS_Composite");GET(unlink_bitmap,"JS_Composite_Unlink");
   GET(open_source,"PCM_Source_CreateFromFile");GET(close_source,"PCM_Source_Destroy");GET(get_peaks,"PCM_Source_GetPeaks");
   GET(fill_rect,"JS_LICE_FillRect");GET(draw_char,"JS_LICE_DrawChar");
+  GET(blit,"JS_LICE_Blit");
   GET(create_font,"JS_LICE_CreateFont");GET(destroy_font,"JS_LICE_DestroyFont");GET(set_font,"LICE__SetFromHFont");
   GET(gdi_font,"JS_GDI_CreateFont");GET(delete_gdi,"JS_GDI_DeleteObject");GET(draw_text,"JS_LICE_DrawText");
   GET(font_color,"LICE__SetTextColor");GET(font_background,"LICE__SetBkColor");
@@ -460,6 +486,7 @@ extern "C" const char* AMCursorState() {
     registered?"true":"false",(linked || (peak_linked && peak_cursor>=0 && peak_cursor<peak_width))?"true":"false",last_x,last_fraction,last_position,last_length,actual_width,scroll_at,scroll_page,scroll_min,scroll_max,peak_linked?"true":"false",static_cast<int>(peak_channels.size()),peak_left,peak_right,peak_count,peak_start,peak_span);
   static std::string json;
   auto value=nlohmann::json::parse(result);value["selected_names"]=nlohmann::json::array();
+  value["peak_repaints"]=peak_repaints;value["cursor_updates"]=cursor_updates;
   for(int channel:peak_channels)value["selected_names"].push_back(channel<=static_cast<int>(peak_names.size())?peak_names[channel-1]:"");
   value["name_font"]=label_native || label_font!=nullptr;
 #ifdef _WIN32

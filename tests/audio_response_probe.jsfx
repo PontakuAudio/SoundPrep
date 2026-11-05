@@ -1,0 +1,30 @@
+desc:Audition Macro test - silent response probe
+options:gmem=AuditionMacro.ResponseTest
+in_pin:left
+in_pin:right
+out_pin:left
+out_pin:right
+
+@init
+ext_noinit = 1;
+ext_tail_size = -1;
+
+@block
+stamp > 0 && gmem[0] < 60000 ? (
+  base = 1 + gmem[0]*5;
+  gmem[base] = stamp;
+  gmem[base+1] = srate;
+  gmem[base+2] = peak;
+  gmem[base+3] = size;
+  gmem[base+4] = crossings;
+  gmem[0] += 1;
+);
+stamp = time_precise();
+size = samplesblock;
+peak = crossings = 0;
+
+@sample
+peak = max(peak,abs(spl0));
+previous <= 0 && spl0 > 0 ? crossings += 1;
+previous = spl0;
+spl0 = spl1 = 0;

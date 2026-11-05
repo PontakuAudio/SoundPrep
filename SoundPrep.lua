@@ -1,5 +1,5 @@
 -- @description SoundPrep - Start here
--- @version 0.11.9
+-- @version 0.11.10
 -- @author Pontaku Audio
 local script=debug.getinfo(1,'S').source:sub(2)
 local root=script:match('^(.*)[/\\]')
@@ -20,11 +20,12 @@ local ok,err=xpcall(function()
   app=App.new(reaper,root,root..'/data')
 end,debug.traceback)
 if not ok then reaper.ShowMessageBox(tostring(err),'SoundPrep',0);return end
-if not app then return end -- First ZIP launch installed the helper; wait for restart.
+if not app then return end -- First launch installed the bundled helper; wait for restart.
 reaper.atexit(function()app:close()end)
 local Bar=require('am.bar')
 ok,err=xpcall(function()
   app.bar=Bar.new(reaper,app);app.bar:tick()
+  require('am.selection').attach(app)
 end,debug.traceback)
 if not ok then app:close();reaper.ShowMessageBox(tostring(err),'SoundPrep',0);return end
 local function loop()
@@ -38,6 +39,7 @@ local function loop()
     app:tick()
     if app.closed or app.cleaned then return end
     app.bar:tick()
+    require('am.selection').publish(app)
     continue=not app.closed
   end,debug.traceback)
   if not success then

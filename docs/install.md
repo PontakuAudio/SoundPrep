@@ -63,7 +63,7 @@ https://raw.githubusercontent.com/ReaTeam/Extensions/master/index.xml
 
 設定や保存したPresetは、インストール先の `data/` に保存されます。このフォルダーは削除せず、必要に応じてバックアップしてください。
 
-SoundPrep本体とNative helperの版番号は異なることがあります。たとえばSoundPrep 0.11.7にはhelper 0.11.6を同梱しています。ReaPackでSoundPrepを更新すれば、その版に対応した組み合わせが導入されます。
+0.11.10ではWindows・macOSともにNative helperを更新します。更新後はREAPERを完全に終了して再起動してください。本体とhelperはReaPackから一緒に導入されます。
 
 ## 追加Actions（任意）
 
@@ -96,6 +96,41 @@ SoundPrep本体とNative helperの版番号は異なることがあります。�
 
 解決しない場合は、上の「追加Actions」の方法で `SoundPrep - Diagnostics.lua` をMainに登録して実行すると、依存関係やhelperの状態を確認できます。診断を共有するときは、REAPERの版、OS、表示されたエラーを添えてください。診断結果にはローカルのパスが含まれます。
 
+## 旧Audition Macroから切り替える
+
+旧Audition MacroをQuitし、bank・FXチェーンなどを含む `data/` 全体と必要なキー割当をバックアップしてください。旧版を手動導入していた場合は、ReaPackでSoundPrepを導入し、起動前に新しい `SoundPrep.lua` と同じ階層へ `data/` を引き継ぎます。
+
+旧名の互換スクリプトは廃止しました。旧Actionsへのキー割当は自動移行されません。追加Actionsが必要な場合は上記の手順で登録し、対応するSoundPrepのActionsへ手動で割り当て直してから、不要な旧Actionsの登録を削除してください。手動導入した旧フォルダーや開発フォルダーに残る `Audition Macro*.lua` も削除できます。Native helper・JSFX・保存データの内部識別名は引き続き使用するため、名前を変更したり削除したりしないでください。
+
+### 旧ReaPackパッケージから切替
+
+旧Audition MacroとSoundPrepは、同じ `UserPlugins/reaper_audition_macro.dll`（macOSでは `.dylib`）を所有するため、両パッケージを共存導入できません。SoundPrepは `Scripts/SoundPrep/` 以下の別パッケージで、設定は自動移行しません。
+
+1. 旧Audition MacroをQuitし、bank・FXチェーンなどを含む旧 `data/` 全体をバックアップします。必要なキー割当も記録してください。
+2. ReaPackの `Browse packages…` で旧Audition Macroパッケージを選び、`Uninstall` をApplyします。作業を保存してREAPERを再起動し、旧パッケージの削除が完了したことを確認します。
+3. このページのSoundPrep用ReaPack URLを登録し、新パッケージを導入します。新しいhelperを読み込むため、作業を保存してREAPERを再起動します。
+4. SoundPrepを起動する前に、バックアップした `data/` 全体を、新しい `SoundPrep.lua` と同じ階層の `data/` へ引き継ぎます。
+5. 必要に応じて追加Actionsを登録してキーを割り当て直し、`SoundPrep.lua` を実行します。
+
+旧パッケージのアンインストールでは旧Actionsの登録も解除されます。必要なキー割当はSoundPrepのActionsへ手動で引き継いでください。
+
+設定を引き継いでからSoundPrepを起動してください。新旧を同時に起動せず、切り替えるときは実行中の方をQuitします。
+
+## 最初の確認
+
+Ambisonicsは1〜10次AmbiX（ACN/SN3D、4〜121ch）を入力として扱い、W/Yのみで簡易ステレオ試聴します。高次成分の空間デコードは行いません。
+
+短い音声ファイルでPlay／StopとMacro切替を確認します。Normalizeを使う場合は、解析中にD&Dしても一時ミュートで配置され、完了後に補正が適用されることを確認します。3ch以上ではDownmixを選べます。OFFは元ch数とch間の比率を保持し、Macro FXをバイパスします。ONはステレオへまとめ、Macro FXを適用します。
+
+Masterが2chのプロジェクトで3ch目以降も聴きたい場合は、DownmixをONにするか、プロジェクトの出力ルーティングを設定してください。SoundPrepはMaster設定を変更しません。
+
+helperや依存APIが見つからない場合はMain Actionの `SoundPrep - Diagnostics.lua` で状態を確認できます。旧helperの更新後も案内が出る場合は、REAPERを再起動したことと、使用中のResource Pathを確認してください。
+
+多chのSource + FXを別の環境で開く場合は、使用したMacro FXに加えて `Effects/AuditionMacro/channels_v1` が必要です。この専用JSFXは最初の多ch D&Dで配置します。
+
+本プロジェクトの独自部分のライセンスは[MIT](../LICENSE)です。MoSQITo由来のコードにはApache-2.0など、それぞれの第三者ライセンスが適用されます。第三者コードの出典とライセンスは[第三者ライセンスと出典](../THIRD_PARTY_NOTICES.md)に記載しています。
+
+公開済みのLua・Nativeソースは維持し、v0.11.0で追加した解析エンジンは既存helperのDLL／dylibに同梱して配布します。独自部分のMITは変更しません。ソースの公開範囲は[配布方針](source-distribution.md)を参照してください。
 ---
 
 [READMEに戻る](../README.md) · [MIT Licenseの案内](license.md) · [第三者ライセンスと出典](../THIRD_PARTY_NOTICES.md)

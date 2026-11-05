@@ -45,6 +45,9 @@ class PackageReleaseTests(unittest.TestCase):
         self.root = self.temp / "source"
         self.root.mkdir()
         self.manifest = json.loads((ROOT / "resources/release-manifest.json").read_text())
+        self.manifest["support_files"] = [
+            "docs/releases/0.10.25.md" if name.startswith("docs/releases/") else name
+            for name in self.manifest["support_files"]]
         for group in ("main_actions", "media_explorer_actions", "support_files"):
             for name in self.manifest[group]:
                 self.write(self.manifest.get("aliases", {}).get(name, name), f"fixture: {name}\n".encode())
@@ -163,6 +166,32 @@ class PackageReleaseTests(unittest.TestCase):
                           "2026-13-01T00:00:00Z", "2026-10-26T24:00:00Z", "2026-10-26T07:54:60Z"):
             with self.subTest(timestamp=timestamp), self.assertRaisesRegex(ValueError, "Release time"):
                 self.package(release_time=timestamp)
+        self.assertFalse(any(self.temp.glob("release-*")))
+
+    def test_release_notes_reach_reapack_without_losing_unicode_or_xml_characters(self):
+        notes = "素材の切り替えを改善しました。\n\n- Volume < 0 & Play > Stop\nRestart REAPER.\n"
+        self.write("docs/releases/0.10.25.md", notes.encode("utf-8"))
+        output, report = self.package()
+        version = ET.parse(output / "index.xml").find("./category/reapack/version")
+        self.assertEqual(version.findtext("changelog"), notes.strip())
+        asset = next(row["asset"] for row in report["files"] if row["path"] == "docs/releases/0.10.25.md")
+        self.assertEqual((output / asset).read_text(encoding="utf-8"), notes)
+        second, _ = self.package(previous_index=output / "index.xml")
+        self.assertEqual((output / "index.xml").read_bytes(), (second / "index.xml").read_bytes())
+        self.write("docs/releases/0.10.25.md", b"Changed notes\n")
+        with self.assertRaisesRegex(ValueError, "immutable"):
+            self.package(previous_index=output / "index.xml")
+
+    def test_missing_empty_or_invalid_release_notes_fail_before_creating_output(self):
+        for content in (b"", b" \n\t", b"Invalid\x00text"):
+            self.write("docs/releases/0.10.25.md", content)
+            with self.subTest(content=content), self.assertRaisesRegex(ValueError, "Release notes"):
+                self.package()
+        self.write("docs/releases/0.10.25.md", b"Notes outside the manifest")
+        self.manifest["support_files"].remove("docs/releases/0.10.25.md")
+        self.save_manifest()
+        with self.assertRaisesRegex(ValueError, "Release notes.*manifest"):
+            self.package()
         self.assertFalse(any(self.temp.glob("release-*")))
 
     def test_previous_versions_and_other_packages_are_preserved(self):
@@ -314,12 +343,12 @@ class PackageReleaseTests(unittest.TestCase):
     def test_allowlist_covers_all_current_modules_actions_and_required_assets(self):
         manifest = json.loads((ROOT / "resources/release-manifest.json").read_text())
         listed = set(manifest["main_actions"] + manifest["media_explorer_actions"] + manifest["support_files"])
-        for folder, pattern in (("lib/am", "*.lua"), ("actions", "*.lua"), ("resources/chains", "*.RfxChain")):
+        for folder, pattern in (("lib/am", "*.lua"), ("actions", "*.lua"),
+                                ("internal", "*.lua"), ("resources/chains", "*.RfxChain")):
             required = {path.relative_to(ROOT).as_posix() for path in (ROOT / folder).glob(pattern)}
             withheld = {"lib/am/search.lua", "lib/am/search_dictionary.lua",
                         "lib/am/search_phrase.lua", "lib/am/search_session.lua"}
-            withheld.update(f"actions/{prefix} - Search {action}.lua"
-                            for prefix in ("SoundPrep", "Audition Macro")
+            withheld.update(f"actions/SoundPrep - Search {action}.lua"
                             for action in ("Assist", "Expand", "Restore"))
             self.assertLessEqual(required - withheld, listed)
             self.assertFalse(listed & withheld)

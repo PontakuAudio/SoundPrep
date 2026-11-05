@@ -198,7 +198,7 @@ def node_signature(element):
             tuple(node_signature(child) for child in element))
 
 
-def build_index(previous, index_name, category_name, manifest, version, sources, author, release_time, website):
+def build_index(previous, index_name, category_name, manifest, version, sources, author, release_time, website, changelog):
     filename_component(index_name, "index name")
     # One stable folder below the index name keeps every relative runtime path
     # intact. A caller can choose its display name, not traverse directories.
@@ -236,6 +236,7 @@ def build_index(previous, index_name, category_name, manifest, version, sources,
     for source in sources:
         attr = {key: source[key] for key in ("file", "platform", "type", "main", "hash") if source.get(key)}
         ET.SubElement(candidate, "source", attr).text = source["url"]
+    ET.SubElement(candidate, "changelog").text = changelog
     existing = [node for node in package.findall("version") if node.get("name") == version]
     if existing:
         if len(existing) != 1 or node_signature(existing[0]) != node_signature(candidate):
@@ -270,6 +271,13 @@ def package_release(*, root, output, repository=None, base=None, version=None, t
     version = validate_version(version or declared)
     if version != declared:
         raise ValueError("Release version differs from the main script @version")
+    notes_path = f"docs/releases/{version}.md"
+    notes = next((entry["data"] for entry in runtime if entry["path"] == notes_path), None)
+    if notes is None:
+        raise ValueError(f"Release notes must be included in the runtime manifest: {notes_path}")
+    changelog = notes.decode("utf-8").strip()
+    if not changelog or re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]", changelog):
+        raise ValueError("Release notes must contain nonempty XML-compatible text")
     tag = tag or "v" + version
     base = download_base(repository, base, tag)
     if platform not in ("all", *PLATFORMS):
@@ -303,7 +311,7 @@ def package_release(*, root, output, repository=None, base=None, version=None, t
             sources.append({"file": filename, "platform": target, "type": "extension",
                             "hash": "1220" + digest(data), "url": base + "/" + filename})
     index = build_index(Path(previous_index) if previous_index else None, index_name, category, manifest,
-                        version, sources, author, release_time, website)
+                        version, sources, author, release_time, website, changelog)
     report = {"schema": 1, "version": version, "helper_version": helper_version, "tag": tag,
               "release_time": release_time,
               "download_base": base, "platforms": list(selected), "publish_ready": platform == "all",

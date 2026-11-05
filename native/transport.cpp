@@ -14,6 +14,10 @@ extern "C" void AMPlatformRegister(int(*)(const char*,void*),void*(*)(const char
 extern "C" void AMBarKeyboardRegister(int(*)(const char*,void*),bool);
 extern "C" void AMWinSearchDetach();
 extern "C" const char* AMDropDiagnostics();
+extern "C" void AMSelectionRegister(int(*)(const char*,void*),void*(*)(const char*));
+extern "C" bool AMSelectionMessage(void*,unsigned,std::uintptr_t,std::intptr_t,bool);
+extern "C" void AMSelectionDetach();
+extern "C" void AMSelectionUnhook();
 #endif
 extern "C" bool AMBarAttach(void*, void*);
 extern "C" bool AMBarSetState(const char*);
@@ -85,6 +89,11 @@ static std::intptr_t callback(Window window, unsigned message, std::uintptr_t wp
   const auto it = originals.find(window);
   if (it == originals.end()) return 0;
   const Proc original = it->second;
+#if defined(AM_EMBEDDED_BAR) && defined(_WIN32)
+  // Wake messages are consumed here; ordinary notifications are observed after
+  // REAPER's handler has updated selection, then coalesced onto its event queue.
+  if(message>=0xc000 && AMSelectionMessage(window,message,wp,lp,window==active && own_audio && suppression==0 && read_index==write_index))return 0;
+#endif
 #ifdef AM_EMBEDDED_BAR
   if(window==active && (message==0x111 || message==0x114 || message==0x115))AMCursorRestoreClock();
 #endif
@@ -100,6 +109,9 @@ static std::intptr_t callback(Window window, unsigned message, std::uintptr_t wp
     if (own_audio && command!=1068 && command!=40039 && command!=40040 && command!=40016) return 0;
   }
   const auto result = am_call_proc(original,window,message,wp,lp);
+#if defined(AM_EMBEDDED_BAR) && defined(_WIN32)
+  if(message<0xc000)AMSelectionMessage(window,message,wp,lp,window==active && own_audio && suppression==0 && read_index==write_index);
+#endif
 #ifdef AM_EMBEDDED_BAR
   if(window==active && message==0x111 && command>=42092 && command<=42095)AMCursorZoom(command);
   if(window==active && (message==0x7b || message==0x111 || message==0x114 || message==0x115))AMCursorViewportChanged();
@@ -118,6 +130,9 @@ static bool resolve() {
   return get_long && set_long && is_window;
 }
 static void detach() {
+#if defined(AM_EMBEDDED_BAR) && defined(_WIN32)
+  AMSelectionUnhook();
+#endif
 #ifdef AM_EMBEDDED_BAR
   AMPreviewUnbind();
   AMWaveDetach();
@@ -224,6 +239,7 @@ extern "C" AM_EXPORT int ReaperPluginEntry(void*, am::PluginInfo* info) {
 #ifdef _WIN32
     AMBarKeyboardRegister(am::host.Register,false);
     AMWinSearchDetach();
+    AMSelectionDetach();
 #endif
     AMDropDetach();
     AMAnalysisClose();
@@ -254,6 +270,7 @@ extern "C" AM_EXPORT int ReaperPluginEntry(void*, am::PluginInfo* info) {
   AMSearchRegister(info->Register,info->GetFunc);
 #ifdef _WIN32
   AMPlatformRegister(info->Register,info->GetFunc);
+  AMSelectionRegister(info->Register,info->GetFunc);
   AMBarKeyboardRegister(info->Register,true);
   am::register_api("AM_DropDiagnostics",reinterpret_cast<void*>(AMDropDiagnostics),
     reinterpret_cast<void*>(+[](void**,int)->void*{return const_cast<char*>(AMDropDiagnostics());}),

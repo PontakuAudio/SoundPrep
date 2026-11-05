@@ -233,6 +233,7 @@ extern "C" bool AMBarSetState(const char* text){
   }catch(...){return false;}
 }
 extern "C" const char* AMBarPoll(){static std::string result;result.clear();if(!events.empty()){result=std::move(events.front());events.pop_front();}return result.c_str();}
+extern "C" bool AMBarPending(){return !events.empty();}
 extern "C" void AMBarDetach(){bar.reset();events.clear();}
 extern "C" const char* AMBarGeometry(){
   static std::string result;result="{}";

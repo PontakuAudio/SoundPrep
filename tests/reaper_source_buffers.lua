@@ -15,11 +15,17 @@ local function wav(name,sample)
 end
 wav('old',function()return 12000 end);wav('silence',function()return 0 end)
 wav('pulse',function(i)return i<48 and 3000 or 0 end)
-r.Audio_Init();local master=r.GetMasterTrack(0);r.SetMediaTrackInfo_Value(master,'D_VOL',0)
+-- The Windows disposable host already owns its dummy device. Reinitializing
+-- it from this startup action can block before the deferred test loop starts.
+if r.GetOS():match('^Win')then
+  r.JS_Window_Show(r.GetMainHwnd(),'SHOW');r.OpenMediaExplorer(dir..'/old.wav',false)
+else r.Audio_Init()end
+local master=r.GetMasterTrack(0);r.SetMediaTrackInfo_Value(master,'D_VOL',0)
 assert(r.TrackFX_AddByName(master,'JS: am_response_probe',false,1)>=0)
 r.gmem_attach('AuditionMacro.ResponseTest');r.gmem_write(0,0);r.gmem_write(600000,0)
 local cases={{kind='JS',baseline=true},{kind='JS',keep=false},{kind='JS',keep=true},
-  {kind='VST',baseline=true},{kind='VST',keep=false},{kind='VST',keep=true}}
+  {kind='VST',baseline=true},{kind='VST',keep=false},{kind='VST',keep=true},
+  {kind='VST',keep=false,bypassed=true},{kind='VST',keep=true,bypassed=true}}
 local log=assert(io.open(dir..'/test.log','w'));log:setvbuf('no')
 local results=J.array{};local app,chosen,selected,index,stage,due,changed_at,clears,loads,guids=nil,nil,nil,0,0,0,nil,0,nil,nil
 local done=false
@@ -71,9 +77,19 @@ local function tick()
       app:activate('delay');app:play();assert(clears==0,'Same-file replay flushed the bank')
       stage=2;due=r.time_precise()+.25
     elseif stage==2 then
+      if chosen.bypassed then
+        for _,t in pairs(app.bank.macros)do r.TrackFX_SetEnabled(t,0,false)end
+      end
       selected=dir..'/silence.wav';app.last_poll=0;changed_at=r.time_precise();app:tick()
       assert(clears==1 and not app.preview:playing(),'No-autoplay selection did not clear immediately')
-      assert(app.path==selected);app:activate('other');app:play()
+      assert(app.path==selected);app:activate('other')
+      if chosen.bypassed then
+        for _,t in pairs(app.bank.macros)do
+          assert(not r.TrackFX_GetEnabled(t,0),'Buffer reset enabled a bypassed plugin')
+          r.TrackFX_SetEnabled(t,0,true)
+        end
+      end
+      app:play()
       stage=3;due=r.time_precise()+1
     elseif stage==3 then
       local peak=peaks(changed_at+.08);chosen.residual_peak=peak

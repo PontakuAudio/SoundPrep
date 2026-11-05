@@ -62,6 +62,7 @@ local function forget_track(self,t)
   if self.pdc_options then self.pdc_options[t]=nil end
   if self.preserve then self.preserve[t]=nil end
   if self.channel_state then self.channel_state[t]=nil end
+  if self.dirty_buffers then self.dirty_buffers[t]=nil end
 end
 function M.new(r,project,root,bank,session)
   local self=setmetatable({r=r,project=project,root=root,definition=bank,session=session,tracks={},macros={},loads=0,switches=0,channels=2},M)
@@ -195,6 +196,9 @@ function M:activate(id,gain_db)
   assert(self:valid(chosen),'Macro is not loaded')
   self:live_pdc(chosen)
   local keep=self.definition.settings.keep_fx_running and not self.fx_bypassed
+  -- Inactive branches stay muted until their previous source is discarded.
+  -- This must precede routing/enabling them, including a keep-running change.
+  self:flush_pending(keep,chosen)
   local gain=U.gain((id and (gain_db or 0) or 0)+self.definition.settings.monitor_gain_db)
   -- Only the departing/arriving branches change on a normal switch. FX remain
   -- instantiated. Full reconciliation is reserved for policy/chunk changes.
@@ -221,13 +225,27 @@ function M:activate(id,gain_db)
   self.routing_dirty=false;self.keep_running=keep;self.chosen=chosen;self.active_gain=gain
   self.active=id;self.active_gain_db=gain_db;self.switches=self.switches+1
 end
-function M:clear_buffers()
-  local r=self.r;local routes={}
-  for _,t in pairs(self.macros)do
+function M:reset_buffers(tracks)
+  local r=self.r;local routes,enabled={},{}
+  for _,t in pairs(tracks)do
     assert(self:valid(t),'A preview track was removed')
     routes[t]=r.GetMediaTrackInfo_Value(t,'B_MAINSEND')
+    local suspend=r.TrackFX_GetCount(t)>0
+    for fx=0,r.TrackFX_GetCount(t)-1 do
+      local _,kind=r.TrackFX_GetNamedConfigParm(t,fx,'fx_type')
+      if kind~='VST' and kind~='VST3' and kind~='CLAP'then suspend=false;break end
+    end
+    -- JSFX can initialize their PDC while being recreated. Suspending those
+    -- chains can consume the new transient; retain their proven reset path.
+    if suspend then enabled[t]=r.GetMediaTrackInfo_Value(t,'I_FXEN')end
   end
-  for t in pairs(routes)do r.SetMediaTrackInfo_Value(t,'B_MAINSEND',0)end
+  if r.PreventUIRefresh then r.PreventUIRefresh(1)end
+  for t in pairs(routes)do
+    r.SetMediaTrackInfo_Value(t,'B_MAINSEND',0)
+    -- Suspend the chain once. Per-FX bypass while it is live repeatedly waits
+    -- on the audio thread (especially expensive for long VST3 chains).
+    if enabled[t]~=nil then r.SetMediaTrackInfo_Value(t,'I_FXEN',0)end
+  end
   local function reset(t,fx)
     if r.TrackFX_GetOffline(t,fx)then return end
     local container,count=r.TrackFX_GetNamedConfigParm(t,fx,'container_count')
@@ -239,12 +257,13 @@ function M:clear_buffers()
       return
     end
     local _,kind=r.TrackFX_GetNamedConfigParm(t,fx,'fx_type')
-    if r.TrackFX_GetEnabled(t,fx) and (kind=='VST' or kind=='VST3' or kind=='CLAP')then
+    if kind=='VST' or kind=='VST3' or kind=='CLAP'then
       -- REAPER flushes these formats on per-plugin bypass. I_FXEN alone
       -- suspends the chain with its old audio still buffered.
-      r.TrackFX_SetEnabled(t,fx,false);r.TrackFX_SetEnabled(t,fx,true)
+      local enabled=r.TrackFX_GetEnabled(t,fx)
+      r.TrackFX_SetEnabled(t,fx,not enabled);r.TrackFX_SetEnabled(t,fx,enabled)
     else
-      -- JSFX/AU and bypassed plugins need an instance reset. Offline/online
+      -- JSFX/AU need an instance reset. Offline/online
       -- retains parameters, GUID, bypass state and unsaved edits.
       r.TrackFX_SetOffline(t,fx,true);r.TrackFX_SetOffline(t,fx,false)
     end
@@ -255,8 +274,34 @@ function M:clear_buffers()
       self:live_pdc(t)
     end
   end,debug.traceback)
-  for t,value in pairs(routes)do if self:valid(t)then r.SetMediaTrackInfo_Value(t,'B_MAINSEND',value)end end
+  for t,value in pairs(routes)do if self:valid(t)then
+    if enabled[t]~=nil then r.SetMediaTrackInfo_Value(t,'I_FXEN',enabled[t])end
+    r.SetMediaTrackInfo_Value(t,'B_MAINSEND',value)
+  end end
+  if r.PreventUIRefresh then r.PreventUIRefresh(-1)end
   if not ok then error(err)end
+end
+function M:flush_pending(all,chosen)
+  if not self.dirty_buffers then return end
+  local tracks={}
+  for t in pairs(self.dirty_buffers)do
+    if all or t==chosen then tracks[#tracks+1]=t end
+  end
+  if #tracks==0 then return end
+  self:reset_buffers(tracks)
+  -- A failed reset remains pending; never route its stale audio on retry.
+  for _,t in ipairs(tracks)do self.dirty_buffers[t]=nil end
+end
+function M:clear_buffers()
+  self.dirty_buffers=self.dirty_buffers or {}
+  for _,t in pairs(self.macros)do
+    assert(self:valid(t),'A preview track was removed')
+    self.dirty_buffers[t]=true
+    self.r.SetMediaTrackInfo_Value(t,'B_MAINSEND',0)
+  end
+  self.routing_dirty=true
+  -- No unused JSFX/AU recreation on the selection path. Even with autoplay
+  -- off, old tails are immediately inaudible. activate() flushes before use.
 end
 function M:chain(id)
   local t=assert(self.macros[id],'No macro selected')

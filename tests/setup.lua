@@ -45,13 +45,13 @@ local ok,err=xpcall(function()
     fail_write=false;fail_close=false;fail_move=false
     files={}
     local copied,message=pcall(Setup.install_native_if_missing,r,'/package')
-    assert(not copied and message:find('complete SoundPrep release ZIP',1,true))
+    assert(not copied and message:find('Reinstall the SoundPrep package through ReaPack',1,true))
   end
   platform='Win32';files={}
   local supported,message=pcall(Setup.install_native_if_missing,r,'/package')
   assert(not supported and message:find('x64',1,true))
 
-  -- First ZIP launch installs just the helper and stops before touching project
+  -- First bundled-helper launch installs just the helper and stops before touching project
   -- data, constructing the application, or registering optional actions.
   platform='macOS-arm64';loaded=false
   files={['./build/reaper_audition_macro.dylib']='bundled helper'}

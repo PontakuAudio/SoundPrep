@@ -1,0 +1,18 @@
+desc:Audition Macro test - retained 500 ms buffer
+options:gmem=AuditionMacro.ResponseTest
+slider1:500<1,1000,1>Delay (ms)
+in_pin:left
+in_pin:right
+out_pin:left
+out_pin:right
+@init
+ext_noinit=1;
+pdc_delay=floor(srate*slider1/1000);pdc_bot_ch=0;pdc_top_ch=2;
+size=pdc_delay*2;memset(0,0,size);pos=0;
+gmem[600000]+=1;
+@serialize
+// Keep history on a host playback reset, like a warm third-party FX instance.
+0;
+@sample
+l=pos[0];r=pos[1];pos[0]=spl0;pos[1]=spl1;
+spl0=l;spl1=r;pos+=2;pos>=size?pos=0;

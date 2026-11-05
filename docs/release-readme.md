@@ -4,6 +4,8 @@ REAPER Media Explorer用のサウンドデザイン向け拡張スクリプト�
 
 **使用時に `SoundPrep.lua` をRunしてください。** 起動後はMedia Explorerに表示される操作バーを使います。
 
+0.11.10ではWindowsの素材切り替えとMedia Explorerの設定復元を改善しました。[変更点と更新手順](docs/releases/0.11.10.md)。更新後はREAPERを完全に終了して再起動してください。
+
 ## ReaPackから導入
 
 必要環境: REAPER 7.35以降、SWS、JS_ReaScriptAPI、ReaPack。Windowsは10/11のx64版が対象です。
