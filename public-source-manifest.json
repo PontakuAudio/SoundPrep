@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "0.11.10",
+  "version": "0.11.11",
   "git_history_included": false,
   "runtime_files": [
     "LICENSE",
@@ -38,7 +38,7 @@
     "docs/license.md",
     "docs/loudness-defaults-2026-10-22.json",
     "docs/loudness-defaults.md",
-    "docs/releases/0.11.10.md",
+    "docs/releases/0.11.11.md",
     "docs/source-distribution.md",
     "docs/windows.md",
     "internal/Process selection.lua",
@@ -141,8 +141,8 @@
     },
     {
       "path": ".github/workflows/release.yml",
-      "sha256": "eaaf79710a2e8c6126d5952c6e4651c73eff7f6d443e956c7bacd17a7525e912",
-      "bytes": 6397
+      "sha256": "9561d6dc14d21d3b3930f066cafd59ace8f3869dcc91fa8374f05e13a6b464ab",
+      "bytes": 8635
     },
     {
       "path": ".github/workflows/windows.yml",
@@ -166,8 +166,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "b34edf2e79f29261b0c87d52d9a5bed68d265aa5bc71f3a255b6020483e2f542",
-      "bytes": 1569
+      "sha256": "8d22bc6b3b3333199594a20540b2510c73919261655665d4e9e22c1eb1eb15fc",
+      "bytes": 1593
     },
     {
       "path": "SoundPrep - Diagnostics.lua",
@@ -201,7 +201,7 @@
     },
     {
       "path": "SoundPrep.lua",
-      "sha256": "42652ccac57abecfe2a02779073cb062448f7c105a50b865dfc51658b2eff325",
+      "sha256": "5fc6234f7f398b3590e2018774008f58da9bb40d23817738b4392314a59fe987",
       "bytes": 1796
     },
     {
@@ -316,8 +316,8 @@
     },
     {
       "path": "docs/install.md",
-      "sha256": "92804df486c96edc521676e29ec0d0d80860888bbd35cc6f3517939d2d4d0d14",
-      "bytes": 11626
+      "sha256": "43c6dd27cfc7970f857f5426da4efe6bd4da65cdcd0a926d8358ac8fc46bac37",
+      "bytes": 11578
     },
     {
       "path": "docs/license-audit-2026-10-22.md",
@@ -346,13 +346,13 @@
     },
     {
       "path": "docs/release-readme.md",
-      "sha256": "b34edf2e79f29261b0c87d52d9a5bed68d265aa5bc71f3a255b6020483e2f542",
-      "bytes": 1569
+      "sha256": "8d22bc6b3b3333199594a20540b2510c73919261655665d4e9e22c1eb1eb15fc",
+      "bytes": 1593
     },
     {
-      "path": "docs/releases/0.11.10.md",
-      "sha256": "6ba23440c6524b9ebff1c55ec080789927c7318009e18866a1a9971b2722c317",
-      "bytes": 2791
+      "path": "docs/releases/0.11.11.md",
+      "sha256": "28d5a23e91861f4458523d7b8bc753b6ce77fe24a189a5e85b8714d228e2b30c",
+      "bytes": 907
     },
     {
       "path": "docs/source-distribution.md",
@@ -386,8 +386,8 @@
     },
     {
       "path": "lib/am/app.lua",
-      "sha256": "d55116264f2f7c6e9e3511d60c2fda2433c4149ea9f1dd5c8f47bf6abee31ebb",
-      "bytes": 41987
+      "sha256": "b93dc6a5e481b9a3472fc416efe9498ba137c0f40230fa16d73b05866aca2613",
+      "bytes": 42103
     },
     {
       "path": "lib/am/bank.lua",
@@ -546,8 +546,8 @@
     },
     {
       "path": "lib/am/take_fx.lua",
-      "sha256": "42cb34b6f803acf6af0632676d5f455c576aa2911c1493dd5607b7942840ddad",
-      "bytes": 9522
+      "sha256": "90b67b654b11b1ac2d6ea62a6d5199eb24440fdc5aef7baad80c0e11f0e84acd",
+      "bytes": 9737
     },
     {
       "path": "lib/am/timeline.lua",
@@ -856,7 +856,7 @@
     },
     {
       "path": "prebuilt/manifest.json",
-      "sha256": "4e749008b4e472a3ce9b910c1c9eafabf482d0fcec9f094f5471742e045ebff7",
+      "sha256": "ad2d587e9bfc6abe556cc2864925451d10f25b664dbb7291c8b8f0ae29e52433",
       "bytes": 491
     },
     {
@@ -906,13 +906,13 @@
     },
     {
       "path": "resources/public-source-files.json",
-      "sha256": "cb0206840ebed32ebac0a6ea936247c3527a43c11fb01ab17cde0a1ed76359e0",
+      "sha256": "92aedfba8d152d2256b3fe1621673d728b0c0dc67dfb029d2771ed2a0fa716a5",
       "bytes": 9754
     },
     {
       "path": "resources/public-workflows/release.yml",
-      "sha256": "eaaf79710a2e8c6126d5952c6e4651c73eff7f6d443e956c7bacd17a7525e912",
-      "bytes": 6397
+      "sha256": "9561d6dc14d21d3b3930f066cafd59ace8f3869dcc91fa8374f05e13a6b464ab",
+      "bytes": 8635
     },
     {
       "path": "resources/public-workflows/windows.yml",
@@ -921,7 +921,7 @@
     },
     {
       "path": "resources/release-manifest.json",
-      "sha256": "3e35b8d25c4336697683662cedf0ff5431d55e8157d10d6d9676e35061c5f426",
+      "sha256": "4543fae243655e5c0722666fbab7b1709110cfd10ae3306e47b666311b8dbcd0",
       "bytes": 3383
     },
     {
@@ -1416,8 +1416,8 @@
     },
     {
       "path": "tests/take_fx.lua",
-      "sha256": "61b00063520c0f0075f8094511d64ba57e6055f206bc78208ace538a8b241db6",
-      "bytes": 7949
+      "sha256": "44e361001dc2c1da545d173fb5d9d777f5a281aed6fa939dc10ee86998679f56",
+      "bytes": 8777
     },
     {
       "path": "tests/test_distribution_policy.py",

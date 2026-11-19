@@ -63,7 +63,7 @@ https://raw.githubusercontent.com/ReaTeam/Extensions/master/index.xml
 
 設定や保存したPresetは、インストール先の `data/` に保存されます。このフォルダーは削除せず、必要に応じてバックアップしてください。
 
-0.11.10ではWindows・macOSともにNative helperを更新します。更新後はREAPERを完全に終了して再起動してください。本体とhelperはReaPackから一緒に導入されます。
+SoundPrep 0.11.11には、Windows・macOSともにNative helper 0.11.10が同梱されます。本体とhelperはReaPackから一緒に導入されます。
 
 ## 追加Actions（任意）
 
