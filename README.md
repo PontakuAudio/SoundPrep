@@ -4,7 +4,7 @@ REAPER Media Explorer用のサウンドデザイン向け拡張スクリプト�
 
 **使用時に `SoundPrep.lua` をRunしてください。** 起動後はMedia Explorerに表示される操作バーを使います。
 
-0.11.11では、キュー内の操作が失敗したときにSoundPrepが終了する問題と、破損したSource FXの保存状態で起動できない問題を修正しました。[変更点と更新手順（英語）](docs/releases/0.11.11.md)
+0.11.12では、Media Explorerで素材を探すときのCPU負荷を軽減しました。新規インストールでは、挿入時に選択範囲だけをレンダーし、処理を伴う未キャッシュのドロップは編集可能なSource + FXとして即座に配置します。[変更点と更新手順（英語）](docs/releases/0.11.12.md)
 
 ## ReaPackから導入
 

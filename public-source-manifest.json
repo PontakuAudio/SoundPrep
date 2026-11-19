@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "0.11.11",
+  "version": "0.11.12",
   "git_history_included": false,
   "runtime_files": [
     "LICENSE",
@@ -38,7 +38,7 @@
     "docs/license.md",
     "docs/loudness-defaults-2026-10-22.json",
     "docs/loudness-defaults.md",
-    "docs/releases/0.11.11.md",
+    "docs/releases/0.11.12.md",
     "docs/source-distribution.md",
     "docs/windows.md",
     "internal/Process selection.lua",
@@ -166,8 +166,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "8d22bc6b3b3333199594a20540b2510c73919261655665d4e9e22c1eb1eb15fc",
-      "bytes": 1593
+      "sha256": "1cc04d0aa6f1126515d941a016c6308deff1ebe0b3d96b679b4ab4cc1ffe51a4",
+      "bytes": 1696
     },
     {
       "path": "SoundPrep - Diagnostics.lua",
@@ -201,7 +201,7 @@
     },
     {
       "path": "SoundPrep.lua",
-      "sha256": "5fc6234f7f398b3590e2018774008f58da9bb40d23817738b4392314a59fe987",
+      "sha256": "4cea9b1bce4aa393caa8642fe4f0e1971973b48b37048d286975484db61a4091",
       "bytes": 1796
     },
     {
@@ -316,7 +316,7 @@
     },
     {
       "path": "docs/install.md",
-      "sha256": "43c6dd27cfc7970f857f5426da4efe6bd4da65cdcd0a926d8358ac8fc46bac37",
+      "sha256": "b55eebe120d559675a41c5e6f555fda9d16871a2fc667949a28232e7014d96d9",
       "bytes": 11578
     },
     {
@@ -346,13 +346,13 @@
     },
     {
       "path": "docs/release-readme.md",
-      "sha256": "8d22bc6b3b3333199594a20540b2510c73919261655665d4e9e22c1eb1eb15fc",
-      "bytes": 1593
+      "sha256": "1cc04d0aa6f1126515d941a016c6308deff1ebe0b3d96b679b4ab4cc1ffe51a4",
+      "bytes": 1696
     },
     {
-      "path": "docs/releases/0.11.11.md",
-      "sha256": "28d5a23e91861f4458523d7b8bc753b6ce77fe24a189a5e85b8714d228e2b30c",
-      "bytes": 907
+      "path": "docs/releases/0.11.12.md",
+      "sha256": "4cef61a49158101981ab0124d705bb5b5f9d071936cb289bbafe7e1cac77e9f3",
+      "bytes": 1163
     },
     {
       "path": "docs/source-distribution.md",
@@ -856,7 +856,7 @@
     },
     {
       "path": "prebuilt/manifest.json",
-      "sha256": "ad2d587e9bfc6abe556cc2864925451d10f25b664dbb7291c8b8f0ae29e52433",
+      "sha256": "d645155a680dd31ccaa351609fa9826a45a441628267bc3d164cc082965c2ef4",
       "bytes": 491
     },
     {
@@ -906,7 +906,7 @@
     },
     {
       "path": "resources/public-source-files.json",
-      "sha256": "92aedfba8d152d2256b3fe1621673d728b0c0dc67dfb029d2771ed2a0fa716a5",
+      "sha256": "4be48bafe4f2bb2497f92bcd3dc67bf353dd5ee7636c9cedd08c09dd58a6a21a",
       "bytes": 9754
     },
     {
@@ -921,7 +921,7 @@
     },
     {
       "path": "resources/release-manifest.json",
-      "sha256": "4543fae243655e5c0722666fbab7b1709110cfd10ae3306e47b666311b8dbcd0",
+      "sha256": "028e04b02c5d5b682d5f83b33e96ee35bdfc4ecdc7611fb31f152490986041a2",
       "bytes": 3383
     },
     {
