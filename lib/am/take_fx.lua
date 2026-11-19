@@ -3,13 +3,20 @@
 local J=require('am.json');local U=require('am.util');local C=require('am.chunk')
 local M={};M.__index=M
 local KEY='P_EXT:AuditionMacroSourceFX'
+local JSON_ARRAY=getmetatable(J.array())
 local function guid(r,take)return select(2,r.GetSetMediaItemTakeInfo_String(take,'GUID','',false))end
 local function read(r,take)
   local text=select(2,r.GetSetMediaItemTakeInfo_String(take,KEY,'',false))
   if text==''then return end
   local ok,state=pcall(J.decode,text)
-  if ok and type(state)=='table' and state.schema==1 and type(state.fx)=='table'then return state end
-  error('Invalid SoundPrep source FX state')
+  if not ok or type(state)~='table' or state.schema~=1 or getmetatable(state.fx)~=JSON_ARRAY then return end
+  if type(state.take)~='string' or state.take=='' or
+    type(state.count)~='number' or state.count<0 or state.count%1~=0 then return end
+  for _,fx in ipairs(state.fx)do
+    if type(fx)~='table' or type(fx.guid)~='string' or fx.guid=='' or
+      type(fx.index)~='number' or fx.index<0 or fx.index%1~=0 then return end
+  end
+  return state
 end
 local function write(r,take,state)
   assert(r.GetSetMediaItemTakeInfo_String(take,KEY,J.encode(state),true),'Cannot save source FX resource state')
@@ -108,11 +115,9 @@ end
 local function source(r,item)
   local take=r.GetTake(item,0);if not take or r.TakeFX_GetCount(take)==0 then return end
   -- The resource marker remains authoritative after the user replaces the
-  -- source audio. Do not leave our offlined FX stranded after a restart.
+  -- source audio or removes the Rendered take while the companion is closed.
   if read(r,take)then return take end
-  -- A saved item can lose its Rendered take while the companion is closed.
-  -- Recognize its resource marker so the only surviving source is restored.
-  -- Unbaked single takes have no marker and remain untouched.
+  -- Without usable resource state, only a matching two-take drop proves ownership.
   if r.CountTakes(item)<2 then return end
   local text=select(2,r.GetSetMediaItemTakeInfo_String(take,'P_EXT:AuditionMacro','',false))
   local ok,plan=pcall(J.decode,text)

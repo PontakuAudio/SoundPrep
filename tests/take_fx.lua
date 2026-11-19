@@ -114,3 +114,21 @@ T.suspend(r,a);a.media.path='/replacement.wav';T.new(r,project):tick()
 assert(not a.fx[2].offline,'Replacing source media while closed must not strand managed FX offline')
 current='other';n=mutations;controller:tick();assert(mutations==n,'Controller changed another project')
 current=project;item.valid=false;a.valid=false;controller:tick()
+
+local corrupt=take('corrupt');local alternate=take('alternate')
+corrupt.fx[1].offline=true
+local unmanaged={valid=true,takes={corrupt,alternate},active=alternate,all=0}
+items={unmanaged};selected=items
+local key='P_EXT:AuditionMacroSourceFX'
+for _,raw in ipairs{
+  '{',
+  '{"schema":2,"take":"corrupt","count":3,"fx":[]}',
+  '{"schema":1,"take":"corrupt","count":3,"fx":[false]}',
+}do
+  corrupt.tags[key]=raw
+  local resources=T.new(r,project);resources:tick()
+  assert(not resources.known[unmanaged],'A corrupt resource marker must not establish ownership')
+  assert(T.restore_selected(r)==0 and unmanaged.active==alternate,'Restore selected must skip unmanaged takes')
+  assert(corrupt.tags[key]==raw and corrupt.fx[1].offline and not corrupt.fx[2].offline,
+    'A corrupt resource marker must leave the take untouched')
+end

@@ -599,20 +599,23 @@ function M:commands(paused)
   local queue=self.r.GetExtState(M.EXT,'queue');if queue==''then return end
   self.r.DeleteExtState(M.EXT,'queue',false)
   for command in queue:gmatch('[^\n]+')do
-    if paused then
-      if command=='quit' then self.closed=true elseif command=='stop' then self.preview:stop()end
-    elseif command:match('^slot:%d$')then
-      local slot=command:sub(-1);if slot=='0'then self:activate(nil)elseif self.definition.slots[slot]then self:activate(self.definition.slots[slot])end
-    elseif command=='reverse'then self:reverse()
-    elseif command=='ab'then self:ab()
-    elseif command=='play'then self:transport()
-    elseif command=='replay'then self:play()
-    elseif command=='stop'then self.preview:stop()
-    elseif command=='export'then self:export(false)
-    elseif command=='analyse'then self:analyse(true)
-    elseif command=='edit'then self.editor_requested=true
-    elseif command:match('^search:')then self.message='Search assistance is not included in this release. Use the Media Explorer search field.'
-    elseif command=='quit'then self.closed=true end
+    local ok,e=pcall(function()
+      if paused then
+        if command=='quit' then self.closed=true elseif command=='stop' then self.preview:stop()end
+      elseif command:match('^slot:%d$')then
+        local slot=command:sub(-1);if slot=='0'then self:activate(nil)elseif self.definition.slots[slot]then self:activate(self.definition.slots[slot])end
+      elseif command=='reverse'then self:reverse()
+      elseif command=='ab'then self:ab()
+      elseif command=='play'then self:transport()
+      elseif command=='replay'then self:play()
+      elseif command=='stop'then self.preview:stop()
+      elseif command=='export'then self:export(false)
+      elseif command=='analyse'then self:analyse(true)
+      elseif command=='edit'then self.editor_requested=true
+      elseif command:match('^search:')then self.message='Search assistance is not included in this release. Use the Media Explorer search field.'
+      elseif command=='quit'then self.closed=true end
+    end)
+    if not ok then self.message=tostring(e)end
   end
 end
 function M:render_drops()

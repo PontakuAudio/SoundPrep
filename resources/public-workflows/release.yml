@@ -66,23 +66,48 @@ jobs:
               out.write(f"tag=v{version}\n")
               out.write(f"release_time={release_time}\n")
           PY
-      - name: Load previous public index and reject existing version
+      - name: Check existing release and tag
+        id: release_state
         if: inputs.publish
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: &check_release_state |
+          mkdir -p build
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases" > build/releases.json
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          tag = os.environ["RELEASE_TAG"]
+          releases = [r for page in json.loads(pathlib.Path("build/releases.json").read_text()) for r in page]
+          matches = [r for r in releases if r["tag_name"] == tag]
+          if any(not r["draft"] for r in matches):
+              raise SystemExit(f"{tag} is already published. Use a new version to preserve published files.")
+          if len(matches) > 1:
+              raise SystemExit(f"Multiple drafts match {tag}. Resolve the ambiguous release before publishing.")
+
+          source = os.environ.get("SOURCE_COMMIT") or subprocess.check_output(
+              ["git", "rev-parse", "HEAD"], text=True).strip()
+          ref = f"refs/tags/{tag}"
+          peeled = ref + "^{}"
+          output = subprocess.check_output(["git", "ls-remote", "--tags", "origin", ref, peeled], text=True)
+          refs = {name: sha for sha, name in (line.split() for line in output.splitlines())}
+          tag_commit = refs.get(peeled, refs.get(ref))
+          if tag_commit and tag_commit != source:
+              raise SystemExit(f"{tag} points to {tag_commit}, expected {source}.")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"tag_exists={str(tag_commit is not None).lower()}\n")
+              out.write(f"draft_id={matches[0]['id'] if matches else ''}\n")
+          PY
+      - name: Load previous public index
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p build/previous
-          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases" > build/releases.json
-          gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$RELEASE_TAG" > build/tags.json
           python - <<'PY'
           import json, os, pathlib, subprocess
           releases = [r for page in json.loads(pathlib.Path("build/releases.json").read_text()) for r in page]
-          tags = json.loads(pathlib.Path("build/tags.json").read_text())
-          if any(t["ref"] == "refs/tags/" + os.environ["RELEASE_TAG"] for t in tags):
-              raise SystemExit("This tag already exists. Publish from a new version instead.")
-          if any(r["tag_name"] == os.environ["RELEASE_TAG"] for r in releases):
-              raise SystemExit("This release already exists. Use a new version; published files are immutable.")
           published = [r for r in releases if not r["draft"] and not r["prerelease"]]
           if published:
               latest = json.loads(subprocess.check_output(
@@ -118,6 +143,7 @@ jobs:
           name: soundprep-release
           path: build/release/*
           if-no-files-found: error
+          overwrite: true
   publish:
     if: inputs.publish
     needs: package
@@ -131,20 +157,49 @@ jobs:
         with:
           name: soundprep-release
           path: build/release
+      - name: Recheck existing release and tag
+        id: release_state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.package.outputs.tag }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: *check_release_state
       - name: Publish immutable release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.package.outputs.tag }}
           SOURCE_COMMIT: ${{ github.sha }}
+          TAG_EXISTS: ${{ steps.release_state.outputs.tag_exists }}
+          DRAFT_ID: ${{ steps.release_state.outputs.draft_id }}
         run: |
           cd build/release
           sha256sum --check SHA256SUMS
           cd ../..
-          gh api "repos/$GITHUB_REPOSITORY/git/refs" \
-            -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$SOURCE_COMMIT" > build/release-tag.json
-          gh release create "$RELEASE_TAG" build/release/* \
-            --verify-tag \
-            --title "SoundPrep ${RELEASE_TAG#v}" \
-            --notes-file "docs/releases/${RELEASE_TAG#v}.md" \
-            --draft
-          gh release edit "$RELEASE_TAG" --draft=false --latest
+          if [ "$TAG_EXISTS" = false ]; then
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$SOURCE_COMMIT" --silent
+          fi
+
+          checked_draft() {
+            local id
+            id=$(gh release view "$RELEASE_TAG" --json databaseId,isDraft --jq 'select(.isDraft) | .databaseId') || return 1
+            if [ -z "$id" ] || [ "$id" != "${DRAFT_ID:-$id}" ]; then
+              echo "Expected draft for $RELEASE_TAG is no longer available." >&2
+              return 1
+            fi
+            echo "$id"
+          }
+
+          if [ -n "$DRAFT_ID" ]; then
+            checked_draft > /dev/null
+            gh release upload "$RELEASE_TAG" build/release/* --clobber
+          else
+            gh release create "$RELEASE_TAG" build/release/* \
+              --verify-tag \
+              --title "SoundPrep ${RELEASE_TAG#v}" \
+              --notes-file "docs/releases/${RELEASE_TAG#v}.md" \
+              --draft
+          fi
+          draft=$(checked_draft)
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$draft" \
+            -F draft=false -F prerelease=false -f make_latest=true --silent
