@@ -1,16 +1,18 @@
 local P=require('am.peaks');local J=require('am.json')
 local ext,now,destroyed,finalized,selected={},0,0,0,0
-local calls=0;local r={GetExtState=function(_,key)return ext[key]or''end,
+local calls,clock_reads=0,0;local r={GetExtState=function(_,key)return ext[key]or''end,
   SetExtState=function(_,key,value)ext[key]=value end,DeleteExtState=function(_,key)ext[key]=nil end,
-  time_precise=function()return now end,PCM_Source_CreateFromFile=function(path)return{path=path,left=10}end,
+  time_precise=function()clock_reads=clock_reads+1;return now end,PCM_Source_CreateFromFile=function(path)return{path=path,left=10}end,
   PCM_Source_BuildPeaks=function(source,mode)
     calls=calls+1;if mode==0 then return source.path=='cached'and 0 or 1 end
     if mode==2 then assert(source.left==0);finalized=finalized+1;return 0 end
     now=now+.003;source.left=math.max(0,source.left-1);return source.left
   end,PCM_Source_Destroy=function()destroyed=destroyed+1 end,UpdateArrange=function()end,
   SetMediaItemSelected=function()selected=selected+1 end}
-ext.peaks=J.encode{{project='project',paths={'cached','long','long'}}}
-local p=P.new(r,'project');p:tick()
+local p=P.new(r,'project');p:tick();assert(clock_reads==0 and calls==0,'Idle peak tick read the deadline clock')
+ext.peaks=J.encode{{project='other',paths={'ignored'}}};p:tick()
+assert(not ext.peaks and clock_reads==0 and calls==0,'An empty queue after intake read the deadline clock')
+ext.peaks=J.encode{{project='project',paths={'cached','long','long'}}};p:tick()
 assert(finalized==0 and p.source and calls<=5,'Peak work did not yield within its budget')
 for _=1,10 do p:tick()end
 assert(finalized==1 and destroyed==2 and selected==0 and not p.source and #p.queue==0)

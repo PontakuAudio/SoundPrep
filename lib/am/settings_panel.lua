@@ -21,7 +21,7 @@ local function live(a,key)
   local s=a.definition.settings
   if key=='loop'then
     a.explorer:toggle(1068,s.loop)
-    if a.preview:playing()then a.preview:set('B_LOOP',s.loop and 1 or 0)end
+    if a.preview:playing(true)then a.preview:set('B_LOOP',s.loop and 1 or 0)end
   elseif key=='monitor_gain_db' or key=='keep_fx_running'then
     a.bank:activate(a.selected_id,a:effective().output_gain_db)
   end

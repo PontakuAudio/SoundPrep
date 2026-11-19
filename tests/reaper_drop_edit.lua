@@ -37,7 +37,9 @@ local ok,err=xpcall(function()
   r.Main_OnCommand(41929,0);r.SetMediaTrackInfo_Value(r.GetMasterTrack(0),'D_VOL',0)
   r.InsertTrackAtIndex(0,false);r.GetSetProjectInfo(0,'PROJECT_SRATE',48000,true);r.GetSetProjectInfo(0,'PROJECT_SRATE_USE',1,true)
   local data=host..'/drop-edit-'..U.hash(r.genGuid());App.initialize(r,root,data)
-  local bank=Model.defaults();bank.settings.autoplay=false;assert(Model.save(data..'/bank.json',bank))
+  local bank=Model.defaults();bank.settings.autoplay=false
+  bank.settings.auto_render_drops=true;bank.settings.insert_handles=true
+  assert(Model.save(data..'/bank.json',bank))
   app=App.new(r,root,data);r.OpenMediaExplorer(path,false)
 end,debug.traceback)
 if not ok then finish(false,err);return end

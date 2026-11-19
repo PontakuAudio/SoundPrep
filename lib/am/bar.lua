@@ -12,12 +12,25 @@ function M.available(r)
   return info~=nil,err
 end
 function M.new(r,app)return setmetatable({r=r,app=app},M)end
-function M:state()
-  local a=self.app;local m=a:effective();local slots={};local macros=J.array{}
-  for slot,id in pairs(a.definition.slots)do slots[id]=slot end
-  for _,item in ipairs(a.definition.macros)do
-    macros[#macros+1]={id=item.id,label=(slots[item.id] or '–')..'  '..item.name}
+local function macro_labels(self,definition)
+  local cached=self.macro_labels
+  if cached and #cached.labels==#definition.macros and U.equal(cached.slots,definition.slots)then
+    local unchanged=true
+    for i,item in ipairs(definition.macros)do
+      if item.id~=cached.labels[i].id or item.name~=cached.names[i]then unchanged=false;break end
+    end
+    if unchanged then return cached.labels end
   end
+  local slots,names,labels={},{},J.array{}
+  for slot,id in pairs(definition.slots)do slots[id]=slot end
+  for i,item in ipairs(definition.macros)do
+    names[i]=item.name;labels[i]={id=item.id,label=(slots[item.id] or '–')..'  '..item.name}
+  end
+  self.macro_labels={slots=U.copy(definition.slots),names=names,labels=labels}
+  return labels
+end
+function M:state()
+  local a=self.app;local m=a:effective();local macros=macro_labels(self,a.definition)
   local paused=self.r.EnumProjects(-1)~=a.project
   local gain,status=a:gain();local measured=a:measurement()
   local spec=Analysis.resolve(a.path or (a.identity and a.identity.path),a.source_channels or 0,a.definition.settings,m.normalization)
@@ -34,7 +47,7 @@ function M:state()
   elseif analysis_active then label=label..' · analysing…'
   elseif analysis_queued then label=label..' · analysis queued…'
   elseif m.normalization.enabled then label=label..' · '..status end
-  if a.preview:playing() and a.preview.gain_target~=nil then
+  if a.preview:playing(true) and a.preview.gain_target~=nil then
     label=label..(' · applying %+.1f → %+.1f dB'):format(a.preview.gain_db,a.preview.gain_target)
   end
   if analysis_error then label='Analysis failed: '..analysis_error end

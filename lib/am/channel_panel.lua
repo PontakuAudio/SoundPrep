@@ -37,7 +37,7 @@ function M.state(app)
   return {open=app.channel_panel_open==true,source=key,file=app.path and U.basename(app.path)or 'Select an audio file in Media Explorer.',
     summary=selected and Selection.label(selected)or downmix and 'Downmix all channels'or 'All source channels',
     items=items,previous=page>0,next=(page+1)*8<count,all=not selected and not downmix,downmix=downmix,
-    can_downmix=count>2,can_swap=#list==2,enabled=count>0,playing=app.preview:playing()==true,
+    can_downmix=count>2,can_swap=#list==2,enabled=count>0,playing=app.preview:playing(true)==true,
     page=count>0 and ('%d–%d / %d'):format(page*8+1,math.min(count,(page+1)*8),count)or '',notice=app.channel_panel_notice or ''}
 end
 function M.toggle(app,channel)

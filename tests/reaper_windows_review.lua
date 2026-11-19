@@ -102,6 +102,7 @@ local initialized,why=xpcall(function()
     r.JS_Window_Show(ancestor,'SHOW')
   end
   app=App.new(r,root,data);app.definition.settings.autoplay=false
+  app.definition.settings.auto_render_drops=true
   app.bar=Bar.new(r,app);app.bar:tick()
   assert(J.decode(r.AM_BarGeometry()).attached)
   check('App, FX bank and embedded Windows bar attach')

@@ -17,6 +17,7 @@ local ok,e=xpcall(function()
   r.SetMediaTrackInfo_Value(r.GetMasterTrack(0),'D_VOL',0)
   if r.CountTracks(0)==0 then r.InsertTrackAtIndex(0,false)end
   App.initialize(r,root,data);local b=assert(Model.load(data..'/bank.json'));b.settings.autoplay=false
+  b.settings.auto_render_drops=true
   for _,m in ipairs(b.macros)do m.normalization.enabled=false end
   b.raw=Model.raw_settings();Model.save(data..'/bank.json',b)
   app=App.new(r,root,data);r.OpenMediaExplorer('/tmp/audition-macro-dev/long.wav',false)

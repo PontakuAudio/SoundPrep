@@ -1,5 +1,6 @@
 local Panel=require('am.channel_panel');local Names=require('am.channel_names');local Selection=require('am.channel_selection')
 local Model=require('am.model');local J=require('am.json');local U=require('am.util');local Bar=require('am.bar');local App=require('am.app')
+local Explorer=require('am.media_explorer')
 local project={};local settings=Model.defaults().settings;local writes=0
 local app={definition={settings=settings},path='/recording.wav',source_channels=6,project=project,identity={size=100,mtime=1},
   preview={playing=function()return false end}}
@@ -28,16 +29,32 @@ command('downmix');assert(Panel.state(app).downmix)
 app.source_channels=0;state=Panel.state(app);assert(not state.enabled and #state.items==0)
 -- Wave labels are dense and indexed by original file channel, independent of order.
 app.source_channels=6;app:set_channel_selection({5,1});app.r=r
-local subset,labels
+local subset,labels;local subsets,names,csvs=0,0,0;local fail_subset=false
+local csv=Selection.csv;Selection.csv=function(...)csvs=csvs+1;return csv(...)end
 r.AM_WaveSetChannels=function()end
-r.AM_WaveSetChannelSubset=function(...)subset={...}end
-r.AM_WaveSetChannelNames=function(path,stamp,json)assert(path==app.path and stamp=='100:1');labels=J.decode(json)end
+r.AM_WaveSetChannelSubset=function(...)subset={...};subsets=subsets+1;return not fail_subset end
+r.AM_WaveSetChannelNames=function(path,stamp,json)
+  assert(path==app.path and stamp=='100:'..app.identity.mtime);labels=J.decode(json);names=names+1;return true
+end
+local wave='wave';local explorer=Explorer.new(r);app.explorer=explorer;explorer.native_transport='window'
+explorer.control=function(_,id)return id==1046 and wave or 'clock'end
+r.APIExists=function(key)return key=='AM_WaveAttach'end;r.AM_WaveAttach=function()return true end
+explorer:attach_wave()
 App.sync_channel_waveform(app)
 assert(subset[2]=='5,1'and #labels==6 and labels[1]=='Boom & A'and labels[2]==''and labels[5]=='風鈴 🎤')
+App.sync_channel_waveform(app);assert(subsets==1 and names==1 and csvs==1,'Unchanged waveform resent its channels or labels')
+Selection.get(settings,6).channels[2]=3;App.sync_channel_waveform(app)
+assert(subset[2]=='5,3'and subsets==2 and names==2 and csvs==2)
 app:set_downmix(false);App.sync_channel_waveform(app)
 assert(subset[2]=='1,2,3,4,5,6'and labels[5]=='風鈴 🎤','All-source waveform keeps names without changing audio selection')
+App.sync_channel_waveform(app);assert(subsets==3 and names==3 and csvs==3)
+wave='reattached';explorer:attach_wave();App.sync_channel_waveform(app)
+assert(subsets==4 and names==4,'The new waveform did not receive its initial channels and labels')
+app.identity.mtime=2;fail_subset=true;App.sync_channel_waveform(app)
+fail_subset=false;App.sync_channel_waveform(app);App.sync_channel_waveform(app)
+assert(subsets==6 and names==6 and subset[3]=='100:2','Failed sends must retry and successful sends must be cached')
 assert(not Selection.get(settings,6))
-Names.read=read
+Names.read=read;Selection.csv=csv
 -- Mono files keep their sole channel; failed saves leave the panel available.
 app.source_channels=1;command('toggle',1);command('toggle',1)
 assert(#Panel.state(app).items==1 and Selection.list(Selection.get(settings,1))[1]==1)

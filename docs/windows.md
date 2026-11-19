@@ -14,7 +14,7 @@ Main Action Listの **`SoundPrep.lua`** を実行すると起動する。キー�
 
 Normalizeは追加の実行環境なしで利用できる。Editの `Loudness meter` で既定のLUFS MaxMまたはZwickerを選ぶ。ZwickerはMaxが既定、P95も選択可能。目標sones・校正値・原音Peak guardも同じNormalizeタブで設定する。
 
-v0.10.7以降のWindows D&Dは同じREAPER内で直接レンダーする。別REAPER・レンダーworker・Pythonは不要。v0.11.0ではラウドネス解析にもPython / FFmpegは不要。現在の自動焼き込みONでは、キャッシュ済みなら再生を続けて配置し、未キャッシュならタイムラインを停止してD&D内でRenderedまで作成する。完了後は停止状態を維持する。録音中はSource + FXで挿入し、停止後にRenderedを追加する。このD&D変更はLua更新とcompanion再起動で反映される。
+v0.10.7以降のWindows D&Dは同じREAPER内で直接レンダーする。別REAPER・レンダーworker・Pythonは不要。v0.11.0ではラウドネス解析にもPython / FFmpegは不要。新規設定では未キャッシュ素材の自動レンダーはOFF。Source + FXで挿入し、必要に応じてトランスポート停止中に **Render selected drops** で焼き込める。キャッシュ済みなら再生を続けて配置できる。自動レンダーをONにすると、未キャッシュ素材はタイムラインを停止してD&D内でRenderedまで作成し、完了後も停止状態を維持する。自動レンダーONで録音中にドロップした場合は、Source + FXで挿入し、停止後にRenderedを追加する。このD&D変更はLua更新とcompanion再起動で反映される。
 
 v0.10.8ではD&D完了でMEPの試聴を停止し、波形の範囲選択・変更で停止／Pause中も範囲先頭から即時再生するよう変更した。Preserve PitchはRaw・初期Macro・新規Macroで既定OFF。起動済みcompanionにはLua変更が反映されないため、SoundPrepをQuitして起動し直す。現在のパッケージには同梱のhelperを使用する。
 

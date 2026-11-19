@@ -120,6 +120,7 @@ local function source(r,item)
   -- Without usable resource state, only a matching two-take drop proves ownership.
   if r.CountTakes(item)<2 then return end
   local text=select(2,r.GetSetMediaItemTakeInfo_String(take,'P_EXT:AuditionMacro','',false))
+  if not text or text==''then return end
   local ok,plan=pcall(J.decode,text)
   if not ok or type(plan)~='table' or type(plan.original)~='string' or type(plan.snapshot)~='string'then return end
   local media=r.GetMediaItemTake_Source(take)

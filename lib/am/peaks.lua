@@ -14,21 +14,26 @@ function M.enqueue(r,project,items)
   queue[#queue+1]={project=tostring(project),paths=paths}
   r.SetExtState(EXT,KEY,J.encode(queue),false)
 end
-function M.new(r,project)return setmetatable({r=r,project=project,queue={},seen={}},M)end
+function M.new(r,project)return setmetatable({r=r,project=project,queue={},head=1,tail=0,seen={}},M)end
 function M:tick()
   local r=self.r;local text=r.GetExtState(EXT,KEY)
   if text~=''then
     r.DeleteExtState(EXT,KEY,false)
     for _,batch in ipairs(J.decode(text))do if batch.project==tostring(self.project)then
       for _,path in ipairs(batch.paths)do if not self.seen[path]then
-        self.queue[#self.queue+1]=path;self.seen[path]=true
+        self.tail=self.tail+1;self.queue[self.tail]=path;self.seen[path]=true
       end end
     end end
   end
+  if not self.source and self.head>self.tail then return end
   local until_time=r.time_precise()+.004
   repeat
     if not self.source then
-      local path=table.remove(self.queue,1);if not path then return end
+      if self.head>self.tail then return end
+      local path=self.queue[self.head]
+      self.queue[self.head]=nil;self.head=self.head+1
+      if self.head>self.tail then self.head=1;self.tail=0 end
+      if not path then return end
       self.path=path;self.source=r.PCM_Source_CreateFromFile(path)
       if self.source and r.PCM_Source_BuildPeaks(self.source,0)==0 then
         r.PCM_Source_Destroy(self.source);self.source=nil;self.seen[path]=nil
@@ -43,6 +48,6 @@ function M:tick()
 end
 function M:close()
   if self.source then self.r.PCM_Source_Destroy(self.source);self.source=nil end
-  self.queue={};self.seen={};self.r.DeleteExtState(EXT,KEY,false)
+  self.queue={};self.head=1;self.tail=0;self.seen={};self.r.DeleteExtState(EXT,KEY,false)
 end
 return M

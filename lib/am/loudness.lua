@@ -187,8 +187,9 @@ function M:request(identity,force,analysis,fallback)
   self.counter=self.counter+1;local job=self.jobdir..'/'..self.counter
   local request={job_id=self.session..':'..self.counter,identity=identity,profile=M.profile(analysis),
     timeout=self.settings.analysis_timeout_seconds,analyzer_key=self.analyzer_key,analysis=U.copy(analysis)}
-  assert(U.write(job..'.request.json',J.encode(request)))
-  local ok,launched=pcall(self.r.AM_AnalysisStart,J.encode(request),job..'.result.json')
+  local text=J.encode(request)
+  assert(U.write(job..'.request.json',text))
+  local ok,launched=pcall(self.r.AM_AnalysisStart,text,job..'.result.json')
   if not ok or not U.finite(launched)or launched<=0 or launched%1~=0 then
     os.remove(job..'.request.json');self.error='Could not start native analysis';return nil
   end

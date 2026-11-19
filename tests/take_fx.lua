@@ -102,6 +102,10 @@ a.fx[2].floating=nil;controller:tick();assert(a.fx[2].offline)
 assert(T.restore_selected(r)==2 and item.active==a and not a.fx[2].offline)
 item.active=b;assert(T.restore_selected(r)==0 and item.active==a,'Explicit restore must also activate an already-online source')
 local unrelated=take('unrelated');local foreign={valid=true,takes={unrelated,b},active=b,all=0}
+local decode=J.decode;local decodes=0
+J.decode=function(...)decodes=decodes+1;return decode(...)end
+items={foreign};assert(T.offline_project(r,project)==0)
+J.decode=decode;assert(decodes==0,'An empty AuditionMacro tag reached the JSON decoder')
 local pending=take('pending');pending.tags['P_EXT:AuditionMacro']=a.tags['P_EXT:AuditionMacro']
 items={foreign,{valid=true,takes={pending},active=pending,all=0},item}
 assert(T.offline_project(r,project)==0 and not unrelated.fx[1].offline and not pending.fx[1].offline,

@@ -22,6 +22,7 @@ local ok,err=xpcall(function()
  r.InsertTrackAtIndex(0,false);r.SetMediaTrackInfo_Value(r.GetTrack(0,0),'I_HEIGHTOVERRIDE',100)
  r.TrackList_AdjustWindows(false)
  App.initialize(r,root,data);local b=Model.defaults();b.settings.autoplay=false
+ b.settings.auto_render_drops=true
  for _,m in ipairs(b.macros)do m.normalization.enabled=false end
  b.raw=Model.raw_settings();assert(Model.save(data..'/bank.json',b))
  app=App.new(r,root,data);r.OpenMediaExplorer(path,false)

@@ -22,6 +22,7 @@ local ok,err=xpcall(function()
   local explorer=r.OpenMediaExplorer(path,false);local ancestor=explorer
   for _=1,8 do if not ancestor then break end;r.JS_Window_Show(ancestor,'SHOW');ancestor=r.JS_Window_GetParent(ancestor)end
   app=App.new(r,root,host..'/drag-data');app.definition.settings.autoplay=false
+  app.definition.settings.auto_render_drops=true
   app.bar=require('am.bar').new(r,app);app:activate('heavy')
   r.TrackList_AdjustWindows(false);r.UpdateArrange()
 end,debug.traceback)

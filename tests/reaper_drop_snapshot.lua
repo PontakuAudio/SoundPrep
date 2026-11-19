@@ -30,6 +30,7 @@ local ok,err=xpcall(function()
  r.Main_OnCommand(41929,0);r.SetMediaTrackInfo_Value(r.GetMasterTrack(0),'D_VOL',0)
  r.InsertTrackAtIndex(0,false);App.initialize(r,root,data)
  local bank=M.defaults();bank.settings.autoplay=false
+ bank.settings.auto_render_drops=true;bank.settings.insert_handles=true
  for _,macro in ipairs(bank.macros)do macro.normalization.enabled=false end
  assert(M.save(data..'/bank.json',bank));app=App.new(r,root,data);r.OpenMediaExplorer(file,false)
 end,debug.traceback)

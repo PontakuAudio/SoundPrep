@@ -17,8 +17,8 @@ end
 local function restore(object,values,names)
   for _,key in ipairs(names)do object[key]=values[key]end
 end
-function M.snapshot(app)
-  local r,bank=app.r,app.bank;local tracks=J.array{};local slots={}
+function M.snapshot(app,slots)
+  local r,bank=app.r,app.bank;local tracks=J.array{};slots=slots or {}
   for i,track in ipairs(bank.tracks)do
     assert(bank:valid(track),'Preview track was removed')
     slots[track]=i;tracks[i]={guid=r.GetTrackGUID(track),index=r.GetMediaTrackInfo_Value(track,'IP_TRACKNUMBER')-1}
@@ -31,6 +31,55 @@ function M.snapshot(app)
   local p=fields(app.preview,preview_fields);p.fx_track=slots[app.preview.fx_track]
   return {revision=1,session=app.session,root=app.root,data=app.data,definition=app.definition,tracks=tracks,
     app=fields(app,app_fields),bank=b,preview=p,explorer=fields(app.explorer,explorer_fields),needs_analysis=app.selection_needs_analysis or false}
+end
+-- Compare the live inputs against saved values without constructing a snapshot.
+-- Definition settings and drafts can be edited in place between publishes.
+local function same_value(a,b)
+  if a==b then return true end
+  if type(a)~='table' or type(b)~='table' or a==J.null or b==J.null or getmetatable(a)~=getmetatable(b) then return false end
+  for k,v in pairs(a)do if not same_value(v,b[k])then return false end end
+  for k in pairs(b)do if a[k]==nil then return false end end
+  return true
+end
+local function same_fields(object,saved,names)
+  for _,key in ipairs(names)do if not same_value(object[key],saved[key])then return false end end
+  return true
+end
+local function same_track_map(values,saved,slots,track_keys)
+  local count=0
+  if values then
+    for key,value in pairs(values)do
+      if track_keys then
+        if not slots[key]then return false end
+        key=tostring(slots[key])
+      else
+        value=slots[value];if not value then return false end
+      end
+      if not same_value(value,saved[key])then return false end
+      count=count+1
+    end
+  end
+  for _ in pairs(saved)do count=count-1 end
+  return count==0
+end
+local function unchanged(app,published)
+  local r,bank,preview=app.r,app.bank,app.preview
+  local saved,slots=published.state,published.slots
+  if published.project~=app.project or published.handle~=preview.handle or published.definition~=app.definition or
+      saved.session~=app.session or saved.root~=app.root or saved.data~=app.data or
+      saved.needs_analysis~=(app.selection_needs_analysis or false) or #bank.tracks~=#saved.tracks then return false end
+  for i,track in ipairs(bank.tracks)do
+    local before=saved.tracks[i]
+    if slots[track]~=i or not bank:valid(track) or r.GetTrackGUID(track)~=before.guid or
+        r.GetMediaTrackInfo_Value(track,'IP_TRACKNUMBER')-1~=before.index then return false end
+  end
+  local b=saved.bank
+  return slots[bank.input]==b.input and slots[bank.raw]==b.raw and slots[bank.chosen]==b.chosen and
+    slots[preview.fx_track]==saved.preview.fx_track and same_fields(bank,b,bank_fields) and
+    same_track_map(bank.macros,b.macros,slots,false) and same_track_map(bank.dirty_buffers,b.dirty,slots,true) and
+    same_track_map(bank.channel_state,b.channel_state,slots,true) and same_fields(preview,saved.preview,preview_fields) and
+    same_fields(app,saved.app,app_fields) and same_fields(app.explorer,saved.explorer,explorer_fields) and
+    same_value(app.definition,saved.definition)
 end
 local function resolve_tracks(r,project,snapshot)
   local tracks={}
@@ -50,6 +99,8 @@ end
 function M.restore(app,snapshot,handle)
   assert(snapshot.revision==1 and snapshot.session==app.session,'Stale selection state')
   local tracks=resolve_tracks(app.r,app.project,snapshot)
+  -- The observer may have replaced its snapshot and the native waveform state.
+  app.selection_published=nil;app.channel_waveform=nil
   local b=snapshot.bank;local bank=app.bank
   restore(app,snapshot.app,app_fields);restore(app.preview,snapshot.preview,preview_fields)
   restore(bank,b,bank_fields);restore(app.explorer,snapshot.explorer,explorer_fields)
@@ -63,13 +114,13 @@ end
 function M.consume(app)
   if not app.selection_attached then return false end
   local r=app.r;r.AM_SelectionEnable(false)
-  if not r.ValidatePtr(app.project,'ReaProject*')then r.AM_SelectionDetach();app.selection_attached=nil;return false end
+  if not r.ValidatePtr(app.project,'ReaProject*')then r.AM_SelectionDetach();app.selection_attached=nil;app.selection_published=nil;return false end
   if not r.AM_SelectionPending()then return false end
   local ok,err=pcall(function()
     M.restore(app,J.decode(r.AM_SelectionRead()),r.AM_SelectionPreview())
   end)
   if not ok then
-    r.AM_SelectionDetach();app.selection_attached=nil;app.preview.handle=nil
+    r.AM_SelectionDetach();app.selection_attached=nil;app.selection_published=nil;app.preview.handle=nil
     app.message=tostring(err);app:close();return false
   end
   r.AM_SelectionAcknowledge()
@@ -87,9 +138,14 @@ function M.publish(app)
   if not window then r.AM_SelectionEnable(false);return end
   if r.AM_SelectionWindow()~=window then
     assert(r.AM_SelectionAttach(window,app.explorer:control(1001),app.selection_command),'Cannot reattach selection observer')
+    app.selection_published=nil
   end
-  local text=J.encode(M.snapshot(app))
-  assert(r.AM_SelectionPublish(text,app.project,app.preview.handle),'Cannot publish selection state')
+  local published=app.selection_published
+  if not published or not unchanged(app,published) or r.AM_SelectionPending() then
+    local slots={};local snapshot=M.snapshot(app,slots)
+    assert(r.AM_SelectionPublish(J.encode(snapshot),app.project,app.preview.handle),'Cannot publish selection state')
+    app.selection_published={state=U.copy(snapshot),slots=slots,definition=app.definition,project=app.project,handle=app.preview.handle}
+  end
   r.AM_SelectionEnable(true)
 end
 function M.attach(app)
@@ -98,11 +154,11 @@ function M.attach(app)
   local command=r.AddRemoveReaScript(true,0,app.root..'/internal/Process selection.lua',false)
   assert(command>0,'Cannot register selection processor')
   assert(r.AM_SelectionAttach(app.explorer:window(),app.explorer:control(1001),command),'Cannot attach selection observer')
-  app.selection_attached=true;app.selection_command=command;M.publish(app);return true
+  app.selection_attached=true;app.selection_command=command;app.selection_published=nil;M.publish(app);return true
 end
 function M.close(app)
   if not app.selection_attached then return end
-  M.consume(app);app.r.AM_SelectionDetach();app.selection_attached=nil
+  M.consume(app);app.r.AM_SelectionDetach();app.selection_attached=nil;app.selection_published=nil
 end
 function M.dispatch(r)
   -- Manual execution of the internal action is inert. The native observer owns

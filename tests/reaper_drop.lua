@@ -17,6 +17,7 @@ if not _G.AMDropTestApp then
  bank.raw=Model.raw_settings();Model.save(data..'/bank.json',bank)
  _G.AMDropTestApp=App.new(r,root,data)
  _G.AMDropTestApp.definition.settings.autoplay=false
+ _G.AMDropTestApp.definition.settings.auto_render_drops=true
  _G.AMDropTestApp:tick();_G.AMDropTestApp.explorer:command(1008);_G.AMDropTestApp.explorer:command(1009)
  _G.AMDropTestApp:play() -- Keep the cursor compositor attached during native D&D.
  return

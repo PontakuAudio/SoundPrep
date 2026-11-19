@@ -106,7 +106,9 @@ function M:quiesce()
   self:volume(-150);self:command(1008);self:command(1009)
 end
 function M:attach_transport(w)
-  if self.r.APIExists('AM_TransportAttach') and self.r.AM_TransportAttach(w)then
+  if not self.r.APIExists('AM_TransportAttach')then return end
+  self.wave_attachment=nil
+  if self.r.AM_TransportAttach(w)then
     self.native_transport=w;self.owns_audio=self.r.APIExists('AM_TransportOwnAudio')
     if self.owns_audio then self.r.AM_TransportOwnAudio(true)end
     self.wave_window=nil;self.wave_clock=nil
@@ -117,7 +119,10 @@ function M:attach_wave()
   if not self.native_transport or not self.r.APIExists('AM_WaveAttach')then return end
   local wave,clock=self:control(1046),self:control(1016)
   if wave and clock and (self.wave_window~=wave or self.wave_clock~=clock)then
-    if self.r.AM_WaveAttach(self.native_transport,wave,clock)then self.wave_window=wave;self.wave_clock=clock end
+    self.wave_attachment=nil
+    if self.r.AM_WaveAttach(self.native_transport,wave,clock)then
+      self.wave_window=wave;self.wave_clock=clock;self.wave_attachment={}
+    end
   end
 end
 function M:wave_event()
@@ -159,7 +164,7 @@ function M:restore()
   if not self.saved then return end
   local owned=self.owns_audio
   if self.native_transport then self.r.AM_TransportDetach();self.native_transport=nil end
-  self.wave_window=nil;self.wave_clock=nil
+  self.wave_window=nil;self.wave_clock=nil;self.wave_attachment=nil
   self.owns_audio=nil
   local was_closed=not self:window()
   local focus=self.r.JS_Window_GetFocus()
@@ -196,7 +201,7 @@ function M:transport_event()
   local w=self:window()
   if not w then
     if self.native_transport then self.r.AM_TransportDetach()end
-    self.native_transport=nil;self.owns_audio=nil;self.wave_window=nil;self.wave_clock=nil;return
+    self.native_transport=nil;self.owns_audio=nil;self.wave_window=nil;self.wave_clock=nil;self.wave_attachment=nil;return
   end
   if w and w~=self.native_transport then
     self:attach_transport(w)

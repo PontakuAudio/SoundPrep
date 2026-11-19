@@ -190,15 +190,23 @@ test('Drop cache invalidates when the project default pitch algorithm changes',f
   local key=select(3,Insert.recipe(s,10,true));pitch=65;render.stamp(r,s)
   assert(key~=select(3,Insert.recipe(s,10,true)),'Changed pitch algorithm reused stale rendered media')
 end)
-test('Existing banks migrate to full handles, invalid settings are rejected',function()
-  local b=M.defaults();b.settings.insert_handles=nil;assert(M.validate(b).settings.insert_handles)
-  b.settings.insert_handles=false;assert(not M.validate(b).settings.insert_handles)
+test('Drops default to range-only manual renders and preserve saved choices',function()
+  local b=M.defaults()
+  assert(b.settings.insert_handles==false and b.settings.auto_render_drops==false)
+  b.settings.insert_handles=nil;b.settings.auto_render_drops=nil
+  local migrated=M.validate(J.decode(J.encode(b))).settings
+  assert(migrated.insert_handles==false and migrated.auto_render_drops==false)
+  for _,enabled in ipairs{true,false}do
+    b.settings.insert_handles=enabled;b.settings.auto_render_drops=enabled
+    local saved=M.validate(J.decode(J.encode(b))).settings
+    assert(saved.insert_handles==enabled and saved.auto_render_drops==enabled)
+  end
   b.settings.insert_handles='false';assert(not pcall(M.validate,b))
-  b=M.defaults();b.settings.prepare_drops=nil;assert(M.validate(b).settings.prepare_drops==false)
+  b.settings.insert_handles=false;b.settings.auto_render_drops='true';assert(not pcall(M.validate,b))
+end)
+test('Other optional settings fill missing values and reject invalid ones',function()
+  local b=M.defaults();b.settings.prepare_drops=nil;assert(M.validate(b).settings.prepare_drops==false)
   b.settings.prepare_drops='true';assert(not pcall(M.validate,b))
-  b=M.defaults();b.settings.auto_render_drops=nil;assert(M.validate(b).settings.auto_render_drops)
-  b.settings.auto_render_drops=false;assert(not M.validate(b).settings.auto_render_drops)
-  b.settings.auto_render_drops='true';assert(not pcall(M.validate,b))
   b=M.defaults();b.settings.preview_fade_ms=nil;b.settings.fade_ms=17
   assert(M.validate(b).settings.preview_fade_ms==0 and b.settings.fade_ms==17)
 end)

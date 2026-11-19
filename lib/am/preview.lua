@@ -41,7 +41,8 @@ function M:stop(immediate)
     self.stop_handle(self.handle);self.handle=nil
   end
 end
-function M:playing()
+-- Status checks still read position so they detect EOF and release the handle.
+function M:playing(skip_length)
   if not self.handle then return false end
   local ok,pos=self:get('D_POSITION')
   if not ok then
@@ -49,6 +50,7 @@ function M:playing()
     self.gain_target=nil;self.gain_tick_time=nil
     return false
   end
+  if skip_length then return true,pos end
   return true,pos,select(2,self:get('D_LENGTH'))
 end
 function M:start(path,macro,gain_db,settings,range,position)
@@ -170,7 +172,7 @@ function M:reconfigure(macro,gain_db,settings)
   return true
 end
 function M:seek_source(source)
-  if self:playing()then
+  if self:playing(true)then
     local transform=U.copy(self.macro.source_transform)
     if self.native then transform.rate=select(2,self:get('D_PLAYRATE'))end
     return self:seek(Time.position(source,self.source_length,self.range,transform))
@@ -178,18 +180,18 @@ function M:seek_source(source)
   return false
 end
 function M:seek(pos)
-  if self:playing()then return self:set('D_POSITION',math.max(0,pos))end
+  if self:playing(true)then return self:set('D_POSITION',math.max(0,pos))end
   return false
 end
 function M:update_gain(db)
   assert(U.finite(db),'Invalid preview gain')
   self.gain_target=nil;self.gain_tick_time=nil
-  if self:playing()and self:set('D_VOLUME',U.gain(db))then self.gain_db=db;return true end
+  if self:playing(true)and self:set('D_VOLUME',U.gain(db))then self.gain_db=db;return true end
   return false
 end
 function M:fade_gain(db)
   assert(U.finite(db),'Invalid preview gain')
-  if not self:playing()then return false end
+  if not self:playing(true)then return false end
   if db==self.gain_db then self.gain_target=nil;self.gain_tick_time=nil;return true end
   if self.gain_target~=db then
     if self.gain_target==nil then self.gain_tick_time=self.r.time_precise()end
@@ -199,7 +201,7 @@ function M:fade_gain(db)
 end
 function M:tick_gain(now)
   if self.gain_target==nil then return false end
-  if not self:playing()then return false end
+  if not self:playing(true)then return false end
   now=now or self.r.time_precise()
   local dt=U.clamp(now-(self.gain_tick_time or now),0,M.GAIN_MAX_TICK_SECONDS)
   self.gain_tick_time=now

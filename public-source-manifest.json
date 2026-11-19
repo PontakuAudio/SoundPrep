@@ -361,8 +361,8 @@
     },
     {
       "path": "docs/windows.md",
-      "sha256": "5d48325b96a41f852f67f0e95eef4a37753e851c98a1503d57bd49e656c574b2",
-      "bytes": 13632
+      "sha256": "f7c4b45b9e698e37baeb590c847f161f89b99a92659fa9903068544d63fb76d5",
+      "bytes": 13888
     },
     {
       "path": "internal/Process selection.lua",
@@ -386,8 +386,8 @@
     },
     {
       "path": "lib/am/app.lua",
-      "sha256": "b93dc6a5e481b9a3472fc416efe9498ba137c0f40230fa16d73b05866aca2613",
-      "bytes": 42103
+      "sha256": "209ee258b24cc5b7f89b328f3a6752f9297bbcab71d1f5151aa36563e6baf4d5",
+      "bytes": 43506
     },
     {
       "path": "lib/am/bank.lua",
@@ -396,8 +396,8 @@
     },
     {
       "path": "lib/am/bar.lua",
-      "sha256": "b8fc6044efbed32ca7be60b29024ee2e462f0e73e970b067ee180c54e548ab6b",
-      "bytes": 8153
+      "sha256": "a596c13dfeba058d2ab833d37eea6535e974f3ea61af4b583152b00d534909d6",
+      "bytes": 8719
     },
     {
       "path": "lib/am/channel_mix.lua",
@@ -411,8 +411,8 @@
     },
     {
       "path": "lib/am/channel_panel.lua",
-      "sha256": "3aa338f0846bb0a995c4151140df1a3e5496d431a83554f45bd6be3eb626e66a",
-      "bytes": 4399
+      "sha256": "b1e8625ab5d65479a580c91e06651e6eeb628036e803e385bcf2f70ef8ba7fb6",
+      "bytes": 4403
     },
     {
       "path": "lib/am/channel_selection.lua",
@@ -456,8 +456,8 @@
     },
     {
       "path": "lib/am/editor_panel.lua",
-      "sha256": "cec3217dd3afb5b9acffd01d273b952a59868309f1582f38b771da319208c44c",
-      "bytes": 8102
+      "sha256": "9c320f068730c353a7a40d7a39e5d51208a7a65b127a5f79c3aec252613cb8c9",
+      "bytes": 8110
     },
     {
       "path": "lib/am/export.lua",
@@ -476,18 +476,18 @@
     },
     {
       "path": "lib/am/loudness.lua",
-      "sha256": "30231c996e2681ae4643fbd07de8aabc71121c7ef52ce36e2de1eaf8d7821ff6",
-      "bytes": 14116
+      "sha256": "cebf16a95fa9b65a7069baed45da14e65a63f6e764a94c82aecd12ce605e1243",
+      "bytes": 14121
     },
     {
       "path": "lib/am/media_explorer.lua",
-      "sha256": "4957bfa9436469aa09ff24df8b401e1ada6f93bdf2b6e87e6d12204c9bac3569",
-      "bytes": 15685
+      "sha256": "6f7392a070a652efc2aa413386e3646ba5890192a4d86340050130059e39b1e3",
+      "bytes": 15845
     },
     {
       "path": "lib/am/model.lua",
-      "sha256": "c3d2cd6ff04525b4fa2e2bfe3a00475c2baa1ae8c2f0b9526d8a8fe988239b3b",
-      "bytes": 6940
+      "sha256": "69ebbd25f5b1b69ca0d7b55ae157d9cedc45dc622fa977adf601d1513eb55bd8",
+      "bytes": 6945
     },
     {
       "path": "lib/am/native.lua",
@@ -501,8 +501,8 @@
     },
     {
       "path": "lib/am/peaks.lua",
-      "sha256": "c5a44dacf5f9b6e048a2a7d00ec37f4b5e9b8a0662f5a3f4518748ed3d429adc",
-      "bytes": 2204
+      "sha256": "4db751ffcc88cc3c608df10af19a65a8c16a2b5d7146ca9280eb615751490936",
+      "bytes": 2483
     },
     {
       "path": "lib/am/platform.lua",
@@ -511,8 +511,8 @@
     },
     {
       "path": "lib/am/preview.lua",
-      "sha256": "fc456c633fc0129d23213ca1e1c33d16682260c9590823cd9cf17e40a2753f8f",
-      "bytes": 11184
+      "sha256": "4ae029006cdafa52371504ee6e219809b1f63ebd21b589a4a95951a3f731feb9",
+      "bytes": 11337
     },
     {
       "path": "lib/am/recovery.lua",
@@ -531,13 +531,13 @@
     },
     {
       "path": "lib/am/selection.lua",
-      "sha256": "5ea2b00988c28ea9c556fdbe0044984f8e832efbbb0ed455884ed2d6abb4eb65",
-      "bytes": 9050
+      "sha256": "662f3ed92dd89a180f085964f6fbe02be27d943d35a5ac94ba845bbcaee7a9f6",
+      "bytes": 12119
     },
     {
       "path": "lib/am/settings_panel.lua",
-      "sha256": "d4e03a60a33b7f5abfd655f56b829a6f02dbc2ca0f85e5a04c75fb507deab13f",
-      "bytes": 3807
+      "sha256": "5326633ece4f5904b04be68bb5c4778e1ce097f31f1e072bd4137387c7f5ffe9",
+      "bytes": 3811
     },
     {
       "path": "lib/am/setup.lua",
@@ -546,8 +546,8 @@
     },
     {
       "path": "lib/am/take_fx.lua",
-      "sha256": "90b67b654b11b1ac2d6ea62a6d5199eb24440fdc5aef7baad80c0e11f0e84acd",
-      "bytes": 9737
+      "sha256": "2077faaf4778d7ba8353fea4b22b4b291790d0536f46801421f64e78d6cb3459",
+      "bytes": 9778
     },
     {
       "path": "lib/am/timeline.lua",
@@ -996,8 +996,8 @@
     },
     {
       "path": "tests/channel_panel.lua",
-      "sha256": "878c02d54520c270e6c86060cd5f5629747acdec1b73b624e4946ad0c2998061",
-      "bytes": 4241
+      "sha256": "f86875aa12a9e3642814dc929d6dcc89e83d62c58927a53715fb5094624e5df0",
+      "bytes": 5601
     },
     {
       "path": "tests/channel_selection.lua",
@@ -1101,8 +1101,8 @@
     },
     {
       "path": "tests/peaks.lua",
-      "sha256": "c426f421280899c01a4389958d28e2f35ad3343fd25d8fc0c602789f8cd226b2",
-      "bytes": 1852
+      "sha256": "6d565e0062d188f9e23f040414a836ba0e5e7aa4e211df19a823638f785c702d",
+      "bytes": 2151
     },
     {
       "path": "tests/platform.lua",
@@ -1166,8 +1166,8 @@
     },
     {
       "path": "tests/reaper_drop.lua",
-      "sha256": "a8e8b5f315855121fc4cbfc99bec832f2e052016cf489a62d3dbfa79a1039eef",
-      "bytes": 5733
+      "sha256": "4062af0955434fcacf3025f67032ef2eaef85455fe278a7c3f1757e82a8cd898",
+      "bytes": 5794
     },
     {
       "path": "tests/reaper_drop_analysis.lua",
@@ -1176,18 +1176,18 @@
     },
     {
       "path": "tests/reaper_drop_edit.lua",
-      "sha256": "c11d821cfd4a89173bf2efadb44756bd60d4c567a0cfeca3d66729a8b3c7ff3a",
-      "bytes": 6382
+      "sha256": "601ca8639cbf68ea7c1dd010aa7e06d540e2c18171a87593eec0d816c170b50e",
+      "bytes": 6457
     },
     {
       "path": "tests/reaper_drop_peaks.lua",
-      "sha256": "05907e693c1ee367f1ac4d57c31c21848837b4e6376a13c373fae81c053ca4b5",
-      "bytes": 4510
+      "sha256": "68c70980c37e241098a05b0b7c37cf106b71996fd702a367b5fc5ce153949282",
+      "bytes": 4548
     },
     {
       "path": "tests/reaper_drop_snapshot.lua",
-      "sha256": "be6df55ff2854a0f9de30112b5df0813856545eee672178cae5fab98f6cfc517",
-      "bytes": 3699
+      "sha256": "f7f9fba828301fcfe0d10ccaad862e273460d9496dbe999991330e33d6c053ce",
+      "bytes": 3771
     },
     {
       "path": "tests/reaper_drop_worker.lua",
@@ -1231,8 +1231,8 @@
     },
     {
       "path": "tests/reaper_list_drop.lua",
-      "sha256": "46739abc05984d718d31d9b02b18a8b552912773752059ac33852171cfb2645b",
-      "bytes": 6419
+      "sha256": "4a5e6008fdaffe9b2f026a06a3e82de7cd80ae80921161a71684d88266e4f6e3",
+      "bytes": 6455
     },
     {
       "path": "tests/reaper_live_normalization.lua",
@@ -1341,8 +1341,8 @@
     },
     {
       "path": "tests/reaper_tcp_drop.lua",
-      "sha256": "c259420c2824935059a130a8ee8e63410264853f59f80e471133b9ea473e7236",
-      "bytes": 6750
+      "sha256": "79527ef5cd6c0d34ba3a2d67b0274b0b53546b9328bb37ae2de597e2107f9d7d",
+      "bytes": 6785
     },
     {
       "path": "tests/reaper_wave.lua",
@@ -1356,13 +1356,13 @@
     },
     {
       "path": "tests/reaper_windows_drag.lua",
-      "sha256": "f2c69eae82570c1d5b78fb834639a77249a034fe469364247a5ae81a92ce234b",
-      "bytes": 3054
+      "sha256": "3aaa9314aebe3a720a4522c5df2dce8da9a3e02e63db9761cc94ccb8f517a093",
+      "bytes": 3103
     },
     {
       "path": "tests/reaper_windows_review.lua",
-      "sha256": "c5a570c4df328f7ccc6c8e40f35510bfa71f7ab07489816f5410f0d923f658f6",
-      "bytes": 14627
+      "sha256": "13cadf375104c5077f3b76805cf8ee76d5b3021014a38199b324fd7e7d052744",
+      "bytes": 14676
     },
     {
       "path": "tests/reaper_windows_seek.lua",
@@ -1381,8 +1381,8 @@
     },
     {
       "path": "tests/run.lua",
-      "sha256": "81055bdec100cd50d9e024f9c8594cbad31d86f86f904802e5998f192d6c2230",
-      "bytes": 25800
+      "sha256": "421094398b5e8753fe70e60502105132e786fc140a99ae9ebbda7624bd90599e",
+      "bytes": 26126
     },
     {
       "path": "tests/search_omission.lua",
@@ -1391,8 +1391,8 @@
     },
     {
       "path": "tests/selection_handoff.lua",
-      "sha256": "785ee165c12a4900007964f045ebb4185ce954a6bf00a092712949a749cd3262",
-      "bytes": 3198
+      "sha256": "0981e45590639c5245c2d6a9cca3e8bab46dd1253c1474e8613b4b2d7f75443b",
+      "bytes": 5907
     },
     {
       "path": "tests/settings_panel.lua",
@@ -1416,8 +1416,8 @@
     },
     {
       "path": "tests/take_fx.lua",
-      "sha256": "44e361001dc2c1da545d173fb5d9d777f5a281aed6fa939dc10ee86998679f56",
-      "bytes": 8777
+      "sha256": "b188270a82647c662eeca156f4bd33ce108e2db5ab53fa3d23208a7ce46c25ed",
+      "bytes": 9022
     },
     {
       "path": "tests/test_distribution_policy.py",

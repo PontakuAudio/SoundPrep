@@ -44,10 +44,10 @@ function M.state(a)
     else measurement=('Source: %.1f LUFS-M max · %.1f dBTP · Gain: %+.1f dB (%s)'):format(measured.max_momentary_lufs,measured.true_peak_dbtp,gain,status)end
   elseif a.loudness.active then measurement='Analysing in background…'end
   if a.loudness.error then measurement=measurement..'\n'..a.loudness.error end
-  if a.preview:playing() and a.preview.gain_target~=nil then measurement=measurement..('\nApplying Normalize: %+.1f → %+.1f dB'):format(a.preview.gain_db,a.preview.gain_target)end
+  if a.preview:playing(true) and a.preview.gain_target~=nil then measurement=measurement..('\nApplying Normalize: %+.1f → %+.1f dB'):format(a.preview.gain_db,a.preview.gain_target)end
   return {open=true,focus=a.editor_panel_focus or 0,page=a.editor_page or 0,id=id,presets=presets,values=values,
     dirty=not U.equal(draft,Model.editable(a.definition,id)) or a.editor_fx_changed,
-    deleting=a.editor_delete_id==id,playing=a.preview:playing()==true,source=a.path and U.basename(a.path)or 'Select a file in Media Explorer',
+    deleting=a.editor_delete_id==id,playing=a.preview:playing(true)==true,source=a.path and U.basename(a.path)or 'Select a file in Media Explorer',
     measurement=measurement,notice=a.editor_notice or a.message or ''}
 end
 local function dispatch(a,command)

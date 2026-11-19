@@ -89,24 +89,51 @@ function M:measurement()
   return self.identity and self.loudness:get(self.identity,spec,fallback)
 end
 function M:sync_channel_waveform()
-  if not self.r.AM_WaveSetChannels then return end
+  local r=self.r
+  if not r.AM_WaveSetChannels then return end
   local selected=Selection.get(self.definition.settings,self.source_channels)
   local identity=self.identity
   local stamp=identity and tostring(identity.size)..':'..tostring(identity.mtime)or ''
-  if self.r.AM_WaveSetChannelSubset then
-    local visible=selected;local labels,json,named
-    if self.r.AM_WaveSetChannelNames then
-      labels,json,named=require('am.channel_panel').labels(self)
-      if not visible and named then
-        local all={};for ch=1,#labels do all[ch]=ch end;visible={channels=all}
-      end
+  local attachment=self.explorer and self.explorer.wave_attachment
+  local last=self.channel_waveform
+  if last and last.attachment~=attachment then last=nil;self.channel_waveform=nil end
+  local set_subset,set_names=r.AM_WaveSetChannelSubset,r.AM_WaveSetChannelNames
+  if set_subset then
+    local json,all
+    if set_names then
+      local labels,names_json,named=require('am.channel_panel').labels(self)
+      json=names_json
+      if not selected and named then all=#labels end
     end
-    self.r.AM_WaveSetChannelSubset(visible and self.path or '',visible and Selection.csv(visible)or '',stamp)
-    if self.r.AM_WaveSetChannelNames then
-      self.r.AM_WaveSetChannelNames(visible and self.path or '',stamp,visible and json or '[]')
+    local visible=selected or all
+    local path=visible and self.path or ''
+    json=visible and json or '[]'
+    if last and (last.setter~=set_subset or last.names~=set_names)then last=nil end
+    local same_selection=last and last.all==all and U.equal(last.selection,selected)
+    local csv
+    if same_selection then csv=last.csv
+    elseif selected then csv=Selection.csv(selected)
+    elseif all then
+      local channels={};for ch=1,all do channels[ch]=ch end;csv=Selection.csv({channels=channels})
+    else csv='' end
+    if last and last.path==path and last.stamp==stamp and last.csv==csv and last.json==json then
+      if not same_selection then last.selection=U.copy(selected);last.all=all end
+      return
+    end
+    self.channel_waveform=nil
+    local sent=set_subset(path,csv,stamp)
+    local names_sent=not set_names or set_names(path,stamp,json)
+    if sent and names_sent then
+      self.channel_waveform={path=path,stamp=stamp,csv=csv,json=json,selection=U.copy(selected),all=all,
+        attachment=attachment,setter=set_subset,names=set_names}
     end
   elseif not selected or not selected.channels then
-    self.r.AM_WaveSetChannels(selected and self.path or '',selected and selected.left or 0,selected and selected.right or 0,stamp)
+    local path,left,right=selected and self.path or '',selected and selected.left or 0,selected and selected.right or 0
+    if last and last.setter==r.AM_WaveSetChannels and last.path==path and last.stamp==stamp and last.left==left and last.right==right then return end
+    self.channel_waveform=nil
+    if r.AM_WaveSetChannels(path,left,right,stamp)then
+      self.channel_waveform={path=path,stamp=stamp,left=left,right=right,attachment=attachment,setter=r.AM_WaveSetChannels}
+    end
   end
 end
 function M:configure_channels()
@@ -133,6 +160,7 @@ local function processing_message(status)
 end
 function M:clear_source()
   self.preview:stop(true)
+  self.channel_waveform=nil
   self.playback_identity=nil;self.playback_analysis=nil
   if self.path then self.bank:clear_buffers()end
 end
@@ -220,7 +248,7 @@ function M:update_normalization(now)
   if not selection and self.source_channels>2 and self.definition.settings.preview_downmix then
     mode=Mix.resolve(self.path,self.source_channels,self.definition.settings.preview_downmix_mode)
   end
-  if preview.downmix_mode~=mode or not preview:playing()then return false end
+  if preview.downmix_mode~=mode or not preview:playing(true)then return false end
   local measurement=self:measurement()
   if Loudness.matches_measurement(measurement,self.identity,self.loudness.analyzer_key,analysis)then
     -- Zwicker results include their target and calibration in the descriptor;
@@ -349,7 +377,7 @@ function M:ab()
   elseif self.previous_id and Model.find(self.definition,self.previous_id)then self:activate(self.previous_id)end
 end
 function M:transport()
-  if self.preview:playing()then self.preview:stop()else self:resume()end
+  if self.preview:playing(true)then self.preview:stop()else self:resume()end
 end
 function M:native_transport(command)
   if command~=1068 and command~=40039 and command~=40040 then self.explorer:quiesce()end
@@ -367,16 +395,16 @@ function M:native_transport(command)
       local source=self.preview:source_position() or self.paused_source or (self.last_seek and self.last_seek.source) or 0
       local step=self.explorer:seek_step(length)*(command==40033 and -1 or 1)*(transform.reverse and -1 or 1)
       local a,b=Time.bounds(length,self.range);source=U.clamp(source+step,a,b)
-      if self.preview:playing()then self.preview:seek_source(source)
+      if self.preview:playing(true)then self.preview:seek_source(source)
       else self.paused_source=source;self.paused_length=length;self.paused_position=nil end
       self.last_seek={path=self.path,source=source,length=length}
     end
   elseif command==42185 or command==42186 then
     self.reverse_override=command==42185
-    if self.preview:playing()then self:refresh_processing()else self:play()end
+    if self.preview:playing(true)then self:refresh_processing()else self:play()end
   elseif command==1068 or command==40039 or command==40040 then
     self.definition.settings.loop=self.r.GetToggleCommandStateEx(32063,1068)==1;self:save()
-    if self.preview:playing()then self.preview:set('B_LOOP',self.definition.settings.loop and 1 or 0)end
+    if self.preview:playing(true)then self.preview:set('B_LOOP',self.definition.settings.loop and 1 or 0)end
   end
 end
 function M:analyse(force)
@@ -630,7 +658,7 @@ function M:sync_range(replay)
     self.range=range;self.paused_position=nil;self.paused_source=nil;self.paused_length=nil;self.last_seek=nil
     -- Selecting a range is an audition gesture even when playback is stopped.
     -- Position zero is the section's start (its right edge when reversed).
-    if replay and (range or self.preview:playing())then self:play(0,true)end
+    if replay and (range or self.preview:playing(true))then self:play(0,true)end
   end
   return changed
 end
@@ -653,7 +681,7 @@ function M:sync_wave()
   local changed=self:sync_range(false)
   if changed and self.range then self:play(0,true);return end
   self.last_seek={path=self.path,source=source,length=length}
-  if self.preview:playing()then
+  if self.preview:playing(true)then
     if changed then self:play(Time.position(source,length,self.range,self:effective().source_transform),true);return end
     if self.preview.native and event.applied and select(2,self.preview:get('I_WAVE_SEEK'))==event.sequence then return end
     if self.preview:seek_source(source)then return end
@@ -732,7 +760,7 @@ function M:tick()
   self:sync_range(true)
   -- The preview getter records EOF before releasing the handle. Native ME's
   -- next-file action owns sorting/navigation; we do not reproduce its list.
-  self.preview:playing()
+  self.preview:playing(true)
   if self.preview.ended_path then
     local ended=self.preview.ended_path;self.preview.ended_path=nil
     if ended==self.path and not self.definition.settings.loop and self.explorer:window() and

@@ -24,6 +24,7 @@ local ok,err=xpcall(function()
  r.InsertTrackAtIndex(0,false);r.SetMediaTrackInfo_Value(r.GetTrack(0,0),'I_HEIGHTOVERRIDE',100)
  r.TrackList_AdjustWindows(false)
  App.initialize(r,root,data);local bank=M.defaults();bank.settings.autoplay=false
+ bank.settings.auto_render_drops=true
  for _,m in ipairs(bank.macros)do m.normalization.enabled=false end
  bank.raw=M.raw_settings();assert(M.save(data..'/bank.json',bank))
  app=App.new(r,root,data);r.OpenMediaExplorer(path,false)
