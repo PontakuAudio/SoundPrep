@@ -67,9 +67,9 @@ end
 function M.new(r,project,root,bank,session)
   local self=setmetatable({r=r,project=project,root=root,definition=bank,session=session,tracks={},macros={},loads=0,switches=0,channels=2},M)
   local ok,err=xpcall(function()
-    self.input=self:add_track('AM • Preview input',0)
+    self.input=self:add_track('SoundPrep • Preview input',0)
     r.SetMediaTrackInfo_Value(self.input,'B_MAINSEND',0)
-    self.raw=self:add_track('AM • Raw',bank.settings.monitor_gain_db);self:send(self.raw)
+    self.raw=self:add_track('SoundPrep • Raw',bank.settings.monitor_gain_db);self:send(self.raw)
     for _,m in ipairs(bank.macros)do self:add_macro(m)end
     self:activate(nil)
   end,debug.traceback)
@@ -183,7 +183,7 @@ function M:add_macro(m)
   assert(not self.macros[m.id],'Duplicate runtime macro')
   -- Load at the normal stereo width before widening for the current source,
   -- so plugin-created channel requirements remain distinct from preview width.
-  local t=self:add_track('AM • '..m.name,m.output_gain_db+self.definition.settings.monitor_gain_db,2)
+  local t=self:add_track('SoundPrep • '..m.name,m.output_gain_db+self.definition.settings.monitor_gain_db,2)
   local ok,err=pcall(self.load,self,t,self.root..'/'..m.fx_chain)
   if not ok then self.r.DeleteTrack(t);forget_track(self,t);error(err)end
   self.macros[m.id]=t;self:send(t)

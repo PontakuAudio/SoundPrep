@@ -10,10 +10,10 @@
       "bytes": 800256,
       "path": "prebuilt/reaper_audition_macro.dll",
       "platform": "windows",
-      "sha256": "890bf4176800c8bbbe88984cff49854fa29a85c39967f8825631a58330205083"
+      "sha256": "70ccb1f1d7ffee018837c8300ee916a136f13787f18c57ed927b572249c809fe"
     }
   ],
   "helper_version": "0.11.14",
   "schema": 1,
-  "version": "0.11.14"
+  "version": "0.11.15"
 }

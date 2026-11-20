@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "0.11.14",
+  "version": "0.11.15",
   "git_history_included": false,
   "runtime_files": [
     "LICENSE",
@@ -38,7 +38,7 @@
     "docs/license.md",
     "docs/loudness-defaults-2026-10-22.json",
     "docs/loudness-defaults.md",
-    "docs/releases/0.11.14.md",
+    "docs/releases/0.11.15.md",
     "docs/source-distribution.md",
     "docs/windows.md",
     "internal/Process selection.lua",
@@ -201,7 +201,7 @@
     },
     {
       "path": "SoundPrep.lua",
-      "sha256": "52b0ac50c41b5271eb0876c10f6f2465a3c090866892fa89f57d3f0aafdab8a4",
+      "sha256": "9667aac76d7063eb7426606b09b4018bef5431c0880fc6ba9d4004bedb668ff8",
       "bytes": 1899
     },
     {
@@ -350,9 +350,9 @@
       "bytes": 1696
     },
     {
-      "path": "docs/releases/0.11.14.md",
-      "sha256": "3c753d6c9ec29074fb314023dab30e6224d411378cfa96c1b2fd628065b60474",
-      "bytes": 1391
+      "path": "docs/releases/0.11.15.md",
+      "sha256": "c01540ee30e7d84e67af94dd6c993c2c1d965a929ddd19448df7c983f5d6fe7a",
+      "bytes": 626
     },
     {
       "path": "docs/source-distribution.md",
@@ -386,13 +386,13 @@
     },
     {
       "path": "lib/am/app.lua",
-      "sha256": "5658d88e34e7ea1300b0cee0c1d58c378a9efb6c7eda0e23eec26d4f46e3a31e",
-      "bytes": 43520
+      "sha256": "cb3415cadd378965398f9d227dae77d147ac68128de83538dffefb8c48d9c514",
+      "bytes": 43527
     },
     {
       "path": "lib/am/bank.lua",
-      "sha256": "73278a744589b5e5298e36de962c35bda95ffa4b25a116e9b10924ee6579b1a6",
-      "bytes": 16684
+      "sha256": "c9503e0aea47697d9bce6740a81c2859f22da45f67955efb066ed5f2123609d8",
+      "bytes": 16705
     },
     {
       "path": "lib/am/bar.lua",
@@ -516,8 +516,8 @@
     },
     {
       "path": "lib/am/recovery.lua",
-      "sha256": "6a5577a8b6ccffac679ddb0c1125775fe96997f13a26e3386557226ed43f217a",
-      "bytes": 1735
+      "sha256": "8d8ea069af426b04156216c14f1315113b96f2acd4bce606b51cd82a8fc5f273",
+      "bytes": 1742
     },
     {
       "path": "lib/am/render_channels.lua",
@@ -856,12 +856,12 @@
     },
     {
       "path": "prebuilt/manifest.json",
-      "sha256": "4358b9156c1fa4228981a019db24433653deabd4e26fa1b8dd250b8a8ca37cdc",
+      "sha256": "0d2a82c8f591ea47bc676aab356c3db84033d4ef6d404176e52d8d4cef324313",
       "bytes": 491
     },
     {
       "path": "prebuilt/reaper_audition_macro.dll",
-      "sha256": "890bf4176800c8bbbe88984cff49854fa29a85c39967f8825631a58330205083",
+      "sha256": "70ccb1f1d7ffee018837c8300ee916a136f13787f18c57ed927b572249c809fe",
       "bytes": 800256
     },
     {
@@ -906,7 +906,7 @@
     },
     {
       "path": "resources/public-source-files.json",
-      "sha256": "c547d8fd7ebe716aef80ac45cc0f5b9dac3ab57f9651fbd0037b27ad14b436f5",
+      "sha256": "e541cd278df3127cc0025d456d3a0c4d1ad4f01794de27eb9a89fe94ffeb4f2a",
       "bytes": 9754
     },
     {
@@ -921,7 +921,7 @@
     },
     {
       "path": "resources/release-manifest.json",
-      "sha256": "ac37f6e0f30a9b5baf481d0c8195c23a1d1eac82d92cc00b4dc85309d21a2c8d",
+      "sha256": "497ccdf921343e996f5c5123ec82ea0ba0441482f7b02299379b903e1e7fcfa5",
       "bytes": 3383
     },
     {

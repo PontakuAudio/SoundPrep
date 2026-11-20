@@ -540,7 +540,7 @@ function M:apply_edit(edit,quiet)
   if quiet then return end
   if self.selected_id==edit.id then self.edit_preview=nil;self.transform_override=nil end
   self.effective_macro=nil
-  self.r.GetSetMediaTrackInfo_String(self.bank.macros[edit.id],'P_NAME','AM • '..edit.name,true)
+  self.r.GetSetMediaTrackInfo_String(self.bank.macros[edit.id],'P_NAME','SoundPrep • '..edit.name,true)
   if self.selected_id==edit.id then self.reverse_override=nil;self.bank:activate(edit.id,edit.output_gain_db);self.explorer:set_transform(edit.source_transform);self:refresh_processing()end
 end
 function M:new_macro(duplicate)

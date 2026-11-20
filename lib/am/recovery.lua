@@ -8,7 +8,7 @@ function M.reveal_orphans(r,session)
       r.SetMediaTrackInfo_Value(t,'D_VOL',0)
       r.SetMediaTrackInfo_Value(t,'B_SHOWINTCP',1);r.SetMediaTrackInfo_Value(t,'B_SHOWINMIXER',1)
       local _,name=r.GetTrackName(t)
-      r.GetSetMediaTrackInfo_String(t,'P_NAME','AM recovered • '..name,true)
+      r.GetSetMediaTrackInfo_String(t,'P_NAME','SoundPrep recovered • '..name,true)
       r.GetSetMediaTrackInfo_String(t,'P_EXT:AuditionMacroOwner','',true)
       count=count+1
     end
