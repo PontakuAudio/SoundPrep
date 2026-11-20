@@ -42,5 +42,24 @@ a.choose_cache_directory=function()chosen=true end;a.set_cache_directory=functio
 assert(Settings.state(a).cache_available)
 bar:dispatch('settings@'..J.encode{op='cache_choose'});assert(chosen==true)
 bar:dispatch('settings@'..J.encode{op='cache_default'});assert(chosen=='default')
+
+bar:dispatch('settings')
+a.definition.settings.cache_directory='/tmp/custom-cache';a.definition.settings.prepare_drops=true
+set('auto_render_drops',false);set('insert_handles',true);set('fade_ms',10,false)
+local reset='settings@'..J.encode{op='reset_defaults'}
+local defaults=Model.defaults().settings
+local modified=Settings.state(a)
+for key in pairs(expected)do assert(modified.values[key]~=defaults[key],'Unmodified test setting: '..key)end
+project={};before=saves;bar:dispatch(reset)
+assert(saves==before and U.equal(Settings.state(a),modified),'Paused project reset settings')
+project=a.project;bar:dispatch(reset)
+assert(saves==before+1 and a.settings_pending==nil and a.settings_save_at==nil)
+local resetState=Settings.state(a)
+for key in pairs(expected)do
+  assert(a.saved[key]==defaults[key] and resetState.values[key]==defaults[key],'Reset missed setting: '..key)
+end
+assert(resetState.open and resetState.notice=='Settings reset to defaults.' and loop==false and playingLoop==0)
+assert(a.saved.cache_directory=='/tmp/custom-cache' and a.saved.prepare_drops and U.equal(a.definition.macros,original))
+
 set('fade_ms',10,false);local detached=false;bar.r.AM_BarDetach=function()detached=true end
 bar:close();assert(detached and a.saved.fade_ms==10,'Detach lost pending slider changes')

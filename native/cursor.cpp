@@ -4,6 +4,7 @@
 // Overlay selected source peaks and the playhead without intercepting gestures.
 // REAPER continues to own the ruler, zoom, range, scrollbar and drag source.
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -100,6 +101,20 @@ int peak_left=0,peak_right=0,peak_width=0,peak_height=0,peak_count=0,peak_cursor
 double peak_start=-1,peak_span=-1,peak_a=-1,peak_b=-1;
 bool peak_linked=false,peak_building=false,peak_dirty=true;
 
+void advance_peak_build() {
+  if(!peak_building)return;
+  using Clock=std::chrono::steady_clock;
+  const auto deadline=Clock::now()+std::chrono::milliseconds(6);
+  // REAPER's build steps are synchronous, so yield between calls.
+  do {
+    if(!peak_source->PeaksBuild_Run()) {
+      peak_source->PeaksBuild_Finish();
+      peak_building=false;
+      peak_dirty=true;
+      return;
+    }
+  } while(Clock::now()<deadline);
+}
 void hide_peaks() {
   if(peak_linked && wave && window_valid(wave))unlink_bitmap(wave,peak_bitmap,true);
   peak_linked=false;
@@ -160,9 +175,7 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
   width*=scale_factor;
   const int h=client_height*scale_factor,channels=peak_source->GetNumChannels();
   if(cursor>=0 && cursor<client_width)cursor*=scale_factor;else cursor=-999999;
-  if(peak_building && !peak_source->PeaksBuild_Run()) {
-    peak_source->PeaksBuild_Finish();peak_building=false;peak_dirty=true;
-  }
+  advance_peak_build();
   const bool reload=peak_dirty || scale_factor!=peak_scale || width!=peak_width || start!=peak_start || span!=peak_span;
   const bool repaint=reload || labels_dirty || text_dpi!=peak_label_dpi || !(style==peak_style) || h!=peak_height || a!=peak_a || b!=peak_b || !peak_linked;
   if(!repaint && cursor==peak_cursor)return true;
@@ -453,6 +466,7 @@ extern "C" bool AMWaveSetChannelSubset(const char* path,const char* csv,const ch
       !std::isfinite(source->GetLength()) || source->GetLength()<=0){close_source(source);return false;}
   peak_source=source;peak_path=path;peak_stamp=stamp;peak_channels=channels;peak_left=channels.front();peak_right=channels.back();
   peak_building=source->PeaksBuild_Begin()!=0;
+  advance_peak_build();
   return true;
 }
 extern "C" bool AMWaveSetChannelNames(const char* path,const char* stamp,const char* text) {

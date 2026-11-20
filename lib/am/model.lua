@@ -16,9 +16,9 @@ function M.defaults()
   local heavy=M.macro('heavy','Heavy');heavy.source_transform.pitch_semitones=-4;heavy.source_transform.rate=.72
   local dark=M.macro('dark','Dark');dark.source_transform.pitch_semitones=-2
   local rev=M.macro('reverse','Reverse');rev.source_transform.reverse=true
-  return {schema_version=1,raw=M.raw_settings(),macros=J.array{heavy,dark,rev},slots={['1']='heavy',['2']='dark',['3']='reverse'},
+  return {schema_version=1,defaults_migrated_0113=true,raw=M.raw_settings(),macros=J.array{heavy,dark,rev},slots={['1']='heavy',['2']='dark',['3']='reverse'},
     settings={autoplay=true,loop=false,keep_fx_running=false,monitor_gain_db=-6,fade_ms=5,preview_fade_ms=0,preview_downmix=false,preview_downmix_mode='auto',
-      python='',ffmpeg='',cache_directory='',poll_ms=20,analysis_timeout_seconds=180,insert_handles=false,prepare_drops=false,auto_render_drops=false}}
+      python='',ffmpeg='',cache_directory='',poll_ms=20,analysis_timeout_seconds=180,insert_handles=false,prepare_drops=false,auto_render_drops=true}}
 end
 local function number(v,a,b,name)
   assert(U.finite(v) and v>=a and v<=b,name..' outside '..a..'..'..b)
@@ -61,10 +61,15 @@ function M.validate(bank)
   assert(type(s.cache_directory)=='string' and not s.cache_directory:find('[%z\r\n]') and
     (s.cache_directory=='' or s.cache_directory:match('^/') or s.cache_directory:match('^%a:[/\\]') or
       s.cache_directory:match('^\\\\[^\\]+\\[^\\]+')),'Cache folder must be an absolute path')
-  -- Additive schema-1 migration fills only settings absent from the saved bank.
+  -- Move existing banks to range-only rendering once, preserving later choices.
+  if bank.defaults_migrated_0113==nil then
+    s.insert_handles=false
+    bank.defaults_migrated_0113=true
+  end
+  -- Fill optional settings absent from the saved bank.
   if s.insert_handles==nil then s.insert_handles=false end
   if s.prepare_drops==nil then s.prepare_drops=false end
-  if s.auto_render_drops==nil then s.auto_render_drops=false end
+  if s.auto_render_drops==nil then s.auto_render_drops=true end
   if s.preview_fade_ms==nil then s.preview_fade_ms=0 end
   if s.preview_downmix==nil then s.preview_downmix=false end
   if s.preview_downmix_mode==nil then s.preview_downmix_mode='auto' end
@@ -97,7 +102,13 @@ end
 function M.editable(bank,id)return id=='raw' and M.effective(bank,nil) or M.find(bank,id)end
 function M.load(path)
   local text,e=U.read(path);if not text then return nil,e end
-  local ok,bank=pcall(function()return M.validate(J.decode(text))end)
+  local ok,bank=pcall(function()
+    local decoded=J.decode(text)
+    local migrate=type(decoded)=='table' and decoded.defaults_migrated_0113==nil
+    local validated=M.validate(decoded)
+    if migrate then assert(M.save(path,validated))end
+    return validated
+  end)
   return ok and bank or nil,not ok and bank or nil
 end
 function M.save(path,bank)

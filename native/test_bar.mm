@@ -188,6 +188,14 @@ int main(){@autoreleasepool {
   NSButton* support=(NSButton*)prefs.controls.lastObject;
   assert([support isKindOfClass:NSButton.class] && [support.title isEqual:@"Support on Ko-fi"]);
   assert(support.superview==prefs.tabs.tabViewItems[4].view && support.target==prefs && support.action==@selector(openLink:));
+  NSButton* resetDefaults=prefs.resetDefaults;
+  assert([resetDefaults.title isEqual:@"Reset to defaults"] && resetDefaults.enabled);
+  assert(resetDefaults.superview==prefs.tabs.tabViewItems[3].view && [prefs.tabs.tabViewItems[3].label isEqual:@"Advanced"]);
+  assert(NSEqualRects(resetDefaults.frame,prefs.render.frame));
+  [prefs.tabs selectTabViewItemAtIndex:3];[resetDefaults performClick:nil];
+  auto resetEvent=std::string(AMBarPoll());
+  assert(resetEvent.rfind("settings@",0)==0 && nlohmann::json::parse(resetEvent.substr(9))["op"]=="reset_defaults");
+  [prefs.tabs selectTabViewItemAtIndex:0];
   for(NSTabViewItem* tab in prefs.tabs.tabViewItems)for(NSView* child in tab.view.subviews)assert(NSContainsRect(tab.view.bounds,child.frame));
   [window makeKeyAndOrderFront:nil];update(value);assert(prefs.window.visible);
   auto oldFrame=prefs.window.frame;[prefs.window setFrameOrigin:NSMakePoint(oldFrame.origin.x+8,oldFrame.origin.y+8)];
@@ -200,7 +208,7 @@ int main(){@autoreleasepool {
   prefs.numbers[@2].stringValue=@"-18abc";[prefs numberChanged:prefs.numbers[@2]];
   assert(std::string(AMBarPoll()).empty() && [prefs.numbers[@2].stringValue isEqual:@"-12.0"]);
   value[@"paused"]=@YES;update(value);assert(prefs.window.visible && !prefs.controls[0].enabled && !prefs.choose.enabled);
-  assert(support.enabled);
+  assert(support.enabled && !resetDefaults.enabled);
   [prefs.window performClose:nil];assert(!prefs.window.visible && std::string(AMBarPoll())=="settings:close");
   update(value);assert(!prefs.window.visible);settings[@"open"]=@NO;update(value);
   value[@"paused"]=@NO;settings[@"open"]=@YES;settings[@"focus"]=@2;update(value);assert(prefs.window.visible);

@@ -2,7 +2,7 @@
 // at file scope so standard-library declarations stay in the global namespace.
 // Modeless, owned by Media Explorer. Losing activation never dismisses settings.
 struct SettingsPanel {
-  HWND window=nullptr,tabs=nullptr,cache=nullptr,diagnostics=nullptr,notice=nullptr,choose=nullptr,defaults=nullptr,render=nullptr;
+  HWND window=nullptr,tabs=nullptr,cache=nullptr,diagnostics=nullptr,notice=nullptr,choose=nullptr,defaults=nullptr,render=nullptr,resetDefaults=nullptr;
   HFONT font=nullptr;Json state=Json::object();bool paused=false,closing=false,updating=false;int selected=0;
   struct Child { HWND window;int page,x,y,w,h; };
   std::vector<Child> children;
@@ -23,7 +23,7 @@ struct SettingsPanel {
     if(old)DeleteObject(old);
   }
   void create(HWND anchor){
-    WNDCLASSW wc{};wc.lpfnWndProc=proc;wc.hInstance=amwin::module();wc.lpszClassName=L"SoundPrepAppSettings";wc.hbrBackground=GetSysColorBrush(COLOR_BTNFACE);wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&wc);
+    WNDCLASSW wc{};wc.lpfnWndProc=proc;wc.hInstance=amwin::module();wc.lpszClassName=L"SoundPrepAppSettings";wc.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&wc);
     RECT a{};GetWindowRect(anchor,&a);RECT frame{0,0,amwin::scale(anchor,640),amwin::scale(anchor,476)};
     DWORD style=WS_POPUP|WS_CAPTION|WS_SYSMENU|WS_CLIPCHILDREN;
     AdjustWindowRectExForDpi(&frame,style,FALSE,WS_EX_TOOLWINDOW|WS_EX_CONTROLPARENT,GetDpiForWindow(anchor));
@@ -58,6 +58,7 @@ struct SettingsPanel {
     child(L"STATIC","New analysis jobs use this folder. Running jobs finish in their original folder; existing files stay where they are. Rendered project media uses its own location.",SS_NOPREFIX,0,2,30,264,548,90);
     diagnostics=child(L"STATIC","",SS_NOPREFIX,0,3,30,178,548,42);
     child(L"STATIC","Source analysis runs in the native helper. No Python or FFmpeg setup is required.\r\n\r\nAssign the supplied 0–9 actions in Media Explorer for keyboard preset switching.",SS_NOPREFIX,0,3,30,232,548,110);
+    resetDefaults=child(L"BUTTON","Reset to defaults",WS_TABSTOP,3304,3,30,346,190,28);
     notice=child(L"STATIC","",SS_NOPREFIX,0,-1,20,422,492,44);
     child(L"BUTTON","Done",WS_TABSTOP|BS_DEFPUSHBUTTON,3303,-1,530,426,90,28);
     layout();
@@ -97,7 +98,7 @@ struct SettingsPanel {
     }
     if(amwin::text(cache)!=amwin::wide(next.at("cache_path")))amwin::text(cache,next.at("cache_path"));
     EnableWindow(choose,!paused && next.at("cache_available").get<bool>());EnableWindow(defaults,!paused && next.at("cache_available").get<bool>() && !next.at("cache_default").get<bool>());
-    EnableWindow(render,!paused);amwin::text(diagnostics,next.at("diagnostics"));
+    EnableWindow(render,!paused);EnableWindow(resetDefaults,!paused);amwin::text(diagnostics,next.at("diagnostics"));
     amwin::text(notice,paused?"Paused — return to the attached project to change settings.":next.at("notice").get<std::string>());updating=false;
     if(!wasOpen || focus){ShowWindow(window,SW_SHOW);SetForegroundWindow(window);SetFocus(tabs);}
   }
@@ -121,6 +122,18 @@ struct SettingsPanel {
     auto self=reinterpret_cast<SettingsPanel*>(GetWindowLongPtrW(w,GWLP_USERDATA));
     if(m==WM_NCCREATE){self=static_cast<SettingsPanel*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(self));}
     if(!self)return DefWindowProcW(w,m,p,l);
+    if(m==WM_CTLCOLORSTATIC || m==WM_CTLCOLORBTN){
+      // Let Win32 select the default text colors before changing the background.
+      const auto defaultBrush=DefWindowProcW(w,m,p,l);
+      if(m==WM_CTLCOLORSTATIC){
+        // Read-only and disabled edit controls also send WM_CTLCOLORSTATIC.
+        wchar_t cls[32]{};
+        GetClassNameW(reinterpret_cast<HWND>(l),cls,32);
+        if(!lstrcmpiW(cls,L"Edit"))return defaultBrush;
+      }
+      SetBkMode(reinterpret_cast<HDC>(p),TRANSPARENT);
+      return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
+    }
     if(m==WM_CLOSE){self->close(true);return 0;}
     if(m==WM_DPICHANGED){auto rect=reinterpret_cast<RECT*>(l);SetWindowPos(w,nullptr,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top,SWP_NOZORDER|SWP_NOACTIVATE);self->layout();return 0;}
     if(m==WM_NOTIFY && reinterpret_cast<NMHDR*>(l)->hwndFrom==self->tabs && reinterpret_cast<NMHDR*>(l)->code==TCN_SELCHANGE){self->selected=TabCtrl_GetCurSel(self->tabs);self->layout();return 0;}
@@ -138,7 +151,11 @@ struct SettingsPanel {
             ShellExecuteW(w,L"open",url.c_str(),nullptr,nullptr,SW_SHOWNORMAL);
           }
         }else if(id>=3200 && id<3200+amsettings::count && code==EN_KILLFOCUS && !self->closing)self->numberChanged(id-3200);
-        else if(code==BN_CLICKED){if(id==3303)self->close(true);else if(id>=3300 && id<=3302){const char* actions[]={"render_drops","cache_choose","cache_default"};self->event({{"op",actions[id-3300]}});}}
+        else if(code==BN_CLICKED){
+          if(id==3303)self->close(true);
+          else if(id==3304)self->event({{"op","reset_defaults"}});
+          else if(id>=3300 && id<=3302){const char* actions[]={"render_drops","cache_choose","cache_default"};self->event({{"op",actions[id-3300]}});}
+        }
         return 0;
       }
     }catch(...){}

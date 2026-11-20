@@ -2,6 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <thread>
 #ifdef _WIN32
 #include <fstream>
 #endif
@@ -14,7 +15,8 @@ static std::string label="0:00.000  /  0:12.000",file="/test.wav";
 extern "C" int AMPreviewWavePosition(char* path,int size,double* f,double* p,double* l) {
   std::snprintf(path,size,"/test.wav");*f=fraction;*p=position;*l=length;return state;
 }
-static int peak_reads=0,peak_opens=0,peak_closes=0,build_steps=0;
+static int peak_reads=0,peak_opens=0,peak_closes=0;
+static int build_steps=0,build_finishes=0,slow_build_steps=0;
 static std::vector<int> painted_channels;
 static std::vector<std::string> painted_labels;
 static int requested_font_height=0;
@@ -52,9 +54,13 @@ public:
   void SaveState(ProjectStateContext*)override{}
   int LoadState(const char*,ProjectStateContext*)override{return 0;}
   void Peaks_Clear(bool)override{}
-  int PeaksBuild_Begin()override{return 1;}
-  int PeaksBuild_Run()override{return ++build_steps<2;}
-  void PeaksBuild_Finish()override{}
+  int PeaksBuild_Begin()override{build_steps=0;return 1;}
+  int PeaksBuild_Run()override{
+    ++build_steps;
+    if(build_steps<=slow_build_steps)std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    return build_steps<4;
+  }
+  void PeaksBuild_Finish()override{++build_finishes;}
 };
 static void* api(const char* name) {
   if(!std::strcmp(name,"BR_Win32_SendMessage"))return reinterpret_cast<void*>(+[](void*,unsigned message,std::uintptr_t wp,std::intptr_t lp)->std::intptr_t{
@@ -175,11 +181,15 @@ int main() {
   fraction=.1;tick();assert(!linked);
   fraction=.75;scrollbar_at=0;scrollbar_page=1600;
   AMCursorZoom(42093);tick();assert(last_x==600 && view_width==800 && view_units==1600);
-  // Selected peaks stay visible while stopped; requests and cursor movement
-  // never reopen/re-read a source unless the viewport or file identity changes.
-  state=0;*last_path=0;
-  assert(AMWaveSetChannels("/test.wav",5,2,"v1"));tick();tick();
-  assert(peak_linked && peak_count==800 && peak_reads==2 && peak_opens==1);
+  // A short build finishes at attach, so the first paint includes the cursor at the start.
+  fraction=0;
+  assert(AMWaveSetChannels("/test.wav",5,2,"v1"));
+  assert(!peak_building && build_steps==4 && build_finishes==1);
+  tick();assert(peak_linked && peak_cursor==0 && peak_count==800 && peak_reads==1 && peak_opens==1);
+  assert(painted_labels==std::vector<std::string>({"L ch 5","R ch 2"}));
+  // Selected peaks stay visible while stopped without re-reading the source.
+  state=0;*last_path=0;tick();
+  assert(peak_linked && peak_reads==1);
   assert(painted_channels[0]>painted_channels[800]);
   assert(cleared_colors.back()==static_cast<int>(0xff718191));
   assert(peak_style.peaks==static_cast<int>(0xff203040) && peak_style.text==static_cast<int>(0xff102030));
@@ -309,7 +319,16 @@ int main() {
   assert(AMCursorAttach(&storage[0],&storage[1],+[](const char* name)->void*{
     return !std::strcmp(name,"JS_LICE_Blit")?nullptr:api(name);
   }));
-  state=-1;assert(AMWaveSetChannels("/test.wav",1,1,"busy"));tick();
+  state=-1;slow_build_steps=2;
+  const int finishes_before=build_finishes;
+  assert(AMWaveSetChannelSubset("/test.wav","1","busy"));
+  assert(peak_building && build_steps==1 && build_finishes==finishes_before);
+  painted_labels.clear();tick();
+  assert(peak_building && build_steps==2 && build_finishes==finishes_before);
+  assert(painted_labels==std::vector<std::string>({"Mono ch 1 ..."}));
+  reads=peak_reads;painted_labels.clear();tick();
+  assert(!peak_building && build_steps==4 && build_finishes==finishes_before+1 && peak_reads==reads+1);
+  assert(painted_labels==std::vector<std::string>({"Mono ch 1"}));
   assert(peak_linked && peak_count>0 && !cursor_underlay && last_fraction<0);
   state=1;fraction=.2;tick();const auto fallback_redraws=peak_repaints;
   fraction=.4;tick();assert(peak_repaints==fallback_redraws+1);

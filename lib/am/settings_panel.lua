@@ -1,5 +1,5 @@
 -- App settings share one controller across Cocoa and Win32.
-local J=require('am.json');local U=require('am.util');local Loudness=require('am.loudness')
+local J=require('am.json');local U=require('am.util');local Loudness=require('am.loudness');local Model=require('am.model')
 local M={}
 local booleans={autoplay=true,loop=true,auto_render_drops=true,insert_handles=true,keep_fx_running=true}
 local numbers={monitor_gain_db={-60,0},preview_fade_ms={0,50},fade_ms={0,50}}
@@ -26,6 +26,14 @@ local function live(a,key)
     a.bank:activate(a.selected_id,a:effective().output_gain_db)
   end
 end
+local function stage(a,key,value)
+  local s=a.definition.settings
+  if s[key]==value then return false end
+  a.settings_pending=a.settings_pending or {}
+  if a.settings_pending[key]==nil then a.settings_pending[key]=s[key]end
+  s[key]=value
+  return true
+end
 function M.flush(a)
   local pending=a.settings_pending;if not pending then return end
   a.settings_pending=nil;a.settings_save_at=nil
@@ -51,13 +59,21 @@ local function dispatch(a,command)
     assert(booleans[key] or range,'Unknown app setting')
     assert(booleans[key] and type(value)=='boolean' or range and U.finite(value) and value>=range[1] and value<=range[2], 'Invalid setting value')
     assert(event.commit==nil or type(event.commit)=='boolean','Invalid settings commit')
-    if a.definition.settings[key]~=value then
-      a.settings_pending=a.settings_pending or {}
-      if a.settings_pending[key]==nil then a.settings_pending[key]=a.definition.settings[key]end
-      a.definition.settings[key]=value;live(a,key)
+    if stage(a,key,value)then
+      live(a,key)
       a.settings_save_at=a.r.time_precise()+.25
     end
     if event.commit~=false then M.flush(a)end
+  elseif event.op=='reset_defaults'then
+    local defaults=Model.defaults().settings
+    local loop_changed=a.definition.settings.loop~=defaults.loop
+    a.settings_pending=a.settings_pending or {}
+    for key in pairs(booleans)do stage(a,key,defaults[key])end
+    for key in pairs(numbers)do stage(a,key,defaults[key])end
+    M.flush(a)
+    if loop_changed then live(a,'loop')end
+    a.settings_notice='Settings reset to defaults.'
+    return
   elseif event.op=='cache_choose' or event.op=='cache_default'then
     M.flush(a)
     assert(type(a.choose_cache_directory)=='function' and type(a.set_cache_directory)=='function','Cache folder selection is unavailable')

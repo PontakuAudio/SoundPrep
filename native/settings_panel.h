@@ -19,7 +19,7 @@
 @property(strong) NSMutableArray<NSControl*>* controls;
 @property(strong) NSMutableDictionary<NSNumber*,NSTextField*>* numbers;
 @property(strong) NSTextField *cache,*diagnostics,*notice;
-@property(strong) NSButton *choose,*defaults,*render;
+@property(strong) NSButton *choose,*defaults,*render,*resetDefaults;
 @property(strong) NSDictionary* state;
 @property BOOL paused;
 @property(strong) id keyboardMonitor;
@@ -95,6 +95,7 @@
   self.diagnostics=[self label:@"" parent:advanced frame:NSMakeRect(14,98,548,42)];
   [self label:@"Source analysis runs in the native helper. No Python or FFmpeg setup is required.\n\nAssign the supplied 0–9 actions in Media Explorer for keyboard preset switching."
     parent:advanced frame:NSMakeRect(14,152,548,110)].textColor=NSColor.secondaryLabelColor;
+  self.resetDefaults=[self button:@"Reset to defaults" op:@"reset_defaults" parent:advanced frame:NSMakeRect(14,266,190,28)];
   self.notice=[self label:@"" parent:root frame:NSMakeRect(20,422,492,44)];self.notice.font=[NSFont systemFontOfSize:11];
   [self button:@"Done" op:@"close" parent:root frame:NSMakeRect(530,426,90,28)].keyEquivalent=@"\033";
   [self.window setFrameAutosaveName:@"SoundPrepAppSettings"];
@@ -156,7 +157,7 @@
   }
   self.cache.stringValue=state[@"cache_path"];self.cache.toolTip=self.cache.stringValue;
   self.choose.enabled=!paused && [state[@"cache_available"] boolValue];self.defaults.enabled=self.choose.enabled && ![state[@"cache_default"] boolValue];
-  self.render.enabled=!paused;self.diagnostics.stringValue=state[@"diagnostics"];
+  self.render.enabled=!paused;self.resetDefaults.enabled=!paused;self.diagnostics.stringValue=state[@"diagnostics"];
   self.notice.stringValue=paused?@"Paused — return to the attached project to change settings.":state[@"notice"];
   self.notice.toolTip=self.notice.stringValue;
   if(!wasOpen || focus){

@@ -190,12 +190,12 @@ test('Drop cache invalidates when the project default pitch algorithm changes',f
   local key=select(3,Insert.recipe(s,10,true));pitch=65;render.stamp(r,s)
   assert(key~=select(3,Insert.recipe(s,10,true)),'Changed pitch algorithm reused stale rendered media')
 end)
-test('Drops default to range-only manual renders and preserve saved choices',function()
+test('Drops default to automatic range-only renders and preserve saved choices',function()
   local b=M.defaults()
-  assert(b.settings.insert_handles==false and b.settings.auto_render_drops==false)
+  assert(b.defaults_migrated_0113==true and b.settings.insert_handles==false and b.settings.auto_render_drops==true)
   b.settings.insert_handles=nil;b.settings.auto_render_drops=nil
   local migrated=M.validate(J.decode(J.encode(b))).settings
-  assert(migrated.insert_handles==false and migrated.auto_render_drops==false)
+  assert(migrated.insert_handles==false and migrated.auto_render_drops==true)
   for _,enabled in ipairs{true,false}do
     b.settings.insert_handles=enabled;b.settings.auto_render_drops=enabled
     local saved=M.validate(J.decode(J.encode(b))).settings
@@ -203,6 +203,26 @@ test('Drops default to range-only manual renders and preserve saved choices',fun
   end
   b.settings.insert_handles='false';assert(not pcall(M.validate,b))
   b.settings.insert_handles=false;b.settings.auto_render_drops='true';assert(not pcall(M.validate,b))
+end)
+test('Existing banks switch to range-only rendering once and keep later choices on reload',function()
+  local path=os.tmpname()
+  local ok,err=xpcall(function()
+    local legacy=M.defaults();legacy.defaults_migrated_0113=nil
+    legacy.settings.insert_handles=true;legacy.settings.auto_render_drops=false
+    local file=assert(io.open(path,'wb'));assert(file:write(J.encode(legacy)));assert(file:close())
+
+    local b=assert(M.load(path))
+    assert(b.settings.insert_handles==false and b.defaults_migrated_0113==true)
+    assert(b.settings.defaults_migrated_0113==nil and b.settings.auto_render_drops==false)
+    local persisted=J.decode(assert(U.read(path)))
+    assert(persisted.defaults_migrated_0113==true and persisted.settings.insert_handles==false)
+    for _,enabled in ipairs{true,false}do
+      b.settings.insert_handles=enabled;assert(M.save(path,b))
+      b=assert(M.load(path))
+      assert(b.defaults_migrated_0113==true and b.settings.insert_handles==enabled and b.settings.auto_render_drops==false)
+    end
+  end,debug.traceback)
+  os.remove(path);assert(ok,err)
 end)
 test('Other optional settings fill missing values and reject invalid ones',function()
   local b=M.defaults();b.settings.prepare_drops=nil;assert(M.validate(b).settings.prepare_drops==false)
