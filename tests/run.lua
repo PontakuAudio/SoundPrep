@@ -230,6 +230,21 @@ test('Other optional settings fill missing values and reject invalid ones',funct
   b=M.defaults();b.settings.preview_fade_ms=nil;b.settings.fade_ms=17
   assert(M.validate(b).settings.preview_fade_ms==0 and b.settings.fade_ms==17)
 end)
+test('Normalization fade defaults for old banks and saves within its numeric range',function()
+  local path=os.tmpname()
+  local ok,err=xpcall(function()
+    local b=M.defaults();assert(b.settings.normalize_fade_ms==500)
+    b.settings.normalize_fade_ms=nil
+    assert(U.write(path,J.encode(b)))
+    b=assert(M.load(path));assert(b.settings.normalize_fade_ms==500)
+    for _,pair in ipairs{{-20,0},{237.5,237.5},{3000,2000}}do
+      b.settings.normalize_fade_ms=pair[1];assert(M.save(path,b))
+      b=assert(M.load(path));assert(b.settings.normalize_fade_ms==pair[2])
+    end
+    b.settings.normalize_fade_ms='500';assert(not M.save(path,b))
+  end,debug.traceback)
+  os.remove(path);assert(ok,err)
+end)
 test('Warm switching changes only two branches and reconciles bypass policy',function()
   local writes=0
   local r={ValidatePtr=function()return true end,ValidatePtr2=function(_,t)return t.valid~=false end,

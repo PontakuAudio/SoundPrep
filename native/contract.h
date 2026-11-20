@@ -101,7 +101,7 @@ inline constexpr std::array<Field,8> settings_fields{{
   {"diagnostics",Kind::string,true},
   {"notice",Kind::string,true},
 }};
-inline constexpr std::array<Field,8> settings_value_fields{{
+inline constexpr std::array<Field,9> settings_value_fields{{
   {"autoplay",Kind::boolean,true},
   {"loop",Kind::boolean,true},
   {"auto_render_drops",Kind::boolean,true},
@@ -110,6 +110,7 @@ inline constexpr std::array<Field,8> settings_value_fields{{
   {"monitor_gain_db",Kind::number,true},
   {"preview_fade_ms",Kind::number,true},
   {"fade_ms",Kind::number,true},
+  {"normalize_fade_ms",Kind::number,true},
 }};
 inline constexpr std::array<Field,12> editor_fields{{
   {"open",Kind::boolean,true},
@@ -150,8 +151,8 @@ inline constexpr std::array<Field,21> editor_value_fields{{
 }};
 inline constexpr std::array<double,4> target_options{{-18,-16,-14,-12}};
 inline constexpr std::array<double,5> monitor_options{{-24,-18,-12,-6,0}};
-inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.10","platform":"windows","features":{"bar":9,"preview":5,"waveform":7,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
-inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.10","platform":"macos","features":{"bar":9,"preview":5,"waveform":7,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.13","platform":"windows","features":{"bar":10,"preview":5,"waveform":7,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.13","platform":"macos","features":{"bar":10,"preview":5,"waveform":7,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
 inline const char* helper_info() {
 #ifdef _WIN32
   return windows_info;
@@ -191,6 +192,7 @@ template<class Value> bool valid_bar_state(const Value& state) {
     const auto values=settings.child("values");if(!valid_fields(values,settings_value_fields))return false;
     const double monitor=values.child("monitor_gain_db").number();if(monitor< -60 || monitor>0)return false;
     for(const auto key:{"preview_fade_ms","fade_ms"}) { const double fade=values.child(key).number();if(fade<0 || fade>50)return false; }
+    const double normalize_fade=values.child("normalize_fade_ms").number();if(normalize_fade<0 || normalize_fade>2000)return false;
   }
   const auto editor=state.child("editor");
   if(editor.kind()!=Kind::missing) {

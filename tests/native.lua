@@ -18,6 +18,9 @@ for _,os in ipairs{'Win64','macOS-arm64'}do
   info.features.bar=3
   local ok,err=N.inspect(r);assert(not ok and err:find('bar requires revision '..C.features.bar.revision,1,true))
   assert(not require('am.bar').available(r),'Old helper silently retained the withdrawn Search UI')
+  info.version='0.11.10';info.features.bar=9
+  assert(not N.inspect(r),'Helper without the normalization fade setting was accepted')
+  info.version='999.0.0'
   info.features.bar=C.features.bar.revision
   info.features.preview=1;assert(not N.inspect(r),'Old helper silently accepted multichannel preview')
   info.features.preview=2;assert(not N.inspect(r),'Old downmix helper silently accepted AmbiX M/S decoding')

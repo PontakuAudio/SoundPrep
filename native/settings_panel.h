@@ -92,9 +92,9 @@
   [self label:@"New analysis jobs use this folder. Running jobs finish in their original folder; existing files stay where they are. Rendered project media uses its own location."
     parent:cachePage frame:NSMakeRect(14,184,548,90)].textColor=NSColor.secondaryLabelColor;
   NSView* advanced=self.tabs.tabViewItems[3].view;
-  self.diagnostics=[self label:@"" parent:advanced frame:NSMakeRect(14,98,548,42)];
+  self.diagnostics=[self label:@"" parent:advanced frame:NSMakeRect(14,178,548,20)];
   [self label:@"Source analysis runs in the native helper. No Python or FFmpeg setup is required.\n\nAssign the supplied 0–9 actions in Media Explorer for keyboard preset switching."
-    parent:advanced frame:NSMakeRect(14,152,548,110)].textColor=NSColor.secondaryLabelColor;
+    parent:advanced frame:NSMakeRect(14,204,548,56)].textColor=NSColor.secondaryLabelColor;
   self.resetDefaults=[self button:@"Reset to defaults" op:@"reset_defaults" parent:advanced frame:NSMakeRect(14,266,190,28)];
   self.notice=[self label:@"" parent:root frame:NSMakeRect(20,422,492,44)];self.notice.font=[NSFont systemFontOfSize:11];
   [self button:@"Done" op:@"close" parent:root frame:NSMakeRect(530,426,90,28)].keyEquivalent=@"\033";

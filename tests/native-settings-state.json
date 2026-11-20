@@ -9,7 +9,8 @@
     "keep_fx_running": false,
     "monitor_gain_db": -6,
     "preview_fade_ms": 0,
-    "fade_ms": 5
+    "fade_ms": 5,
+    "normalize_fade_ms": 500
   },
   "cache_available": true,
   "cache_default": false,

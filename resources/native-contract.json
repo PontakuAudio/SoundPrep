@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "version": "0.11.10",
+  "version": "0.11.13",
   "features": {
     "bar": {
-      "revision": 9,
+      "revision": 10,
       "apis": [
         "AM_BarAttach",
         "AM_BarSetState",
@@ -552,6 +552,11 @@
       },
       {
         "name": "fade_ms",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "normalize_fade_ms",
         "type": "number",
         "required": true
       }

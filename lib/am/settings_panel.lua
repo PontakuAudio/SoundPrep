@@ -2,7 +2,7 @@
 local J=require('am.json');local U=require('am.util');local Loudness=require('am.loudness');local Model=require('am.model')
 local M={}
 local booleans={autoplay=true,loop=true,auto_render_drops=true,insert_handles=true,keep_fx_running=true}
-local numbers={monitor_gain_db={-60,0},preview_fade_ms={0,50},fade_ms={0,50}}
+local numbers={monitor_gain_db={-60,0},preview_fade_ms={0,50},fade_ms={0,50},normalize_fade_ms={0,2000}}
 function M.open(a)
   a.settings_panel_open=true;a.settings_panel_focus=(a.settings_panel_focus or 0)+1
 end

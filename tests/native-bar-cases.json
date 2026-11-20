@@ -836,7 +836,8 @@
             "keep_fx_running": false,
             "monitor_gain_db": -6,
             "preview_fade_ms": 0,
-            "fade_ms": 5
+            "fade_ms": 5,
+            "normalize_fade_ms": 500
           },
           "cache_available": true,
           "cache_default": false,
@@ -863,6 +864,31 @@
       "accept": false
     },
     {
+      "name": "settings missing normalization fade",
+      "set": {
+        "settings": {
+          "open": true,
+          "focus": 1,
+          "values": {
+            "autoplay": true,
+            "loop": false,
+            "auto_render_drops": false,
+            "insert_handles": true,
+            "keep_fx_running": false,
+            "monitor_gain_db": -6,
+            "preview_fade_ms": 0,
+            "fade_ms": 5
+          },
+          "cache_available": true,
+          "cache_default": false,
+          "cache_path": "/fixtures/解析 🎤/cache",
+          "diagnostics": "Chain loads: 3   Switches: 7   Source starts: 2",
+          "notice": "Changes are saved automatically and shared across every preset."
+        }
+      },
+      "accept": false
+    },
+    {
       "name": "settings boolean monitor",
       "set": {
         "settings": {
@@ -876,7 +902,8 @@
             "keep_fx_running": false,
             "monitor_gain_db": true,
             "preview_fade_ms": 0,
-            "fade_ms": 5
+            "fade_ms": 5,
+            "normalize_fade_ms": 500
           },
           "cache_available": true,
           "cache_default": false,
@@ -901,7 +928,34 @@
             "keep_fx_running": false,
             "monitor_gain_db": -6,
             "preview_fade_ms": 0,
-            "fade_ms": 51
+            "fade_ms": 51,
+            "normalize_fade_ms": 500
+          },
+          "cache_available": true,
+          "cache_default": false,
+          "cache_path": "/fixtures/解析 🎤/cache",
+          "diagnostics": "Chain loads: 3   Switches: 7   Source starts: 2",
+          "notice": "Changes are saved automatically and shared across every preset."
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "normalization fade out of range",
+      "set": {
+        "settings": {
+          "open": true,
+          "focus": 1,
+          "values": {
+            "autoplay": true,
+            "loop": false,
+            "auto_render_drops": false,
+            "insert_handles": true,
+            "keep_fx_running": false,
+            "monitor_gain_db": -6,
+            "preview_fade_ms": 0,
+            "fade_ms": 5,
+            "normalize_fade_ms": 2001
           },
           "cache_available": true,
           "cache_default": false,
@@ -926,7 +980,8 @@
             "keep_fx_running": false,
             "monitor_gain_db": -6,
             "preview_fade_ms": 0,
-            "fade_ms": 5
+            "fade_ms": 5,
+            "normalize_fade_ms": 500
           },
           "cache_available": true,
           "cache_default": false,

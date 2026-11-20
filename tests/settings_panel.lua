@@ -12,6 +12,7 @@ local function set(key,value,commit)bar:dispatch('settings@'..J.encode{op='set',
 bar:dispatch('settings');assert(Settings.state(a).open and Settings.state(a).focus==1)
 bar:dispatch('settings');assert(Settings.state(a).open and Settings.state(a).focus==2,'Repeated open must focus, not dismiss')
 local values,expected=Settings.state(a).values,{}
+assert(values.normalize_fade_ms==500)
 for _,field in ipairs(C.bar.settings_value_fields)do
   assert(type(values[field.name])==field.type,'Invalid settings value: '..field.name)
   expected[field.name]=true
@@ -24,9 +25,12 @@ time=.1;set('monitor_gain_db',-14,false);Settings.tick(a);assert(saves==1)
 time=.4;Settings.tick(a);assert(saves==2 and a.saved.monitor_gain_db==-14)
 set('preview_fade_ms',12.5);set('fade_ms',6.2);set('autoplay',false)
 assert(a.saved.preview_fade_ms==12.5 and a.saved.fade_ms==6.2 and not a.saved.autoplay)
+set('normalize_fade_ms',2000);assert(a.saved.normalize_fade_ms==2000)
+set('normalize_fade_ms',0);assert(a.saved.normalize_fade_ms==0 and Settings.state(a).values.normalize_fade_ms==0)
 set('keep_fx_running',true);assert(activations==3 and a.saved.keep_fx_running)
 assert(U.equal(a.definition.macros,original),'App settings changed a preset')
-for _,pair in ipairs{{'monitor_gain_db',1},{'monitor_gain_db',-61},{'fade_ms',51},{'fade_ms','4'},{'autoplay',1},{'unknown',false}}do
+for _,pair in ipairs{{'monitor_gain_db',1},{'monitor_gain_db',-61},{'fade_ms',51},{'fade_ms','4'},
+  {'normalize_fade_ms',-1},{'normalize_fade_ms',2001},{'normalize_fade_ms','500'},{'autoplay',1},{'unknown',false}}do
   local before=J.encode(a.definition);assert(not pcall(set,pair[1],pair[2]));assert(before==J.encode(a.definition))
 end
 local save=a.save_settings;a.save_settings=function()error('disk full')end

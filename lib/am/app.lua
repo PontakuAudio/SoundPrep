@@ -227,7 +227,7 @@ function M:refresh_processing()
       (before and before.source_channels or self.source_channels)==(analysis and analysis.source_channels or self.source_channels)then
       -- A changed Zwicker target/calibration needs another solution. Keep the
       -- audible level and stop the old target ramp until that solution arrives.
-      gain=self.preview.gain_db;self.preview.gain_target=nil;self.preview.gain_tick_time=nil
+      gain=self.preview.gain_db;self.preview:cancel_gain_fade()
     end
   end
   if self.preview:reconfigure(self:effective(),gain,self.definition.settings)then
@@ -256,7 +256,7 @@ function M:update_normalization(now)
     local gain,status=Loudness.gain(self:effective(),measurement)
     local current_target=preview.gain_target or preview.gain_db
     if not U.finite(current_target)or math.abs(gain-current_target)>1e-9 then
-      if not preview:fade_gain(gain)then return false end
+      if not preview:fade_gain(gain,self.definition.settings.normalize_fade_ms)then return false end
     end
     self.playback_analysis=U.copy(analysis);self.applied_status=status
     if self.message:match('^Unmeasured:')then self.message=''end

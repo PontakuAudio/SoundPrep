@@ -3,11 +3,8 @@ local Time=require('am.timeline')
 local Mix=require('am.channel_mix')
 local Selection=require('am.channel_selection')
 local M={};M.__index=M
--- Control-rate gain changes stay small even after modal drags or a stalled UI.
--- The native source keeps running; this does not seek or rebuild the FX chain.
-M.GAIN_DB_PER_SECOND=6
-M.GAIN_MAX_STEP_DB=.15
-M.GAIN_MAX_TICK_SECONDS=.025
+-- Keep control-rate gain changes bounded even after a stalled UI.
+M.GAIN_MAX_STEP_DB=1.5
 function M.new(r,project,track)
   local native=r.APIExists('AM_Preview_Create')
   return setmetatable({r=r,project=project,track=track,starts=0,native=native,
@@ -33,9 +30,12 @@ function M:latency_track(track)
     assert(self.r.AM_Preview_SetLatencyTrack(self.handle,track),'Cannot bind preview FX timing')
   end
 end
+function M:cancel_gain_fade()
+  self.gain_target=nil;self.gain_fade=nil
+end
 function M:stop(immediate)
   self.ended_path=nil;self.eof_path=nil
-  self.gain_target=nil;self.gain_tick_time=nil
+  self:cancel_gain_fade()
   if self.handle then
     if immediate then assert(self.set_value(self.handle,'D_FADEOUTLEN',0),'Cannot discard the previous source fade')end
     self.stop_handle(self.handle);self.handle=nil
@@ -47,7 +47,7 @@ function M:playing(skip_length)
   local ok,pos=self:get('D_POSITION')
   if not ok then
     self.handle=nil;self.ended_path=self.path;self.eof_path=self.path
-    self.gain_target=nil;self.gain_tick_time=nil
+    self:cancel_gain_fade()
     return false
   end
   if skip_length then return true,pos end
@@ -151,7 +151,7 @@ function M:reconfigure(macro,gain_db,settings)
     local started,reason=self:start(self.path,macro,transitioning and self.gain_db or gain_db,settings,self.range,
       Time.position(source,self.source_length,self.range,after))
     if started==false then return false,reason end
-    if transitioning then self:fade_gain(gain_db)end
+    if transitioning then return self:fade_gain(gain_db,settings.normalize_fade_ms)end
     return true
   end
   local r,h=self.r,self.handle
@@ -185,35 +185,39 @@ function M:seek(pos)
 end
 function M:update_gain(db)
   assert(U.finite(db),'Invalid preview gain')
-  self.gain_target=nil;self.gain_tick_time=nil
+  self:cancel_gain_fade()
   if self:playing(true)and self:set('D_VOLUME',U.gain(db))then self.gain_db=db;return true end
   return false
 end
-function M:fade_gain(db)
+function M:fade_gain(db,duration_ms)
+  if duration_ms==0 then return self:update_gain(db)end
   assert(U.finite(db),'Invalid preview gain')
   if not self:playing(true)then return false end
-  if db==self.gain_db then self.gain_target=nil;self.gain_tick_time=nil;return true end
+  if db==self.gain_db then self:cancel_gain_fade();return true end
   if self.gain_target~=db then
-    if self.gain_target==nil then self.gain_tick_time=self.r.time_precise()end
     self.gain_target=db
+    self.gain_fade={distance=math.abs(db-self.gain_db),duration_ms=duration_ms,tick_time=self.r.time_precise()}
   end
   return true
 end
 function M:tick_gain(now)
-  if self.gain_target==nil then return false end
+  local fade=self.gain_fade
+  if not fade then return false end
   if not self:playing(true)then return false end
   now=now or self.r.time_precise()
-  local dt=U.clamp(now-(self.gain_tick_time or now),0,M.GAIN_MAX_TICK_SECONDS)
-  self.gain_tick_time=now
+  local elapsed_ms=(now-fade.tick_time)*1000
+  if elapsed_ms<=0 then return false end
+  fade.tick_time=now
   local difference=self.gain_target-self.gain_db
-  local step=math.min(math.abs(difference),M.GAIN_DB_PER_SECOND*dt,M.GAIN_MAX_STEP_DB)
+  -- Discard any part of the step above the cap so a delay extends the fade.
+  local step=math.min(math.abs(difference),fade.distance*(elapsed_ms/fade.duration_ms),M.GAIN_MAX_STEP_DB)
   if step==0 then return false end
   local next_gain=step>=math.abs(difference) and self.gain_target or self.gain_db+(difference>0 and step or -step)
   if not self:set('D_VOLUME',U.gain(next_gain))then
-    self.gain_target=nil;self.gain_tick_time=nil;return false
+    self:cancel_gain_fade();return false
   end
   self.gain_db=next_gain
-  if next_gain==self.gain_target then self.gain_target=nil;self.gain_tick_time=nil end
+  if next_gain==self.gain_target then self:cancel_gain_fade()end
   return true
 end
 return M

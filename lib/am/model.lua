@@ -1,6 +1,6 @@
 local U=require('am.util')
 local J=require('am.json')
-local M={VERSION=1,DEFAULT_TARGET_LUFS=-18,DEFAULT_TARGET_SONES=36}
+local M={VERSION=1,DEFAULT_TARGET_LUFS=-18,DEFAULT_TARGET_SONES=36,DEFAULT_NORMALIZE_FADE_MS=500}
 function M.macro(id,name)
   return {id=id,name=name,fx_chain='chains/'..id..'.RfxChain',
     source_transform={reverse=false,pitch_semitones=0,rate=1,preserve_pitch=false},
@@ -17,7 +17,8 @@ function M.defaults()
   local dark=M.macro('dark','Dark');dark.source_transform.pitch_semitones=-2
   local rev=M.macro('reverse','Reverse');rev.source_transform.reverse=true
   return {schema_version=1,defaults_migrated_0113=true,raw=M.raw_settings(),macros=J.array{heavy,dark,rev},slots={['1']='heavy',['2']='dark',['3']='reverse'},
-    settings={autoplay=true,loop=false,keep_fx_running=false,monitor_gain_db=-6,fade_ms=5,preview_fade_ms=0,preview_downmix=false,preview_downmix_mode='auto',
+    settings={autoplay=true,loop=false,keep_fx_running=false,monitor_gain_db=-6,fade_ms=5,preview_fade_ms=0,
+      normalize_fade_ms=M.DEFAULT_NORMALIZE_FADE_MS,preview_downmix=false,preview_downmix_mode='auto',
       python='',ffmpeg='',cache_directory='',poll_ms=20,analysis_timeout_seconds=180,insert_handles=false,prepare_drops=false,auto_render_drops=true}}
 end
 local function number(v,a,b,name)
@@ -71,6 +72,9 @@ function M.validate(bank)
   if s.prepare_drops==nil then s.prepare_drops=false end
   if s.auto_render_drops==nil then s.auto_render_drops=true end
   if s.preview_fade_ms==nil then s.preview_fade_ms=0 end
+  if s.normalize_fade_ms==nil then s.normalize_fade_ms=M.DEFAULT_NORMALIZE_FADE_MS end
+  assert(U.finite(s.normalize_fade_ms),'Normalization fade must be a finite number')
+  s.normalize_fade_ms=U.clamp(s.normalize_fade_ms,0,2000)
   if s.preview_downmix==nil then s.preview_downmix=false end
   if s.preview_downmix_mode==nil then s.preview_downmix_mode='auto' end
   if s.channel_selections==nil then s.channel_selections={} end

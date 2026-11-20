@@ -71,7 +71,8 @@ local function audio(now,keep)
         local change=db-previous_audio.gain_db
         record.max_audio_step_db=math.max(record.max_audio_step_db,math.abs(change))
         -- A large device block can contain more than one GUI update.
-        assert(math.abs(change)<=math.max(.20,6*frames/48000+.16),'Abrupt gain change reached native audio')
+        local limit=target and math.abs(target)*1000/app.definition.settings.normalize_fade_ms*frames/48000+1.51 or .20
+        assert(math.abs(change)<=limit,'Abrupt gain change reached native audio')
         if target then assert(change*cases[index].direction>=-.025,'Native audio ramp reversed direction')end
       end
       previous_audio=observed
@@ -220,8 +221,9 @@ local function tick()
       app:update_normalization(now)
       local actual=20*math.log(select(2,app.preview:get('D_VOLUME')),10)
       local change=actual-last_gain
-      assert(math.abs(change)<=.150001,'Normalization exceeded the per-update 0.15 dB limit')
-      assert(math.abs(change)<=6*(now-last_tick)+.001,'Normalization exceeded 6 dB per second')
+      assert(math.abs(change)<=1.500001,'Normalization exceeded the per-update 1.5 dB limit')
+      local rate=math.abs(target or 0)*1000/definition.settings.normalize_fade_ms
+      assert(math.abs(change)<=rate*(now-last_tick)+.001,'Normalization exceeded the configured fade rate')
       if target then assert(change*cases[index].direction>=-1e-8,'API gain ramp reversed direction')end
       record.max_api_step_db=math.max(record.max_api_step_db,math.abs(change))
       record.api_trace[#record.api_trace+1]={seconds=now-started,gain_db=actual,position=select(2,app.preview:get('D_POSITION'))}

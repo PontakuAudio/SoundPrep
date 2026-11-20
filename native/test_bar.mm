@@ -192,7 +192,25 @@ int main(){@autoreleasepool {
   assert([resetDefaults.title isEqual:@"Reset to defaults"] && resetDefaults.enabled);
   assert(resetDefaults.superview==prefs.tabs.tabViewItems[3].view && [prefs.tabs.tabViewItems[3].label isEqual:@"Advanced"]);
   assert(NSEqualRects(resetDefaults.frame,prefs.render.frame));
-  [prefs.tabs selectTabViewItemAtIndex:3];[resetDefaults performClick:nil];
+  [prefs.tabs selectTabViewItemAtIndex:3];
+  NSSlider* fadeSlider=(NSSlider*)prefs.controls[normalization_fade_index];
+  NSTextField* fadeField=prefs.numbers[@(normalization_fade_index)];
+  assert(fadeSlider.superview==resetDefaults.superview && fadeField.superview==resetDefaults.superview);
+  assert(fadeSlider.doubleValue==500 && fadeSlider.minValue==0 && fadeSlider.maxValue==2000);
+  assert([fadeField.stringValue isEqual:@"500.0"]);
+  NSTextField *fadeHelp=nil,*advancedInfo=nil;
+  NSString* fadeHelpText=[NSString stringWithUTF8String:amsettings::controls[normalization_fade_index].help];
+  for(NSView* child in resetDefaults.superview.subviews)if([child isKindOfClass:NSTextField.class]) {
+    NSTextField* field=(NSTextField*)child;
+    if([field.stringValue isEqual:fadeHelpText])fadeHelp=field;
+    if([field.stringValue hasPrefix:@"Source analysis runs in the native helper."])advancedInfo=field;
+  }
+  assert(fadeHelp && advancedInfo && NSMaxY(fadeHelp.frame)<NSMinY(prefs.diagnostics.frame));
+  assert(NSMaxY(prefs.diagnostics.frame)<NSMinY(advancedInfo.frame) && NSMaxY(advancedInfo.frame)<NSMinY(resetDefaults.frame));
+  fadeField.stringValue=@"1250";[prefs numberChanged:fadeField];
+  auto fadeEvent=nlohmann::json::parse(std::string(AMBarPoll()).substr(9));
+  assert(fadeEvent["op"]=="set" && fadeEvent["key"]=="normalize_fade_ms" && fadeEvent["value"]==1250);
+  [resetDefaults performClick:nil];
   auto resetEvent=std::string(AMBarPoll());
   assert(resetEvent.rfind("settings@",0)==0 && nlohmann::json::parse(resetEvent.substr(9))["op"]=="reset_defaults");
   [prefs.tabs selectTabViewItemAtIndex:0];

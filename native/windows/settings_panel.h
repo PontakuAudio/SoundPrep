@@ -56,8 +56,8 @@ struct SettingsPanel {
     choose=child(L"BUTTON","Choose folder…",WS_TABSTOP,3301,2,30,218,154,28);
     defaults=child(L"BUTTON","Use default",WS_TABSTOP,3302,2,196,218,138,28);
     child(L"STATIC","New analysis jobs use this folder. Running jobs finish in their original folder; existing files stay where they are. Rendered project media uses its own location.",SS_NOPREFIX,0,2,30,264,548,90);
-    diagnostics=child(L"STATIC","",SS_NOPREFIX,0,3,30,178,548,42);
-    child(L"STATIC","Source analysis runs in the native helper. No Python or FFmpeg setup is required.\r\n\r\nAssign the supplied 0–9 actions in Media Explorer for keyboard preset switching.",SS_NOPREFIX,0,3,30,232,548,110);
+    diagnostics=child(L"STATIC","",SS_NOPREFIX,0,3,30,258,548,20);
+    child(L"STATIC","Source analysis runs in the native helper. No Python or FFmpeg setup is required.\r\n\r\nAssign the supplied 0–9 actions in Media Explorer for keyboard preset switching.",SS_NOPREFIX,0,3,30,284,548,56);
     resetDefaults=child(L"BUTTON","Reset to defaults",WS_TABSTOP,3304,3,30,346,190,28);
     notice=child(L"STATIC","",SS_NOPREFIX,0,-1,20,422,492,44);
     child(L"BUTTON","Done",WS_TABSTOP|BS_DEFPUSHBUTTON,3303,-1,530,426,90,28);

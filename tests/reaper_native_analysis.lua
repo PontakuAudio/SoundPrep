@@ -215,7 +215,7 @@ local function tick()
       app:update_normalization(now)
       local actual=20*math.log(select(2,app.preview:get('D_VOLUME')),10)
       record.max_gain_step_db=math.max(record.max_gain_step_db,math.abs(actual-last_gain))
-      assert(math.abs(actual-last_gain)<=.150001,'Gain changed by more than the smooth per-tick bound')
+      assert(math.abs(actual-last_gain)<=1.500001,'Gain changed by more than the smooth per-tick bound')
       last_gain=actual
       if math.abs(actual-target)<1e-7 then
         local before=app.loudness.counter;app.preview:stop(true);assert(app:play(0,true))

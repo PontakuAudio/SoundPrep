@@ -92,6 +92,7 @@ def outputs():
                    '    const auto values=settings.child("values");if(!valid_fields(values,settings_value_fields))return false;',
                    '    const double monitor=values.child("monitor_gain_db").number();if(monitor< -60 || monitor>0)return false;',
                    '    for(const auto key:{"preview_fade_ms","fade_ms"}) { const double fade=values.child(key).number();if(fade<0 || fade>50)return false; }',
+                   '    const double normalize_fade=values.child("normalize_fade_ms").number();if(normalize_fade<0 || normalize_fade>2000)return false;',
                    '  }',
                    '  const auto editor=state.child("editor");',
                    '  if(editor.kind()!=Kind::missing) {',

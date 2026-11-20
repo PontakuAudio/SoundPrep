@@ -30,7 +30,7 @@ local function fixture(channels,enabled,path)
     stop_handle=function()state.live=false;state.stops=state.stops+1 end},Preview)
   app.preview=preview
   app.playback_identity=U.copy(identity);app.playback_analysis=U.copy(app:analysis_spec())
-  preview.fade_gain=function(self,db)state.fade_calls=state.fade_calls+1;return Preview.fade_gain(self,db)end
+  preview.fade_gain=function(self,db,ms)state.fade_calls=state.fade_calls+1;return Preview.fade_gain(self,db,ms)end
   app.request_analysis=function()end
   local function measurement(status,peak)
     local spec=app:analysis_spec()
@@ -91,17 +91,28 @@ end
 do
   local app,state,result,advance=fixture();local handle=app.preview.handle
   advance();assert(volume_writes(state)==0 and not app.preview.gain_target)
+  app.definition.settings.normalize_fade_ms=200
   state.measurement=result();advance()
   assert(app.preview.gain_target==6 and app.preview.gain_db==0 and volume_writes(state)==0)
   assert(app.message==''and app.applied_status=='ready')
-  for _=1,80 do
+  for _=1,9 do
     local before=app.preview.gain_db;advance()
-    assert(app.preview.gain_db>=before and app.preview.gain_db-before<=.1500001)
+    assert(math.abs(app.preview.gain_db-before-.6)<1e-10)
     assert(app.applied_gain==app.preview.gain_db and app.preview.handle==handle and state.position==2)
   end
+  assert(app.preview.gain_target==6)
+  advance();advance() -- Allow the next tick if the mock clock rounds down.
   assert(app.preview.gain_db==6 and not app.preview.gain_target and state.fade_calls==1)
   local writes=volume_writes(state);advance();advance()
   assert(volume_writes(state)==writes and state.starts==0 and state.stops==0,'Completion restarted or repeatedly reconfigured playback')
+end
+
+do
+  local app,state,result,advance=fixture();local handle=app.preview.handle
+  app.definition.settings.normalize_fade_ms=0
+  state.measurement=result();advance()
+  assert(app.applied_gain==6 and app.preview.gain_db==6 and not app.preview.gain_target)
+  assert(volume_writes(state)==1 and app.preview.handle==handle and state.starts==0 and state.stops==0)
 end
 
 -- Apply the latest preset target, including all multichannel analysis bases.

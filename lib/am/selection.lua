@@ -8,7 +8,7 @@ local app_fields={'path','identity','source_channels','range','paused_position',
   'transform_override','reverse_override','effective_macro','effective_id','effective_reverse','edit_preview',
   'preset_drafts','selected_id','previous_id','advance_path'}
 local preview_fields={'starts','path','ended_path','eof_path','macro','range','source_length','gain_db','source_channels',
-  'channel_selection','output_channels','downmix_mode','gain_target','gain_tick_time'}
+  'channel_selection','output_channels','downmix_mode','gain_target','gain_fade'}
 local bank_fields={'channels','fx_bypassed','routing_dirty','keep_running','active_gain','active','active_gain_db','loads','switches'}
 local explorer_fields={'selected','polled_index','last_transform','range_key','range_length'}
 local function fields(object,names)

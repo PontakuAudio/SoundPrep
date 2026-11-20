@@ -14,6 +14,7 @@ inline constexpr Control controls[]={
   {"insert_handles","Retain processed audio outside the selected range","Off: render only the selected range. Source + FX keeps the entire original. Default: Off.",toggle,1,90,0,0},
   {"fade_ms","Rendered edge fade (ms)","Fade the edges of rendered drops. Default: 5 ms.",number,1,168,0,50},
   {"keep_fx_running","Keep inactive FX processing","Uses more CPU. Keeps inactive preset FX running. Default: Off.",toggle,3,12,0,0},
+  {"normalize_fade_ms","Normalization fade (ms)","Time for loudness normalization to ease to the measured level after analysis. 0 applies it at once. Default: 500 ms.",number,3,82,0,2000},
   {nullptr,"Support on Ko-fi","SoundPrep is free. If it saves you time, you can support its development on Ko-fi.",link,4,12,0,0,
     "https://ko-fi.com/kuma_pontakuaudio"}
 };

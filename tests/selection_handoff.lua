@@ -20,7 +20,8 @@ local r={ValidatePtr=function(p)return p==project end,
   AM_SelectionDetach=function()detaches=detaches+1;pending=false end}
 local app={r=r,session='owner',project=project,root='.',data='data',definition={settings={}},path='old.wav',
   source_channels=2,selected_id='preset',transform_override={pitch_semitones=-3},
-  preview={path='old.wav',starts=10,fx_track=fx,macro={source_transform={rate=.75}},gain_target=-7},
+  preview={path='old.wav',starts=10,fx_track=fx,macro={source_transform={rate=.75}},gain_target=-7,
+    gain_fade={distance=7,duration_ms=500,tick_time=1}},
   explorer={selected={index=2,path='old.wav'},polled_index=2,window=function()return window end,control=function()return 'list'end},
   selection_attached=true,check_project=function()return true end}
 app.bank=setmetatable({r=r,project=project,tracks={input,raw,fx},input=input,raw=raw,chosen=fx,macros={preset=fx},
@@ -30,15 +31,16 @@ app.request_analysis=function(self)
 end
 app.close=function(self)self.closed=true end
 local snapshot=Fast.snapshot(app)
+assert(snapshot.preview.gain_fade.duration_ms==500)
 snapshot.app.path='new.wav';snapshot.app.source_channels=4;snapshot.app.paused_source=nil
-snapshot.preview.path='new.wav';snapshot.preview.starts=11;snapshot.preview.gain_target=nil
+snapshot.preview.path='new.wav';snapshot.preview.starts=11;snapshot.preview.gain_target=nil;snapshot.preview.gain_fade=nil
 snapshot.bank.dirty={};snapshot.needs_analysis=true
 state=J.encode(snapshot)
 -- A user may reorder tracks between immediate playback and Lua adoption.
 tracks={fx,input,raw}
 assert(Fast.consume(app)and not pending and requests==1)
 assert(app.path=='new.wav'and app.preview.path==app.path and app.preview.starts==11 and app.preview.handle==handle)
-assert(app.preview.gain_target==nil and app.preview.fx_track==fx and app.bank.chosen==fx)
+assert(app.preview.gain_target==nil and app.preview.gain_fade==nil and app.preview.fx_track==fx and app.bank.chosen==fx)
 assert(app.bank.input==input and app.bank.raw==raw and app.bank.macros.preset==fx)
 assert(not next(app.bank.dirty_buffers)and app.bank.channel_state[fx].pin_minimum==4)
 assert(app.transform_override.pitch_semitones==-3 and not Fast.consume(app)and requests==1)

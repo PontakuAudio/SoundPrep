@@ -8,6 +8,10 @@
 #include <string_view>
 
 static_assert(amsettings::page_count==5 && std::string_view(amsettings::pages[4])=="About");
+static_assert(amsettings::count==10);
+inline constexpr int normalization_fade_index=amsettings::count-2;
+static_assert(std::string_view(amsettings::controls[normalization_fade_index].key)=="normalize_fade_ms");
+static_assert(amsettings::controls[normalization_fade_index].page==3);
 static_assert(amsettings::controls[amsettings::count-1].kind==amsettings::link);
 static_assert(amsettings::controls[amsettings::count-1].page==4 && !amsettings::controls[amsettings::count-1].key);
 static_assert(std::string_view(amsettings::controls[amsettings::count-1].label)=="Support on Ko-fi");
