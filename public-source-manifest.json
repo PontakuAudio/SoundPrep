@@ -351,8 +351,8 @@
     },
     {
       "path": "docs/releases/0.11.12.md",
-      "sha256": "4cef61a49158101981ab0124d705bb5b5f9d071936cb289bbafe7e1cac77e9f3",
-      "bytes": 1163
+      "sha256": "270d3cbab2953b6e871d5f936a51ab072a6fcb84f63beb8d9e3926d872477ba5",
+      "bytes": 1033
     },
     {
       "path": "docs/source-distribution.md",
@@ -671,23 +671,23 @@
     },
     {
       "path": "native/settings_layout.h",
-      "sha256": "15985230266d951831791a54c74eef1e52d507f9348d5ec5238331fec664a669",
-      "bytes": 1381
+      "sha256": "beb4425da3cb411dcd19c6871991db978cd34d26d9a70c3155cc4c2b402a62c7",
+      "bytes": 1656
     },
     {
       "path": "native/settings_panel.h",
-      "sha256": "e4781d5dc693843d85914b3ce107d7c88589748dd75d8ae9ef608e1a721c399c",
-      "bytes": 12055
+      "sha256": "c7a19b6d928349eda2ec6bf01c83c6f25c0c09e638f2ec4177288e6ae9ee86fb",
+      "bytes": 12540
     },
     {
       "path": "native/test_bar.mm",
-      "sha256": "abd59b4170c88246be335672509dad3bb06f832abd7cba83d32d904018531355",
-      "bytes": 21884
+      "sha256": "ff1b985b42b4db6f9c64c2339b32b59d554b0c0d14f07d58ea6940fc3c600eb0",
+      "bytes": 22294
     },
     {
       "path": "native/test_bar_contract.h",
-      "sha256": "22db93d197a4ca1ef2953ecce941b1512df031db877e328a34db47827b69d2e4",
-      "bytes": 862
+      "sha256": "29d40e3aa0c89fcf9bd275ee1f1e0c13f075321fb1ee30609fb37d108614a48c",
+      "bytes": 1427
     },
     {
       "path": "native/test_cursor.cpp",
@@ -761,8 +761,8 @@
     },
     {
       "path": "native/windows/bar.cpp",
-      "sha256": "4a245a5df531c076b8f39514045419a7de46c69605d9a79aead46b3766b15bc9",
-      "bytes": 18992
+      "sha256": "2ab50bad2b067e5e7966720c176d4483e155286785b75ef3b611f2441b845b4d",
+      "bytes": 19014
     },
     {
       "path": "native/windows/channel_panel.h",
@@ -801,8 +801,8 @@
     },
     {
       "path": "native/windows/settings_panel.h",
-      "sha256": "8bb4041c297343f17abc6b2cdc816b836608a5ad283f536a731c3bb524c43777",
-      "bytes": 10784
+      "sha256": "396181e64172bac40b0c0d9d049c4dc9baf6fb05bfe163b011dd866a3e8622d4",
+      "bytes": 11226
     },
     {
       "path": "native/windows/system.cpp",
@@ -836,8 +836,8 @@
     },
     {
       "path": "native/windows/test_windows.cpp",
-      "sha256": "7df00e0e84e866108f9dcc0ea7fbabecfb13d5d8bdae0333b3759dad99035d40",
-      "bytes": 31945
+      "sha256": "7483d4fd4daaeb4cd04273ae6c0248b8a3449dea333350e2b766ac9680eb247a",
+      "bytes": 32877
     },
     {
       "path": "native/windows/wave_label.cpp",
@@ -856,18 +856,18 @@
     },
     {
       "path": "prebuilt/manifest.json",
-      "sha256": "d645155a680dd31ccaa351609fa9826a45a441628267bc3d164cc082965c2ef4",
+      "sha256": "3ec0c7f00f6ff5bb0c65b237f7697b3f1ac5e1d883ef428ab084a22039c85741",
       "bytes": 491
     },
     {
       "path": "prebuilt/reaper_audition_macro.dll",
-      "sha256": "61dbfa2cefa156695913629fe9daa0650eb3502fab1aed034e683528d4004e0a",
-      "bytes": 797696
+      "sha256": "c10d7b4211b13a1cc23fcf91324f59bb53775913ba2fdf90d83bf7c3eccf03b7",
+      "bytes": 798720
     },
     {
       "path": "prebuilt/reaper_audition_macro.dylib",
-      "sha256": "ffb9ff765f300b9007ff346ec9cdc227829a0d5c17702c0370af59bdd4075432",
-      "bytes": 1047712
+      "sha256": "cba2def79424e4f15cc1913b36ade623472bee4c9f536ebb437a1a89f6b49f21",
+      "bytes": 1047792
     },
     {
       "path": "resources/audition_macro_channels_v1.jsfx",
@@ -1396,8 +1396,8 @@
     },
     {
       "path": "tests/settings_panel.lua",
-      "sha256": "747ebb2cdb1f8b1a3393a8d634086087c983b09eefe2700e68fb4b7de91343be",
-      "bytes": 3458
+      "sha256": "7df79caea9707dd8feca6335635a40bb9f7c9ae55848cc99c0c4a82149cf093e",
+      "bytes": 3804
     },
     {
       "path": "tests/setup.lua",
@@ -1426,8 +1426,8 @@
     },
     {
       "path": "tests/test_native_contract.py",
-      "sha256": "7947f27b84bd2f9d6d3b36b1a036670ccf9b4c85c0d9e2d0b84bfa50e97ede71",
-      "bytes": 3781
+      "sha256": "24fe895c46266cb3bab591d3a4d46fb419f46cc34f4d7ef012c3f3031c83229a",
+      "bytes": 4423
     },
     {
       "path": "tests/test_package_release.py",

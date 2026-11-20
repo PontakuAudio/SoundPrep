@@ -67,6 +67,9 @@
     if(spec.kind==amsettings::toggle) {
       NSButton* button=[NSButton checkboxWithTitle:label target:self action:@selector(changed:)];
       button.frame=NSMakeRect(14,spec.y,554,24);control=button;
+    }else if(spec.kind==amsettings::link) {
+      NSButton* button=[NSButton buttonWithTitle:label target:self action:@selector(openLink:)];
+      button.bezelStyle=NSBezelStyleRounded;button.frame=NSMakeRect(14,spec.y,154,28);control=button;
     }else {
       [self label:label parent:page frame:NSMakeRect(14,spec.y,450,20)];
       AMSettingsSlider* slider=[[AMSettingsSlider alloc]initWithFrame:NSMakeRect(14,spec.y+24,456,24)];
@@ -77,7 +80,7 @@
     }
     control.tag=i;control.accessibilityLabel=label;[page addSubview:control];[self.controls addObject:control];
     NSTextField* help=[self label:[NSString stringWithUTF8String:spec.help] parent:page
-      frame:NSMakeRect(18,spec.y+(spec.kind==amsettings::toggle?28:52),548,38)];
+      frame:NSMakeRect(18,spec.y+(spec.kind==amsettings::number?52:28),548,38)];
     help.textColor=NSColor.secondaryLabelColor;help.font=[NSFont systemFontOfSize:11];
   }
   self.render=[self button:@"Render selected drops" op:@"render_drops" parent:self.tabs.tabViewItems[1].view frame:NSMakeRect(14,266,190,28)];
@@ -104,6 +107,10 @@
   if(self.paused)return;
   NSData* data=[NSJSONSerialization dataWithJSONObject:event options:0 error:nil];
   self.send([@"settings@" stringByAppendingString:[[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding]]);
+}
+- (void)openLink:(NSButton*)sender {
+  NSString* url=[NSString stringWithUTF8String:amsettings::controls[sender.tag].url];
+  [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:url]];
 }
 - (void)changed:(NSControl*)sender {
   const auto& spec=amsettings::controls[sender.tag];BOOL numeric=spec.kind==amsettings::number;
@@ -137,7 +144,9 @@
   if(![state[@"open"] boolValue]){[self.window orderOut:nil];return;}
   if(!self.window && anchor.window)[self create:anchor];if(!self.window)return;
   for(int i=0;i<amsettings::count;++i) {
-    const auto& spec=amsettings::controls[i];NSControl* control=self.controls[i];control.enabled=!paused;
+    const auto& spec=amsettings::controls[i];
+    if(spec.kind==amsettings::link)continue;
+    NSControl* control=self.controls[i];control.enabled=!paused;
     NSNumber* value=state[@"values"][[NSString stringWithUTF8String:spec.key]];
     if(spec.kind==amsettings::toggle)[(NSButton*)control setState:value.boolValue?NSControlStateValueOn:NSControlStateValueOff];
     else {

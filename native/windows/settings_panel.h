@@ -34,11 +34,12 @@ struct SettingsPanel {
     if(!window)throw std::runtime_error("Cannot create app settings");
     child(L"STATIC","App settings",SS_NOPREFIX,0,-1,20,12,600,24);
     tabs=child(WC_TABCONTROLW,"",WS_TABSTOP|WS_CLIPSIBLINGS,3000,-1,14,46,612,366);
-    for(int i=0;i<4;++i){auto text=amwin::wide(amsettings::pages[i]);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=text.data();TabCtrl_InsertItem(tabs,i,&item);}
+    for(int i=0;i<amsettings::page_count;++i){auto text=amwin::wide(amsettings::pages[i]);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=text.data();TabCtrl_InsertItem(tabs,i,&item);}
     TabCtrl_SetCurSel(tabs,selected);
     for(int i=0;i<amsettings::count;++i){
       const auto& s=amsettings::controls[i];int y0=80+s.y;
       if(s.kind==amsettings::toggle)controls[i]=child(L"BUTTON",s.label,WS_TABSTOP|BS_AUTOCHECKBOX,3100+i,s.page,30,y0,574,24);
+      else if(s.kind==amsettings::link)controls[i]=child(L"BUTTON",s.label,WS_TABSTOP|BS_PUSHBUTTON,3100+i,s.page,30,y0,154,28);
       else {
         child(L"STATIC",s.label,SS_NOPREFIX,0,s.page,30,y0,450,20);
         controls[i]=child(TRACKBAR_CLASSW,"",WS_TABSTOP|TBS_HORZ|TBS_NOTICKS,3100+i,s.page,30,y0+24,456,24);
@@ -47,7 +48,7 @@ struct SettingsPanel {
         numbers[i]=child(L"EDIT","",WS_TABSTOP|ES_AUTOHSCROLL,3200+i,s.page,498,y0+24,80,24);
         SendMessageW(numbers[i],EM_SETLIMITTEXT,32,0);
       }
-      child(L"STATIC",s.help,SS_NOPREFIX,0,s.page,34,y0+(s.kind==amsettings::toggle?28:52),554,38);
+      child(L"STATIC",s.help,SS_NOPREFIX,0,s.page,34,y0+(s.kind==amsettings::number?52:28),554,38);
     }
     render=child(L"BUTTON","Render selected drops",WS_TABSTOP,3300,1,30,346,190,28);
     child(L"STATIC","Analysis cache folder",SS_NOPREFIX,0,2,30,92,548,24);
@@ -82,7 +83,9 @@ struct SettingsPanel {
     if(!window && (!wasOpen || focus))create(anchor);if(!window)return;
     updating=true;
     for(int i=0;i<amsettings::count;++i){
-      const auto& s=amsettings::controls[i];EnableWindow(controls[i],!paused);
+      const auto& s=amsettings::controls[i];
+      if(s.kind==amsettings::link)continue;
+      EnableWindow(controls[i],!paused);
       if(s.kind==amsettings::toggle)SendMessageW(controls[i],BM_SETCHECK,next.at("values").at(s.key).get<bool>()?BST_CHECKED:BST_UNCHECKED,0);
       else {
         EnableWindow(numbers[i],!paused);
@@ -122,13 +125,18 @@ struct SettingsPanel {
     if(m==WM_DPICHANGED){auto rect=reinterpret_cast<RECT*>(l);SetWindowPos(w,nullptr,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top,SWP_NOZORDER|SWP_NOACTIVATE);self->layout();return 0;}
     if(m==WM_NOTIFY && reinterpret_cast<NMHDR*>(l)->hwndFrom==self->tabs && reinterpret_cast<NMHDR*>(l)->code==TCN_SELCHANGE){self->selected=TabCtrl_GetCurSel(self->tabs);self->layout();return 0;}
     try {
-      if(m==WM_HSCROLL){for(int i=0;i<amsettings::count;++i)if(reinterpret_cast<HWND>(l)==self->controls[i]){
+      if(m==WM_HSCROLL){for(int i=0;i<amsettings::count;++i)if(amsettings::controls[i].kind==amsettings::number && reinterpret_cast<HWND>(l)==self->controls[i]){
         double value=SendMessageW(self->controls[i],TBM_GETPOS,0,0)/10.0;char text[64];std::snprintf(text,sizeof(text),"%.1f",value);amwin::text(self->numbers[i],text);
         self->event({{"op","set"},{"key",amsettings::controls[i].key},{"value",value},{"commit",LOWORD(p)!=TB_THUMBTRACK}});return 0;
       }}
       if(m==WM_COMMAND){int id=LOWORD(p),code=HIWORD(p);
         if(id>=3100 && id<3100+amsettings::count && code==BN_CLICKED){int i=id-3100;
-          if(amsettings::controls[i].kind==amsettings::toggle)self->event({{"op","set"},{"key",amsettings::controls[i].key},{"value",SendMessageW(self->controls[i],BM_GETCHECK,0,0)==BST_CHECKED}});
+          const auto& s=amsettings::controls[i];
+          if(s.kind==amsettings::toggle)self->event({{"op","set"},{"key",s.key},{"value",SendMessageW(self->controls[i],BM_GETCHECK,0,0)==BST_CHECKED}});
+          else if(s.kind==amsettings::link){
+            const auto url=amwin::wide(s.url);
+            ShellExecuteW(w,L"open",url.c_str(),nullptr,nullptr,SW_SHOWNORMAL);
+          }
         }else if(id>=3200 && id<3200+amsettings::count && code==EN_KILLFOCUS && !self->closing)self->numberChanged(id-3200);
         else if(code==BN_CLICKED){if(id==3303)self->close(true);else if(id>=3300 && id<=3302){const char* actions[]={"render_drops","cache_choose","cache_default"};self->event({{"op",actions[id-3300]}});}}
         return 0;

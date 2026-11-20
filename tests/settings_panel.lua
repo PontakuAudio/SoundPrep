@@ -1,4 +1,5 @@
 local Settings=require('am.settings_panel');local Model=require('am.model');local J=require('am.json');local U=require('am.util');local Bar=require('am.bar')
+local C=require('am.native_contract')
 local time,saves,activations=0,0,0;local project={};local loop,playingLoop,rendered,chosen
 local a={definition=Model.defaults(),project=project,data='/tmp/test',message='',selected_id='heavy',
   r={time_precise=function()return time end},bank={activate=function()activations=activations+1 end},
@@ -10,6 +11,12 @@ local bar=Bar.new({EnumProjects=function()return project end},a)
 local function set(key,value,commit)bar:dispatch('settings@'..J.encode{op='set',key=key,value=value,commit=commit})end
 bar:dispatch('settings');assert(Settings.state(a).open and Settings.state(a).focus==1)
 bar:dispatch('settings');assert(Settings.state(a).open and Settings.state(a).focus==2,'Repeated open must focus, not dismiss')
+local values,expected=Settings.state(a).values,{}
+for _,field in ipairs(C.bar.settings_value_fields)do
+  assert(type(values[field.name])==field.type,'Invalid settings value: '..field.name)
+  expected[field.name]=true
+end
+for key in pairs(values)do assert(expected[key],'Unexpected settings value: '..key)end
 local original=U.copy(a.definition.macros)
 set('loop',true);assert(loop and playingLoop==1 and a.saved.loop)
 set('monitor_gain_db',-15,false);assert(activations==1 and a.definition.settings.monitor_gain_db==-15 and saves==1)

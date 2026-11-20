@@ -1,4 +1,4 @@
-"""Check separate Lua/package and native/helper versions without rewriting sources."""
+"""Check helper versions and settings contract fields without rewriting sources."""
 import importlib.util
 import json
 from pathlib import Path
@@ -74,6 +74,18 @@ class NativeContractVersions(unittest.TestCase):
                     self.write_versions(**{source: value})
                     with self.assertRaisesRegex(SystemExit, 'version must be'):
                         generator.outputs()
+
+
+class NativeSettingsContract(unittest.TestCase):
+    def test_settings_value_fields_match_native_fixture(self):
+        contract = json.loads((ROOT / 'resources/native-contract.json').read_text(encoding='utf-8'))
+        state = json.loads((ROOT / 'tests/native-settings-state.json').read_text(encoding='utf-8'))
+        types = {bool: 'boolean', int: 'number', float: 'number'}
+        self.assertCountEqual(
+            [(field['name'], field['type'], field['required'])
+             for field in contract['bar']['settings_value_fields']],
+            [(name, types[type(value)], True) for name, value in state['values'].items()],
+        )
 
 
 if __name__ == '__main__':

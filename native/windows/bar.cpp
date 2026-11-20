@@ -1,5 +1,6 @@
 // Native child controls; REAPER retains its list, shortcuts, waveform and drag sources.
 #include "common.h"
+#include <shellapi.h>
 #include "../contract.h"
 #include "../settings_layout.h"
 #include <cstring>

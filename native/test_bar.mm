@@ -184,6 +184,10 @@ int main(){@autoreleasepool {
   assert(prefs.window.visible && !prefs.window.hidesOnDeactivate && prefs.window.parentWindow==window);
   assert(prefs.controls[2].doubleValue==-6 && [prefs.notice.stringValue isEqual:settings[@"notice"]]);
   assert([prefs.cache.stringValue containsString:@"解析 🎤"] && prefs.choose.enabled && prefs.defaults.enabled);
+  assert(prefs.tabs.numberOfTabViewItems==5 && [prefs.tabs.tabViewItems[4].label isEqual:@"About"]);
+  NSButton* support=(NSButton*)prefs.controls.lastObject;
+  assert([support isKindOfClass:NSButton.class] && [support.title isEqual:@"Support on Ko-fi"]);
+  assert(support.superview==prefs.tabs.tabViewItems[4].view && support.target==prefs && support.action==@selector(openLink:));
   for(NSTabViewItem* tab in prefs.tabs.tabViewItems)for(NSView* child in tab.view.subviews)assert(NSContainsRect(tab.view.bounds,child.frame));
   [window makeKeyAndOrderFront:nil];update(value);assert(prefs.window.visible);
   auto oldFrame=prefs.window.frame;[prefs.window setFrameOrigin:NSMakePoint(oldFrame.origin.x+8,oldFrame.origin.y+8)];
@@ -196,6 +200,7 @@ int main(){@autoreleasepool {
   prefs.numbers[@2].stringValue=@"-18abc";[prefs numberChanged:prefs.numbers[@2]];
   assert(std::string(AMBarPoll()).empty() && [prefs.numbers[@2].stringValue isEqual:@"-12.0"]);
   value[@"paused"]=@YES;update(value);assert(prefs.window.visible && !prefs.controls[0].enabled && !prefs.choose.enabled);
+  assert(support.enabled);
   [prefs.window performClose:nil];assert(!prefs.window.visible && std::string(AMBarPoll())=="settings:close");
   update(value);assert(!prefs.window.visible);settings[@"open"]=@NO;update(value);
   value[@"paused"]=@NO;settings[@"open"]=@YES;settings[@"focus"]=@2;update(value);assert(prefs.window.visible);

@@ -1,9 +1,10 @@
 #pragma once
 // Shared wording and layout keep both native renderers in step.
 namespace amsettings {
-enum Kind { toggle,number };
-struct Control { const char* key;const char* label;const char* help;Kind kind;int page,y;double low,high; };
-inline constexpr const char* pages[]={"Playback","Drops","Cache","Advanced"};
+enum Kind { toggle,number,link };
+struct Control { const char* key;const char* label;const char* help;Kind kind;int page,y;double low,high;const char* url=nullptr; };
+inline constexpr const char* pages[]={"Playback","Drops","Cache","Advanced","About"};
+inline constexpr int page_count=sizeof(pages)/sizeof(pages[0]);
 inline constexpr Control controls[]={
   {"autoplay","Follow file selection","Start preview when a new file is selected.",toggle,0,12,0,0},
   {"loop","Loop preview","Repeat the current preview or selected range.",toggle,0,78,0,0},
@@ -12,7 +13,9 @@ inline constexpr Control controls[]={
   {"auto_render_drops","Automatically render uncached drops","May stop playback and pause editing while rendering. Cached drops keep playing.",toggle,1,12,0,0},
   {"insert_handles","Retain processed audio outside the selected range","Off: render only the selected range. Source + FX keeps the entire original.",toggle,1,90,0,0},
   {"fade_ms","Rendered edge fade (ms)","Fade the edges of rendered drops.",number,1,168,0,50},
-  {"keep_fx_running","Keep inactive FX processing","Uses more CPU. Keeps inactive preset FX running.",toggle,3,12,0,0}
+  {"keep_fx_running","Keep inactive FX processing","Uses more CPU. Keeps inactive preset FX running.",toggle,3,12,0,0},
+  {nullptr,"Support on Ko-fi","SoundPrep is free. If it saves you time, you can support its development on Ko-fi.",link,4,12,0,0,
+    "https://ko-fi.com/kuma_pontakuaudio"}
 };
 inline constexpr int count=sizeof(controls)/sizeof(controls[0]);
 }
