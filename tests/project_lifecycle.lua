@@ -87,7 +87,8 @@ assert(ok,err)
 
 -- Exercise the real launcher: project checks precede even the modal drag gate,
 -- and closing during tick must not draw an editor or reattach the native bar.
-local old_reaper,create= _G.reaper,App.new
+local Setup=require('am.setup')
+local old_reaper,create,prepare= _G.reaper,App.new,Setup.prepare_native
 for _,modal in ipairs{false,true}do
   local callback;local checks=0
   local fake={check_project=function(self)
@@ -104,9 +105,10 @@ for _,modal in ipairs{false,true}do
   local Bar=require('am.bar');local new=Bar.new
   Bar.new=function()return {tick=function()assert(not fake.cleaned,'Bar ran after project close')end}end
   local launched,e=xpcall(function()
+    Setup.prepare_native=function()return 'current'end
     dofile('./SoundPrep.lua')
     if modal then assert(callback);callback()end
   end,debug.traceback)
-  Bar.new=new;App.new=create;_G.reaper=old_reaper
+  Bar.new=new;App.new=create;Setup.prepare_native=prepare;_G.reaper=old_reaper
   assert(launched,e);assert(fake.cleaned)
 end

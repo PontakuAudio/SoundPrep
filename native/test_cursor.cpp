@@ -16,7 +16,9 @@ extern "C" int AMPreviewWavePosition(char* path,int size,double* f,double* p,dou
   std::snprintf(path,size,"/test.wav");*f=fraction;*p=position;*l=length;return state;
 }
 static int peak_reads=0,peak_opens=0,peak_closes=0;
-static int build_steps=0,build_finishes=0,slow_build_steps=0;
+static double peak_source_length=12;
+static int build_steps=0,build_finishes=0,build_steps_required=4;
+static std::chrono::milliseconds build_step_delay{0};
 static std::vector<int> painted_channels;
 static std::vector<std::string> painted_labels;
 static int requested_font_height=0;
@@ -47,7 +49,7 @@ public:
   bool SetFileName(const char*)override{return false;}
   int GetNumChannels()override{return 6;}
   double GetSampleRate()override{return 48000;}
-  double GetLength()override{return 12;}
+  double GetLength()override{return peak_source_length;}
   int PropertiesWindow(HWND)override{return 0;}
   void GetSamples(PCM_source_transfer_t*)override{}
   void GetPeakInfo(PCM_source_peaktransfer_t*)override{}
@@ -57,8 +59,8 @@ public:
   int PeaksBuild_Begin()override{build_steps=0;return 1;}
   int PeaksBuild_Run()override{
     ++build_steps;
-    if(build_steps<=slow_build_steps)std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    return build_steps<4;
+    if(build_step_delay.count()>0)std::this_thread::sleep_for(build_step_delay);
+    return build_steps<build_steps_required;
   }
   void PeaksBuild_Finish()override{++build_finishes;}
 };
@@ -181,10 +183,12 @@ int main() {
   fraction=.1;tick();assert(!linked);
   fraction=.75;scrollbar_at=0;scrollbar_page=1600;
   AMCursorZoom(42093);tick();assert(last_x==600 && view_width==800 && view_units==1600);
-  // A short build finishes at attach, so the first paint includes the cursor at the start.
+  // A short source finishes at attach even when its build exceeds the timed burst.
   fraction=0;
+  build_steps_required=12;build_step_delay=std::chrono::milliseconds(30);
   assert(AMWaveSetChannels("/test.wav",5,2,"v1"));
-  assert(!peak_building && build_steps==4 && build_finishes==1);
+  assert(!peak_building && build_steps==build_steps_required && build_finishes==1);
+  build_steps_required=4;build_step_delay=std::chrono::milliseconds(0);
   tick();assert(peak_linked && peak_cursor==0 && peak_count==800 && peak_reads==1 && peak_opens==1);
   assert(painted_labels==std::vector<std::string>({"L ch 5","R ch 2"}));
   // Selected peaks stay visible while stopped without re-reading the source.
@@ -314,20 +318,26 @@ int main() {
   window_dpi=saved_dpi;AMCursorDetach();
   assert(fonts_created==fonts_destroyed && gdi_created==gdi_destroyed);
 #endif
-  // A new file's peaks still become ready when audio snapshots are busy.
+  // A 60 s, six-channel source needs a burst and more ticks, even with one lane selected.
+  // Peak building still advances when audio snapshots are busy.
   // Missing optional blit support retains the complete-paint fallback.
   assert(AMCursorAttach(&storage[0],&storage[1],+[](const char* name)->void*{
     return !std::strcmp(name,"JS_LICE_Blit")?nullptr:api(name);
   }));
-  state=-1;slow_build_steps=2;
+  state=-1;peak_source_length=60;
+  build_steps_required=12;build_step_delay=std::chrono::milliseconds(30);
   const int finishes_before=build_finishes;
   assert(AMWaveSetChannelSubset("/test.wav","1","busy"));
-  assert(peak_building && build_steps==1 && build_finishes==finishes_before);
+  const int steps_after_attach=build_steps;
+  assert(peak_building && steps_after_attach>1 && steps_after_attach<build_steps_required-1 && build_finishes==finishes_before);
   painted_labels.clear();tick();
-  assert(peak_building && build_steps==2 && build_finishes==finishes_before);
+  assert(peak_building && build_steps==steps_after_attach+1 && build_finishes==finishes_before);
   assert(painted_labels==std::vector<std::string>({"Mono ch 1 ..."}));
+  // Each remaining mock step exceeds the tick budget.
+  for(int step=build_steps;step<build_steps_required-1;++step)tick();
+  assert(peak_building && build_steps==build_steps_required-1 && build_finishes==finishes_before);
   reads=peak_reads;painted_labels.clear();tick();
-  assert(!peak_building && build_steps==4 && build_finishes==finishes_before+1 && peak_reads==reads+1);
+  assert(!peak_building && build_steps==build_steps_required && build_finishes==finishes_before+1 && peak_reads==reads+1);
   assert(painted_labels==std::vector<std::string>({"Mono ch 1"}));
   assert(peak_linked && peak_count>0 && !cursor_underlay && last_fraction<0);
   state=1;fraction=.2;tick();const auto fallback_redraws=peak_repaints;

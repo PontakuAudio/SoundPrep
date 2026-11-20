@@ -23,7 +23,7 @@ struct SettingsPanel {
     if(old)DeleteObject(old);
   }
   void create(HWND anchor){
-    WNDCLASSW wc{};wc.lpfnWndProc=proc;wc.hInstance=amwin::module();wc.lpszClassName=L"SoundPrepAppSettings";wc.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&wc);
+    WNDCLASSW wc{};wc.lpfnWndProc=proc;wc.hInstance=amwin::module();wc.lpszClassName=L"SoundPrepAppSettings";wc.hbrBackground=GetSysColorBrush(COLOR_BTNFACE);wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&wc);
     RECT a{};GetWindowRect(anchor,&a);RECT frame{0,0,amwin::scale(anchor,640),amwin::scale(anchor,476)};
     DWORD style=WS_POPUP|WS_CAPTION|WS_SYSMENU|WS_CLIPCHILDREN;
     AdjustWindowRectExForDpi(&frame,style,FALSE,WS_EX_TOOLWINDOW|WS_EX_CONTROLPARENT,GetDpiForWindow(anchor));
@@ -34,6 +34,7 @@ struct SettingsPanel {
     if(!window)throw std::runtime_error("Cannot create app settings");
     child(L"STATIC","App settings",SS_NOPREFIX,0,-1,20,12,600,24);
     tabs=child(WC_TABCONTROLW,"",WS_TABSTOP|WS_CLIPSIBLINGS,3000,-1,14,46,612,366);
+    SetWindowTheme(tabs,L"",L""); // Classic tabs paint the strip and page with COLOR_BTNFACE.
     for(int i=0;i<amsettings::page_count;++i){auto text=amwin::wide(amsettings::pages[i]);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=text.data();TabCtrl_InsertItem(tabs,i,&item);}
     TabCtrl_SetCurSel(tabs,selected);
     for(int i=0;i<amsettings::count;++i){
@@ -122,18 +123,7 @@ struct SettingsPanel {
     auto self=reinterpret_cast<SettingsPanel*>(GetWindowLongPtrW(w,GWLP_USERDATA));
     if(m==WM_NCCREATE){self=static_cast<SettingsPanel*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(self));}
     if(!self)return DefWindowProcW(w,m,p,l);
-    if(m==WM_CTLCOLORSTATIC || m==WM_CTLCOLORBTN){
-      // Let Win32 select the default text colors before changing the background.
-      const auto defaultBrush=DefWindowProcW(w,m,p,l);
-      if(m==WM_CTLCOLORSTATIC){
-        // Read-only and disabled edit controls also send WM_CTLCOLORSTATIC.
-        wchar_t cls[32]{};
-        GetClassNameW(reinterpret_cast<HWND>(l),cls,32);
-        if(!lstrcmpiW(cls,L"Edit"))return defaultBrush;
-      }
-      SetBkMode(reinterpret_cast<HDC>(p),TRANSPARENT);
-      return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
-    }
+    if(m==WM_CTLCOLORSTATIC || m==WM_CTLCOLORBTN)return dialogControlColor(w,m,p,l);
     if(m==WM_CLOSE){self->close(true);return 0;}
     if(m==WM_DPICHANGED){auto rect=reinterpret_cast<RECT*>(l);SetWindowPos(w,nullptr,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top,SWP_NOZORDER|SWP_NOACTIVATE);self->layout();return 0;}
     if(m==WM_NOTIFY && reinterpret_cast<NMHDR*>(l)->hwndFrom==self->tabs && reinterpret_cast<NMHDR*>(l)->code==TCN_SELCHANGE){self->selected=TabCtrl_GetCurSel(self->tabs);self->layout();return 0;}

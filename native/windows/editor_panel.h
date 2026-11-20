@@ -61,6 +61,7 @@ struct EditorPanel {
     play=child(L"BUTTON","Play",WS_TABSTOP,4004,-1,20,108,90,28);replay=child(L"BUTTON","Replay",WS_TABSTOP,4005,-1,116,108,90,28);ab=child(L"BUTTON","Raw / Processed",WS_TABSTOP,4006,-1,212,108,150,28);
     child(L"BUTTON","Focus ME",WS_TABSTOP,4007,-1,368,108,100,28);
     tabs=child(WC_TABCONTROLW,"",WS_TABSTOP|WS_CLIPSIBLINGS,4008,-1,14,148,672,486);
+    SetWindowTheme(tabs,L"",L""); // Classic tabs paint the strip and page with COLOR_BTNFACE.
     for(int i=0;i<5;++i){auto text=amwin::wide(ameditor::pages[i]);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=text.data();TabCtrl_InsertItem(tabs,i,&item);}
     for(int i=0;i<ameditor::count;++i){const auto& s=ameditor::controls[i];int y0=182+s.y;
       if(s.kind==ameditor::toggle)controls[i]=child(L"BUTTON",s.label,WS_TABSTOP|BS_AUTOCHECKBOX,4100+i,s.page,30,y0,610,26);
@@ -137,6 +138,7 @@ struct EditorPanel {
     auto self=reinterpret_cast<EditorPanel*>(GetWindowLongPtrW(w,GWLP_USERDATA));
     if(m==WM_NCCREATE){self=static_cast<EditorPanel*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(self));}
     if(!self)return DefWindowProcW(w,m,p,l);
+    if(m==WM_CTLCOLORSTATIC || m==WM_CTLCOLORBTN)return dialogControlColor(w,m,p,l);
     if(m==WM_CLOSE){self->close(true);return 0;}
     if(m==WM_MOUSEWHEEL){self->scrollTo(self->scrollOffset-static_cast<short>(HIWORD(p))/WHEEL_DELTA*48);return 0;}
     if(m==WM_VSCROLL){SCROLLINFO info{sizeof(info),SIF_ALL};GetScrollInfo(w,SB_VERT,&info);int n=self->scrollOffset;

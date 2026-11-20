@@ -1,5 +1,5 @@
 -- @description SoundPrep - Start here
--- @version 0.11.13
+-- @version 0.11.14
 -- @author Pontaku Audio
 local script=debug.getinfo(1,'S').source:sub(2)
 local root=script:match('^(.*)[/\\]')
@@ -13,14 +13,17 @@ end
 local app
 local ok,err=xpcall(function()
   local Setup=require('am.setup')
-  if Setup.install_native_if_missing(reaper,root)then
-    reaper.ShowMessageBox(Setup.restart_notice,'SoundPrep',0)
+  local status,native_error=Setup.prepare_native(reaper,root)
+  if not status then error(native_error,0) end
+  local notice=Setup.restart_notice_for(status)
+  if notice then
+    reaper.ShowMessageBox(notice,'SoundPrep',0)
     return
   end
   app=App.new(reaper,root,root..'/data')
 end,debug.traceback)
 if not ok then reaper.ShowMessageBox(tostring(err),'SoundPrep',0);return end
-if not app then return end -- First launch installed the bundled helper; wait for restart.
+if not app then return end -- Wait for REAPER to load the bundled helper after restart.
 reaper.atexit(function()app:close()end)
 local Bar=require('am.bar')
 ok,err=xpcall(function()

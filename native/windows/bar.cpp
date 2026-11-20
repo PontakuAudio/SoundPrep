@@ -1,6 +1,7 @@
 // Native child controls; REAPER retains its list, shortcuts, waveform and drag sources.
 #include "common.h"
 #include <shellapi.h>
+#include <uxtheme.h>
 #include "../contract.h"
 #include "../settings_layout.h"
 #include <cstring>
@@ -33,6 +34,12 @@ struct AMWinValue {
 
 std::deque<std::string> events;
 void enqueue(const std::string& value){if(events.size()==64)events.pop_front();events.push_back(value);}
+LRESULT dialogControlColor(HWND window,UINT message,WPARAM dc,LPARAM control){
+  // Preserve the system text colors, including disabled edit text.
+  DefWindowProcW(window,message,dc,control);
+  SetBkMode(reinterpret_cast<HDC>(dc),TRANSPARENT);
+  return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_BTNFACE));
+}
 // Panel implementations share this namespace; include their dependencies above.
 #include "channel_panel.h"
 #include "settings_panel.h"
@@ -76,6 +83,7 @@ struct Bar {
     auto b=reinterpret_cast<Bar*>(GetWindowLongPtrW(w,GWLP_USERDATA));
     if(m==WM_NCCREATE){b=static_cast<Bar*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(b));}
     if(b && m==WM_COMMAND){try{b->command(LOWORD(p),HIWORD(p));}catch(...){}return 0;}
+    if(m==WM_CTLCOLORSTATIC || m==WM_CTLCOLORBTN)return dialogControlColor(w,m,p,l);
     if(m==WM_ERASEBKGND){RECT r{};GetClientRect(w,&r);FillRect(reinterpret_cast<HDC>(p),&r,GetSysColorBrush(COLOR_BTNFACE));return 1;}
     return DefWindowProcW(w,m,p,l);
   }

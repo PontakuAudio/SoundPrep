@@ -111,6 +111,19 @@ class PackageReleaseTests(unittest.TestCase):
         self.assertEqual({source.get("file") for source in sources if source.get("main")}, {"SoundPrep.lua"})
         self.assertEqual(len([source for source in sources if source.get("main") == "main"]), 3)
         self.assertFalse(any(source.get("main") == "mediaexplorer" for source in sources))
+        for helper in report["native_helpers"]:
+            self.assertEqual(helper["bundle_path"], "build/" + helper["asset"])
+            bundled = [source for source in sources if source.get("file") == helper["bundle_path"]]
+            installed = [source for source in sources if source.get("file") == helper["asset"]]
+            self.assertEqual([source.get("platform") for source in bundled],
+                             list(packager.PLATFORMS[helper["platform"]]))
+            for bundle, extension in zip(bundled, installed, strict=True):
+                self.assertIsNone(bundle.get("type"))
+                self.assertEqual(extension.get("type"), "extension")
+                self.assertEqual(bundle.get("platform"), extension.get("platform"))
+                self.assertEqual(bundle.get("hash"), extension.get("hash"))
+                self.assertEqual(bundle.text, extension.text)
+                self.assertLess(sources.index(bundle), sources.index(extension))
 
     def test_reapack_assets_preserve_runtime_layout_and_exclude_user_or_host_data(self):
         for name in ("data/bank.json", "data/inserted-media/private.wav", "build/host/reaper-license.rk",

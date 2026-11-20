@@ -1,7 +1,9 @@
 -- Run the real launcher and native bar with only the APIs they need available.
 local App=require('am.app');local Bar=require('am.bar');local J=require('am.json')
-local old_reaper,create,new= _G.reaper,App.new,Bar.new
+local Setup=require('am.setup')
+local old_reaper,create,new,prepare= _G.reaper,App.new,Bar.new,Setup.prepare_native
 local ok,err=xpcall(function()
+  Setup.prepare_native=function()return 'current'end
   for _,fail_attach in ipairs{false,true}do
     local project,window,list={},{},{};local callback,at_exit,dialog,modal
     local attached,updated,polled,ticks,published,detached=0,0,0,0,0,0
@@ -51,5 +53,5 @@ local ok,err=xpcall(function()
     at_exit();assert(detached==1,'Exit cleanup detached twice')
   end
 end,debug.traceback)
-App.new=create;Bar.new=new;_G.reaper=old_reaper
+App.new=create;Bar.new=new;Setup.prepare_native=prepare;_G.reaper=old_reaper
 assert(ok,err)

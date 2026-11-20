@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <optional>
 #include <vector>
 #include <string>
 #include "reaper_audio_abi.h"
@@ -101,11 +102,11 @@ int peak_left=0,peak_right=0,peak_width=0,peak_height=0,peak_count=0,peak_cursor
 double peak_start=-1,peak_span=-1,peak_a=-1,peak_b=-1;
 bool peak_linked=false,peak_building=false,peak_dirty=true;
 
-void advance_peak_build() {
+void advance_peak_build(std::optional<std::chrono::milliseconds> budget) {
   if(!peak_building)return;
   using Clock=std::chrono::steady_clock;
-  const auto deadline=Clock::now()+std::chrono::milliseconds(6);
-  // REAPER's build steps are synchronous, so yield between calls.
+  const auto deadline=budget?std::optional{Clock::now()+*budget}:std::nullopt;
+  // A timed build can yield only between synchronous REAPER build steps.
   do {
     if(!peak_source->PeaksBuild_Run()) {
       peak_source->PeaksBuild_Finish();
@@ -113,7 +114,7 @@ void advance_peak_build() {
       peak_dirty=true;
       return;
     }
-  } while(Clock::now()<deadline);
+  } while(!deadline || Clock::now()<*deadline);
 }
 void hide_peaks() {
   if(peak_linked && wave && window_valid(wave))unlink_bitmap(wave,peak_bitmap,true);
@@ -175,7 +176,7 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
   width*=scale_factor;
   const int h=client_height*scale_factor,channels=peak_source->GetNumChannels();
   if(cursor>=0 && cursor<client_width)cursor*=scale_factor;else cursor=-999999;
-  advance_peak_build();
+  advance_peak_build(std::chrono::milliseconds(24));
   const bool reload=peak_dirty || scale_factor!=peak_scale || width!=peak_width || start!=peak_start || span!=peak_span;
   const bool repaint=reload || labels_dirty || text_dpi!=peak_label_dpi || !(style==peak_style) || h!=peak_height || a!=peak_a || b!=peak_b || !peak_linked;
   if(!repaint && cursor==peak_cursor)return true;
@@ -462,11 +463,16 @@ extern "C" bool AMWaveSetChannelSubset(const char* path,const char* csv,const ch
   }
   clear_peaks();
   PCM_source* source=open_source(path);if(!source)return false;
-  if(source->GetNumChannels()>128 || highest>source->GetNumChannels() ||
-      !std::isfinite(source->GetLength()) || source->GetLength()<=0){close_source(source);return false;}
+  const int source_channels=source->GetNumChannels();
+  const double length=source->GetLength();
+  if(source_channels>128 || highest>source_channels ||
+      !std::isfinite(length) || length<=0){close_source(source);return false;}
   peak_source=source;peak_path=path;peak_stamp=stamp;peak_channels=channels;peak_left=channels.front();peak_right=channels.back();
   peak_building=source->PeaksBuild_Begin()!=0;
-  advance_peak_build();
+  // Building peaks reads the entire source, including channels outside the selection.
+  constexpr double synchronous_channel_seconds=240;
+  if(length*source_channels<=synchronous_channel_seconds)advance_peak_build(std::nullopt);
+  else advance_peak_build(std::chrono::milliseconds(250));
   return true;
 }
 extern "C" bool AMWaveSetChannelNames(const char* path,const char* stamp,const char* text) {

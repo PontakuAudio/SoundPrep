@@ -88,6 +88,7 @@ struct ChannelPanel {
   static LRESULT CALLBACK proc(HWND w,UINT m,WPARAM p,LPARAM l){
     auto self=reinterpret_cast<ChannelPanel*>(GetWindowLongPtrW(w,GWLP_USERDATA));
     if(m==WM_NCCREATE){self=static_cast<ChannelPanel*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(self));}
+    if(m==WM_CTLCOLORSTATIC || m==WM_CTLCOLORBTN)return dialogControlColor(w,m,p,l);
     if(self && (m==WM_CLOSE || (m==WM_ACTIVATE && LOWORD(p)==WA_INACTIVE))){self->close(true);return 0;}
     if(self && m==WM_COMMAND && HIWORD(p)==BN_CLICKED){
       try{int id=LOWORD(p);if(id>=2100 && id<2108){if(self->indices[id-2100])self->send("toggle",self->indices[id-2100]);}

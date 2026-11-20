@@ -163,6 +163,8 @@ def main():
     expected = {str(install_root / row["path"]): row["sha256"] for row in report["files"]}
     native = next(row for row in report["native_helpers"] if row["platform"] == "macos")
     expected[str(host / native["install_path"])] = native["sha256"]
+    if native.get("bundle_path"):
+        expected[str(install_root / native["bundle_path"])] = native["sha256"]
     # ReaPack 1.2.6's script-entry API omits extension-typed source overrides.
     # The committed registry retains them; read that test-only database after
     # shutdown to validate the full mixed-type package and its native owner.

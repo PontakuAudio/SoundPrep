@@ -18,7 +18,7 @@ for _,action in ipairs(actions)do check_entrypoint('./actions/',' - '..action[1]
 
 local old_reaper,old_path=reaper,package.path
 local modules={}
-for _,name in ipairs{'am.action','am.app','am.platform','am.native','am.setup'}do modules[name]=package.loaded[name]end
+for _,name in ipairs{'am.action','am.app','am.setup'}do modules[name]=package.loaded[name]end
 local ok,err=xpcall(function()
   local sent={}
   reaper={}
@@ -44,10 +44,8 @@ local ok,err=xpcall(function()
   -- Reinstalling preserves the SoundPrep action IDs and assigned shortcuts.
   local registered={['0:./Audition Macro.lua']=41,['32063:./actions/Audition Macro - Play Stop.lua']=42}
   local calls,new_id=0,100
-  package.loaded['am.platform']={windows=function()return false end}
-  package.loaded['am.native']={inspect=function()return true end}
-  reaper={GetOS=function()return 'Linux' end,APIExists=function()return false end,
-    AddRemoveReaScript=function(add,section,path,commit)
+  package.loaded['am.setup']={prepare_native=function()return 'current'end,restart_notice_for=function()end}
+  reaper={AddRemoveReaScript=function(add,section,path,commit)
       assert(add==true and commit==true,'Installer removed an existing action')
       assert(section==0 or section==32063,'Incorrect action section')
       assert(not path:find('Audition Macro',1,true) and path:find('SoundPrep',1,true),'Installer registered a legacy alias')
@@ -73,5 +71,5 @@ local ok,err=xpcall(function()
   assert(shortcuts[registered['32063:./actions/SoundPrep - Play Stop.lua']]=='Space')
 end,debug.traceback)
 reaper,package.path=old_reaper,old_path
-for _,name in ipairs{'am.action','am.app','am.platform','am.native','am.setup'}do package.loaded[name]=modules[name]end
+for _,name in ipairs{'am.action','am.app','am.setup'}do package.loaded[name]=modules[name]end
 if not ok then error(err,0)end

@@ -3,6 +3,7 @@
 #include "../test_bar_contract.h"
 #include "../contract.h"
 #include <shlobj.h>
+#include <uxtheme.h>
 #include "drop.cpp"
 #include <cassert>
 #include <filesystem>
@@ -91,6 +92,62 @@ LRESULT CALLBACK listNative(HWND w,UINT m,WPARAM p,LPARAM l,UINT_PTR,DWORD_PTR t
   return DefSubclassProc(w,m,p,l);
 }
 HWND panelWindow(){HWND result=nullptr;EnumThreadWindows(GetCurrentThreadId(),+[](HWND w,LPARAM p)->BOOL{wchar_t cls[128]{};GetClassNameW(w,cls,128);if(std::wstring(cls)==L"AuditionMacroSearch"){*reinterpret_cast<HWND*>(p)=w;return FALSE;}return TRUE;},reinterpret_cast<LPARAM>(&result));return result;}
+HWND findChild(HWND parent,const wchar_t* className,int id,const wchar_t* expectedText=nullptr){
+  struct Match {
+    const wchar_t* className;
+    int id;
+    const wchar_t* expectedText;
+    HWND window=nullptr;
+  } query{className,id,expectedText};
+  EnumChildWindows(parent,+[](HWND child,LPARAM param)->BOOL{
+    auto& match=*reinterpret_cast<Match*>(param);
+    wchar_t childClass[32]{};
+    if(!GetClassNameW(child,childClass,32) || lstrcmpiW(childClass,match.className)!=0 ||
+       GetDlgCtrlID(child)!=match.id || (match.expectedText && amwin::text(child)!=match.expectedText))return TRUE;
+    match.window=child;
+    return FALSE;
+  },reinterpret_cast<LPARAM>(&query));
+  return query.window;
+}
+void checkControlColor(HWND parent,HWND child,UINT message){
+  assert(child);
+  HDC dc=GetDC(parent);assert(dc);
+  const auto dcParam=reinterpret_cast<WPARAM>(dc);
+  const auto childParam=reinterpret_cast<LPARAM>(child);
+  SetBkMode(dc,OPAQUE);
+  const int saved=SaveDC(dc);assert(saved);
+  const auto defaultBrush=DefWindowProcW(parent,message,dcParam,childParam);
+  const auto defaultText=GetTextColor(dc);
+  const auto defaultMode=GetBkMode(dc);
+  assert(RestoreDC(dc,saved));
+  const auto brush=SendMessageW(parent,message,dcParam,childParam);
+  const bool dialogSurface=message!=WM_CTLCOLOREDIT;
+  const auto faceBrush=reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_BTNFACE));
+  assert(brush==(dialogSurface?faceBrush:defaultBrush));
+  assert(GetBkMode(dc)==(dialogSurface?TRANSPARENT:defaultMode) && GetTextColor(dc)==defaultText);
+  ReleaseDC(parent,dc);
+}
+void checkTabSurface(HWND tabs){
+  assert(tabs && !GetWindowTheme(tabs));
+  RECT client{},lastTab{};
+  assert(GetClientRect(tabs,&client) && TabCtrl_GetItemRect(tabs,TabCtrl_GetItemCount(tabs)-1,&lastTab));
+  assert(lastTab.right<client.right && lastTab.bottom<client.bottom);
+  HDC screen=GetDC(tabs);assert(screen);
+  HDC dc=CreateCompatibleDC(screen);
+  HBITMAP bitmap=CreateCompatibleBitmap(screen,client.right,client.bottom);
+  ReleaseDC(tabs,screen);
+  assert(dc && bitmap);
+  HGDIOBJ oldBitmap=SelectObject(dc,bitmap);assert(oldBitmap);
+  const auto face=GetSysColor(COLOR_BTNFACE);
+  assert(PatBlt(dc,0,0,client.right,client.bottom,face==RGB(0,0,0)?WHITENESS:BLACKNESS));
+  // Win32 tabs expose no background-color query. Sample the unused strip and the page.
+  SendMessageW(tabs,WM_PRINT,reinterpret_cast<WPARAM>(dc),PRF_CLIENT|PRF_ERASEBKGND);
+  assert(GetPixel(dc,(lastTab.right+client.right)/2,(lastTab.top+lastTab.bottom)/2)==face);
+  assert(GetPixel(dc,client.right/2,(lastTab.bottom+client.bottom)/2)==face);
+  SelectObject(dc,oldBitmap);
+  DeleteObject(bitmap);
+  DeleteDC(dc);
+}
 }
 int main(){using namespace test;
   INITCOMMONCONTROLSEX cc{sizeof(cc),ICC_WIN95_CLASSES};assert(InitCommonControlsEx(&cc));
@@ -115,6 +172,10 @@ int main(){using namespace test;
   auto invalidState=state;invalidState["paused"]=true;invalidState["macros"]=Json::array();invalidState["search"]["open"]=Json::array();
   assert(!AMBarSetState(invalidState.dump().c_str()));assert(Json::parse(AMBarGeometry())==geometry);
   HWND bar=FindWindowExW(root,nullptr,L"AuditionMacroBar",nullptr);assert(bar);SendMessageW(bar,WM_COMMAND,MAKEWPARAM(100+amcontract::edit,BN_CLICKED),0);assert(std::string(AMBarPoll())=="edit");
+  const auto faceClassBrush=reinterpret_cast<ULONG_PTR>(GetSysColorBrush(COLOR_BTNFACE));
+  assert(GetClassLongPtrW(bar,GCLP_HBRBACKGROUND)==faceClassBrush);
+  checkControlColor(bar,findChild(bar,L"Static",0),WM_CTLCOLORSTATIC);
+  checkControlColor(bar,GetDlgItem(bar,100+amcontract::raw),WM_CTLCOLORBTN);
   assert(IsWindowEnabled(GetDlgItem(bar,100+amcontract::raw)) && IsWindowEnabled(GetDlgItem(bar,200)));
   HWND target=GetDlgItem(bar,100+amcontract::target);
   SendMessageW(target,CB_SETCURSEL,SendMessageW(target,CB_GETCOUNT,0,0)-1,0);
@@ -152,6 +213,9 @@ int main(){using namespace test;
     {"previous",false},{"next",false},{"all",false},{"downmix",false},{"can_downmix",true},{"can_swap",false},{"enabled",true},{"playing",false},{"page","1–6 / 6"},{"notice",""}};
   assert(AMBarSetState(state.dump().c_str()));
   HWND microphones=FindWindowW(L"SoundPrepMicrophones",nullptr);assert(microphones && GetWindow(microphones,GW_OWNER)==root);
+  assert(GetClassLongPtrW(microphones,GCLP_HBRBACKGROUND)==faceClassBrush);
+  checkControlColor(microphones,findChild(microphones,L"Static",0,L"six.wav"),WM_CTLCOLORSTATIC);
+  checkControlColor(microphones,GetDlgItem(microphones,2100),WM_CTLCOLORBTN);
   assert(amwin::text(GetDlgItem(microphones,2100))==L"Boom && L\nch 1" && amwin::text(GetDlgItem(microphones,2101))==L"2");
   assert(!IsWindowVisible(GetDlgItem(microphones,2103)) && !IsWindowEnabled(GetDlgItem(microphones,2204)));
   SendMessageW(GetDlgItem(microphones,2102),BM_CLICK,0,0);auto channelEvent=std::string(AMBarPoll());
@@ -161,57 +225,26 @@ int main(){using namespace test;
   std::ifstream settingsFile("tests/native-settings-state.json");state["settings"]=Json::parse(settingsFile);
   assert(AMBarSetState(state.dump().c_str()));HWND settings=FindWindowW(L"SoundPrepAppSettings",nullptr);assert(settings && GetWindow(settings,GW_OWNER)==root);
   SendMessageW(settings,WM_ACTIVATE,WA_INACTIVE,0);assert(IsWindowVisible(settings));
-  assert(GetClassLongPtrW(settings,GCLP_HBRBACKGROUND)==COLOR_WINDOW+1);
-  auto findSettingsChild=[settings](const wchar_t* className,int id,const wchar_t* expectedText=nullptr){
-    struct Match {
-      const wchar_t* className;
-      int id;
-      const wchar_t* expectedText;
-      HWND window=nullptr;
-    } query{className,id,expectedText};
-    EnumChildWindows(settings,+[](HWND child,LPARAM param)->BOOL{
-      auto& match=*reinterpret_cast<Match*>(param);
-      wchar_t childClass[32]{};
-      if(!GetClassNameW(child,childClass,32) || lstrcmpiW(childClass,match.className)!=0 ||
-         GetDlgCtrlID(child)!=match.id || (match.expectedText && amwin::text(child)!=match.expectedText))return TRUE;
-      match.window=child;
-      return FALSE;
-    },reinterpret_cast<LPARAM>(&query));
-    return query.window;
-  };
-  auto checkSettingsColor=[settings](HWND child,UINT message,bool transparent){
-    HDC dc=GetDC(settings);assert(dc);
-    const auto dcParam=reinterpret_cast<WPARAM>(dc);
-    const auto childParam=reinterpret_cast<LPARAM>(child);
-    SetBkMode(dc,OPAQUE);
-    const int saved=SaveDC(dc);assert(saved);
-    const auto defaultBrush=DefWindowProcW(settings,message,dcParam,childParam);
-    const auto defaultText=GetTextColor(dc);
-    const auto defaultMode=GetBkMode(dc);
-    assert(RestoreDC(dc,saved));
-    const auto brush=SendMessageW(settings,message,dcParam,childParam);
-    const auto windowBrush=reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
-    assert(brush==(transparent?windowBrush:defaultBrush));
-    assert(GetBkMode(dc)==(transparent?TRANSPARENT:defaultMode) && GetTextColor(dc)==defaultText);
-    ReleaseDC(settings,dc);
-  };
-  HWND settingsHeading=findSettingsChild(L"Static",0,L"App settings");
+  assert(GetClassLongPtrW(settings,GCLP_HBRBACKGROUND)==faceClassBrush);
+  HWND settingsHeading=findChild(settings,L"Static",0,L"App settings");
   assert(settingsHeading && "Missing App settings heading");
-  checkSettingsColor(settingsHeading,WM_CTLCOLORSTATIC,true);
-  HWND loopButton=findSettingsChild(L"Button",3101);
+  checkControlColor(settings,settingsHeading,WM_CTLCOLORSTATIC);
+  HWND loopButton=findChild(settings,L"Button",3101);
   assert(loopButton && "Missing Loop checkbox");
-  checkSettingsColor(loopButton,WM_CTLCOLORBTN,true);
+  checkControlColor(settings,loopButton,WM_CTLCOLORBTN);
   const auto cachePath=amwin::wide(state["settings"]["cache_path"]);
-  HWND cacheEdit=findSettingsChild(L"Edit",0,cachePath.c_str());
+  HWND cacheEdit=findChild(settings,L"Edit",0,cachePath.c_str());
   assert(cacheEdit && "Missing cache edit with the expected cache_path text");
-  checkSettingsColor(cacheEdit,WM_CTLCOLORSTATIC,false);
+  assert(GetWindowLongPtrW(cacheEdit,GWL_STYLE)&ES_READONLY);
+  checkControlColor(settings,cacheEdit,WM_CTLCOLORSTATIC);
   HWND settingsTabs=GetDlgItem(settings,3000),support=GetDlgItem(settings,3100+amsettings::count-1);
   assert(TabCtrl_GetItemCount(settingsTabs)==5);
+  checkTabSurface(settingsTabs);
   wchar_t aboutTitle[16]{};TCITEMW aboutTab{};aboutTab.mask=TCIF_TEXT;aboutTab.pszText=aboutTitle;aboutTab.cchTextMax=16;
   assert(TabCtrl_GetItem(settingsTabs,4,&aboutTab) && std::wstring(aboutTitle)==L"About");
   assert(support && amwin::text(support)==L"Support on Ko-fi" && !IsWindowVisible(support));
-  HWND resetDefaults=findSettingsChild(L"Button",3304,L"Reset to defaults");
-  HWND render=findSettingsChild(L"Button",3300,L"Render selected drops");
+  HWND resetDefaults=findChild(settings,L"Button",3304,L"Reset to defaults");
+  HWND render=findChild(settings,L"Button",3300,L"Render selected drops");
   assert(resetDefaults && render && !IsWindowVisible(resetDefaults));
   NMHDR settingsTabChanged{settingsTabs,3000,TCN_SELCHANGE};
   auto selectSettingsTab=[&](int page){
@@ -226,15 +259,15 @@ int main(){using namespace test;
   const auto resetRect=amwin::rect(resetDefaults,settings),renderRect=amwin::rect(render,settings);
   assert(EqualRect(&resetRect,&renderRect));
   HWND fadeSlider=GetDlgItem(settings,3100+normalization_fade_index);
-  HWND fadeEdit=findSettingsChild(L"Edit",3200+normalization_fade_index);
+  HWND fadeEdit=findChild(settings,L"Edit",3200+normalization_fade_index);
   assert(fadeSlider && fadeEdit && IsWindowVisible(fadeSlider) && IsWindowVisible(fadeEdit));
   assert(SendMessageW(fadeSlider,TBM_GETPOS,0,0)==5000 && amwin::text(fadeEdit)==L"500.0");
   assert(SendMessageW(fadeSlider,TBM_GETRANGEMIN,0,0)==0 && SendMessageW(fadeSlider,TBM_GETRANGEMAX,0,0)==20000);
   const auto fadeHelpText=amwin::wide(amsettings::controls[normalization_fade_index].help);
   const auto diagnosticsText=amwin::wide(state["settings"]["diagnostics"]);
-  HWND fadeHelp=findSettingsChild(L"Static",0,fadeHelpText.c_str());
-  HWND diagnostics=findSettingsChild(L"Static",0,diagnosticsText.c_str());
-  HWND advancedInfo=findSettingsChild(L"Static",0,
+  HWND fadeHelp=findChild(settings,L"Static",0,fadeHelpText.c_str());
+  HWND diagnostics=findChild(settings,L"Static",0,diagnosticsText.c_str());
+  HWND advancedInfo=findChild(settings,L"Static",0,
     L"Source analysis runs in the native helper. No Python or FFmpeg setup is required.\r\n\r\nAssign the supplied 0–9 actions in Media Explorer for keyboard preset switching.");
   assert(fadeHelp && diagnostics && advancedInfo);
   assert(amwin::rect(fadeHelp,settings).bottom<amwin::rect(diagnostics,settings).top);
@@ -247,10 +280,10 @@ int main(){using namespace test;
   assert(resetEvent.rfind("settings@",0)==0 && Json::parse(resetEvent.substr(9))["op"]=="reset_defaults");
   selectSettingsTab(0);
   assert(!IsWindowVisible(support) && !IsWindowVisible(fadeEdit));
-  HWND monitorEdit=findSettingsChild(L"Edit",3202);
+  HWND monitorEdit=findChild(settings,L"Edit",3202);
   assert(monitorEdit && "Missing monitor gain edit");
   assert(amwin::text(monitorEdit)==L"-6.0");
-  checkSettingsColor(monitorEdit,WM_CTLCOLOREDIT,false);
+  checkControlColor(settings,monitorEdit,WM_CTLCOLOREDIT);
   key.hwnd=monitorEdit;key.wParam='1';assert(accel->translate(&key,accel)==-1 && info(monitorEdit,0)==1 && info(monitorEdit,1)==0);
   SendMessageW(loopButton,BM_CLICK,0,0);auto settingsEvent=std::string(AMBarPoll());
   assert(Json::parse(settingsEvent.substr(9))["key"]=="loop");
@@ -264,7 +297,7 @@ int main(){using namespace test;
   state["paused"]=true;assert(AMBarSetState(state.dump().c_str()));assert(IsWindowVisible(settings) && !IsWindowEnabled(GetDlgItem(settings,3101)));
   assert(IsWindowEnabled(support) && !IsWindowEnabled(resetDefaults));
   assert(!IsWindowEnabled(monitorEdit));
-  checkSettingsColor(monitorEdit,WM_CTLCOLORSTATIC,false);
+  checkControlColor(settings,monitorEdit,WM_CTLCOLORSTATIC);
   SendMessageW(settings,WM_CLOSE,0,0);assert(!IsWindow(settings) && std::string(AMBarPoll())=="settings:close");
   assert(AMBarSetState(state.dump().c_str()) && !FindWindowW(L"SoundPrepAppSettings",nullptr));
   state["settings"]["open"]=false;state["paused"]=false;assert(AMBarSetState(state.dump().c_str()));
@@ -273,12 +306,20 @@ int main(){using namespace test;
   std::ifstream editorFile("tests/native-editor-state.json");state["editor"]=Json::parse(editorFile);
   state["editor"]["presets"][2]["label"]="Heavy"; // Duplicate names retain distinct IDs.
   assert(AMBarSetState(state.dump().c_str()));HWND editor=FindWindowW(L"SoundPrepPresetEditor",nullptr);assert(editor && GetWindow(editor,GW_OWNER)==root);
+  assert(GetClassLongPtrW(editor,GCLP_HBRBACKGROUND)==faceClassBrush);
+  checkTabSurface(GetDlgItem(editor,4008));
+  checkControlColor(editor,findChild(editor,L"Static",0,L"Rate"),WM_CTLCOLORSTATIC);
+  checkControlColor(editor,GetDlgItem(editor,4101),WM_CTLCOLORBTN);
+  HWND measurementEdit=findChild(editor,L"Edit",0,L"Loudness: off");
+  assert(measurementEdit && (GetWindowLongPtrW(measurementEdit,GWL_STYLE)&ES_READONLY));
+  checkControlColor(editor,measurementEdit,WM_CTLCOLORSTATIC);
   assert(!GetDlgItem(editor,4000) && IsWindowVisible(GetDlgItem(editor,4400)) && !IsWindowVisible(GetDlgItem(editor,4404)));
   assert(SendMessageW(GetDlgItem(editor,4401),BM_GETCHECK,0,0)==BST_CHECKED && SendMessageW(GetDlgItem(editor,4402),BM_GETCHECK,0,0)==BST_UNCHECKED);
   assert(amwin::rect(GetDlgItem(editor,4400),editor).top==amwin::rect(GetDlgItem(editor,4403),editor).top);
   SendMessageW(GetDlgItem(editor,4402),BM_CLICK,0,0);assert(Json::parse(std::string(AMBarPoll()).substr(7))["value"]=="dark");
   SendMessageW(editor,WM_ACTIVATE,WA_INACTIVE,0);assert(IsWindowVisible(editor));
   HWND rateEdit=GetDlgItem(editor,4203);assert(amwin::text(rateEdit)==L"0.72");
+  checkControlColor(editor,rateEdit,WM_CTLCOLOREDIT);
   key.hwnd=rateEdit;assert(accel->translate(&key,accel)==-1 && info(rateEdit,0)==1);
   SetFocus(rateEdit);SetWindowTextW(rateEdit,L"0.63");state["editor"]["values"]["rate"]=1.2;
   assert(AMBarSetState(state.dump().c_str()) && amwin::text(rateEdit)==L"0.63");

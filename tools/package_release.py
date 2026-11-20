@@ -307,9 +307,12 @@ def package_release(*, root, output, repository=None, base=None, version=None, t
     for name in selected:
         filename, data = NATIVE_NAMES[name], helpers[name]
         assets[filename] = data
+        checksum = digest(data)
         for target in PLATFORMS[name]:
-            sources.append({"file": filename, "platform": target, "type": "extension",
-                            "hash": "1220" + digest(data), "url": base + "/" + filename})
+            source = {"platform": target, "hash": "1220" + checksum, "url": base + "/" + filename}
+            # Place the startup copy before the extension, which may be in use.
+            sources.append({**source, "file": "build/" + filename})
+            sources.append({**source, "file": filename, "type": "extension"})
     index = build_index(Path(previous_index) if previous_index else None, index_name, category, manifest,
                         version, sources, author, release_time, website, changelog)
     report = {"schema": 1, "version": version, "helper_version": helper_version, "tag": tag,
@@ -319,6 +322,7 @@ def package_release(*, root, output, repository=None, base=None, version=None, t
               "script_install_root": f"Scripts/{index_name}/{category}", "files": files,
               "native_helpers": [{"platform": name, "asset": NATIVE_NAMES[name],
                                   "sha256": digest(helpers[name]),
+                                  "bundle_path": "build/" + NATIVE_NAMES[name],
                                   "install_path": "UserPlugins/" + NATIVE_NAMES[name]} for name in selected]}
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".am-release-", dir=output.parent) as temporary:
