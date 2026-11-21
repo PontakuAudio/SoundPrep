@@ -40,6 +40,21 @@ static bool stale_scroll=false;
 static int backing_scale=1;
 extern "C" int AMWavePixelScale(void*){return backing_scale;}
 #endif
+#ifdef __APPLE__
+// The cursor harness uses synthetic window handles; exercise both presenters
+// without passing those handles to AppKit.
+namespace amoverlay {
+static bool available=false,active=true;
+static void* displayed=nullptr;
+static int tracks=0;
+bool create(void*,void*,void*(*)(const char*)){return available;}
+bool track(void*,int width,int height){assert(width==800 && height==78);++tracks;return active;}
+bool present(void* image,int,int,int,int){displayed=image;return true;}
+void damage(int,int){}
+void unlink(void* image){if(displayed==image)displayed=nullptr;}
+void destroy(){assert(!displayed);}
+}
+#endif
 extern "C" bool AMDrawWaveLabel(void*,const char*,int,int,int,int,unsigned int,unsigned int,int,void*(*)(const char*)){return false;}
 class Peaks final:public PCM_source {
 public:
@@ -146,11 +161,38 @@ static void test_font_raster() {
 }
 #endif
 int main() {
+#ifdef __APPLE__
+  const struct {const char* ini;const char* raw;bool hidden;} renderers[]={
+    {"[REAPER]\nrenderer_cocoa=metal\n","metal",true},
+    {"[REAPER]\nrenderer_cocoa=Metal","Metal",false},
+    {"[other]\nrenderer_cocoa=metal\n[REAPER]\r\nrenderer_cocoa = Classic\r\n","Classic",false},
+    {"[REAPER]\nother=metal\n","unknown",false},
+    {"renderer_cocoa=metal\n[REAPER]\n[other]\nrenderer_cocoa=metal\n","unknown",false}
+  };
+  for(const auto& [ini,raw,hidden]:renderers) {
+    renderer_cocoa=parse_cocoa_renderer(ini);
+    const auto cursor=nlohmann::json::parse(AMCursorState());
+    assert(cursor.at("renderer_cocoa")==raw);
+    assert(cursor.at("overlay_hidden_by_gpu")==hidden);
+  }
+#endif
 #ifdef _WIN32
   test_font_raster();
 #endif
   AMCursorRegister(+[](const char* name,void*){timers+=*name=='-'?-1:1;return 1;});
   assert(AMCursorAttach(&storage[0],&storage[1],api));tick();
+  const auto cursor=nlohmann::json::parse(AMCursorState());
+  assert(cursor.at("presentation")=="composite");
+#ifdef __APPLE__
+  assert(cursor.at("renderer_cocoa")=="unknown"); // No resource path in the mock host.
+#else
+  assert(cursor.at("renderer_cocoa")=="n/a");
+#endif
+  assert(cursor.at("overlay_hidden_by_gpu")==false);
+#ifdef __APPLE__
+  renderer_cocoa="metal";
+  assert(nlohmann::json::parse(AMCursorState()).at("overlay_hidden_by_gpu")==true);
+#endif
   assert(paints==1 && last_x==400 && label=="0:06.000  /  0:12.000" && timers==1);
   tick();assert(paints==1); // No repaint/allocations when position is unchanged.
   AMCursorRestoreClock();assert(label=="0:00.000  /  0:12.000");
@@ -346,5 +388,27 @@ int main() {
   AMCursorDetach();assert(fonts_created==fonts_destroyed && gdi_created==gdi_destroyed);
   theme.clear();assert(wave_style().background==static_cast<int>(0xffcccccc));
   assert(wave_style().selection_mode==0x26600);
+#ifdef __APPLE__
+  amoverlay::available=true;
+  const int paints_before_overlay=paints;
+  assert(AMCursorAttach(&storage[0],&storage[1],api));tick();
+  renderer_cocoa="metal";
+  const auto overlay_cursor=nlohmann::json::parse(AMCursorState());
+  assert(overlay_cursor.at("presentation")=="overlay");
+  assert(overlay_cursor.at("overlay_hidden_by_gpu")==false);
+  assert(linked && amoverlay::displayed==bitmap);
+  const int tracked=amoverlay::tracks;
+  tick();assert(amoverlay::tracks==tracked+1);
+  amoverlay::active=false;tick();assert(!amoverlay::displayed);
+  amoverlay::active=true;tick();assert(amoverlay::displayed==bitmap);
+  assert(AMWaveSetChannels("/test.wav",1,1,"overlay"));tick();
+  assert(peak_linked && amoverlay::displayed==peak_bitmap);
+  AMCursorSuspend(true);assert(!amoverlay::displayed);
+  tick();assert(!amoverlay::displayed);
+  AMCursorSuspend(false);tick();assert(amoverlay::displayed==peak_bitmap);
+  exists=false;tick();assert(!amoverlay::displayed);
+  exists=true;tick();assert(amoverlay::displayed==peak_bitmap);
+  AMCursorDetach();assert(!amoverlay::displayed && paints==paints_before_overlay);
+#endif
   std::cout<<"PASS: cursor mapping, unchanged-frame budget, clock ownership, pause, hidden/stale sources, detach\n";
 }

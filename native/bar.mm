@@ -1,11 +1,13 @@
 // macOS child view inside Media Explorer. REAPER keeps ownership of its browser.
 // Cocoa handles drawing, menus and accessibility; Lua owns all audition state.
 #import <Cocoa/Cocoa.h>
+#include <algorithm>
 #include <deque>
 #include <string>
 #include <cmath>
 #include <cstring>
 #include "contract.h"
+#include "platform.h"
 #import "channel_panel.h"
 #import "settings_panel.h"
 #import "editor_panel.h"
@@ -48,6 +50,158 @@ extern "C" bool AMDrawWaveLabel(void* bitmap,const char* text,int x,int y,int wi
     }
     return true;
   }
+}
+
+@interface AMWaveOverlayPanel : NSPanel
+@end
+@implementation AMWaveOverlayPanel
+- (BOOL)canBecomeKeyWindow { return NO; }
+- (BOOL)canBecomeMainWindow { return NO; }
+@end
+
+// LICE owns the pixels until cursor.cpp unlinks the bitmap on the UI thread.
+// Give Quartz an owned snapshot of each dirty strip before returning to REAPER.
+@interface AMWaveOverlayView : NSView {
+@public
+  void *bitmap;
+  const uint32_t *topRow;
+  int rowStep, sourceWidth, sourceHeight, destX, destWidth;
+}
+@end
+
+@implementation AMWaveOverlayView
+- (void)drawRect:(NSRect)dirty {
+  CGContextRef painter=NSGraphicsContext.currentContext.CGContext;
+  if(!bitmap){CGContextClearRect(painter,dirty);return;}
+  const NSRect destination=NSMakeRect(destX,0,destWidth,NSHeight(self.bounds));
+  const CGFloat pixelWidth=destination.size.width/sourceWidth;
+  const NSRect *rects=nullptr;
+  NSInteger count=0;
+  [self getRectsBeingDrawn:&rects count:&count];
+  if(!count){rects=&dirty;count=1;}
+  for(NSInteger i=0;i<count;++i) {
+    CGContextClearRect(painter,rects[i]);
+    NSRect strip=NSIntersectionRect(rects[i],destination);
+    if(NSIsEmptyRect(strip))continue;
+    const int left=std::max(0,(int)std::floor((NSMinX(strip)-destX)/pixelWidth));
+    const int right=std::min(sourceWidth,(int)std::ceil((NSMaxX(strip)-destX)/pixelWidth));
+    const int columns=right-left;
+    if(columns<=0)continue;
+    CGContextRef copy=CGBitmapContextCreate(nullptr,columns,sourceHeight,8,0,
+        NSColorSpace.sRGBColorSpace.CGColorSpace,kCGBitmapByteOrder32Little | (CGBitmapInfo)kCGImageAlphaPremultipliedFirst);
+    if(!copy)continue;
+    auto *out=static_cast<unsigned char*>(CGBitmapContextGetData(copy));
+    const size_t bytesPerRow=CGBitmapContextGetBytesPerRow(copy);
+    for(int row=0;row<sourceHeight;++row)
+      std::memcpy(out+row*bytesPerRow,topRow+row*rowStep+left,columns*sizeof(*topRow));
+    CGImageRef image=CGBitmapContextCreateImage(copy);
+    CGContextRelease(copy);
+    if(image) {
+      CGContextSetInterpolationQuality(painter,kCGInterpolationNone);
+      CGContextDrawImage(painter,NSMakeRect(destX+left*pixelWidth,0,columns*pixelWidth,destination.size.height),image);
+      CGImageRelease(image);
+    }
+  }
+}
+@end
+
+namespace amoverlay {
+static NSPanel *panel;
+static AMWaveOverlayView *view;
+static __weak NSWindow *host;
+static uint32_t* (*bits)(void*);
+static int (*stride)(void*);
+static bool (*flipped)(void*);
+
+bool create(void* wave,void* cursor_bitmap,void*(*lookup)(const char*)) {
+  bits=reinterpret_cast<decltype(bits)>(lookup("LICE__GetBits"));
+  stride=reinterpret_cast<decltype(stride)>(lookup("LICE__GetRowSpan"));
+  flipped=reinterpret_cast<decltype(flipped)>(lookup("LICE__IsFlipped"));
+  if(!bits || !stride || !flipped || !bits(cursor_bitmap) || stride(cursor_bitmap)<1)return false;
+  if(![(__bridge id)wave isKindOfClass:NSView.class])return false;
+  NSPanel *window=[[AMWaveOverlayPanel alloc] initWithContentRect:NSMakeRect(0,0,1,1)
+      styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
+      backing:NSBackingStoreBuffered defer:NO];
+  AMWaveOverlayView *content=[[AMWaveOverlayView alloc] initWithFrame:NSZeroRect];
+  if(!window.contentView || !content)return false;
+  window.releasedWhenClosed=NO;
+  window.opaque=NO;
+  window.backgroundColor=NSColor.clearColor;
+  window.hasShadow=NO;
+  window.ignoresMouseEvents=YES;
+  window.hidesOnDeactivate=YES;
+  window.animationBehavior=NSWindowAnimationBehaviorNone;
+  window.collectionBehavior=NSWindowCollectionBehaviorFullScreenAuxiliary | NSWindowCollectionBehaviorIgnoresCycle;
+  [window.contentView addSubview:content];
+  panel=window;
+  view=content;
+  return true;
+}
+
+static void show() {
+  if(panel.parentWindow!=host)[panel.parentWindow removeChildWindow:panel];
+  if(panel.level!=host.level)panel.level=host.level;
+  if(panel.parentWindow!=host)[host addChildWindow:panel ordered:NSWindowAbove];
+  if(!panel.visible)[panel orderWindow:NSWindowAbove relativeTo:host.windowNumber];
+}
+
+bool track(void* wave,int width,int waveform_height) {
+  if(!NSApp.active || width<=0 || waveform_height<=0)return false;
+  id target=(__bridge id)wave;
+  if(![target isKindOfClass:NSView.class])return !panel; // JS already checked visibility.
+  NSView *control=target;
+  NSWindow *parent=control.window;
+  if(!parent.visible || parent.miniaturized || control.hiddenOrHasHiddenAncestor)return false;
+  NSRect bounds=control.bounds;
+  CGFloat y=control.isFlipped?NSMinY(bounds):NSMaxY(bounds)-waveform_height;
+  NSRect client=NSMakeRect(NSMinX(bounds),y,width,waveform_height);
+  NSRect visible=NSIntersectionRect(client,control.visibleRect);
+  if(NSIsEmptyRect(visible))return false;
+  if(!panel)return true;
+
+  NSRect frame=[parent convertRectToScreen:[control convertRect:visible toView:nil]];
+  NSRect full=[parent convertRectToScreen:[control convertRect:client toView:nil]];
+  NSRect content=NSOffsetRect(full,-NSMinX(frame),-NSMinY(frame));
+  host=parent;
+  if(!NSEqualRects(panel.frame,frame))[panel setFrame:frame display:NO];
+  if(!NSEqualRects(view.frame,content))view.frame=content;
+  NSSize clientSize=NSMakeSize(width,waveform_height);
+  if(!NSEqualSizes(view.bounds.size,clientSize))[view setBoundsSize:clientSize];
+  if(view->bitmap)show();
+  return true;
+}
+
+bool present(void* bitmap,int x,int width,int source_width,int source_height) {
+  auto *pixels=bits(bitmap);
+  const int pitch=stride(bitmap);
+  if(!pixels || pitch<source_width){unlink(bitmap);return false;}
+  const bool flip=flipped(bitmap);
+  if(view->bitmap!=bitmap)view.needsDisplay=YES;
+  view->bitmap=bitmap;
+  view->topRow=pixels+(flip?(source_height-1)*pitch:0);
+  view->rowStep=flip?-pitch:pitch;
+  view->sourceWidth=source_width;
+  view->sourceHeight=source_height;
+  view->destX=x;
+  view->destWidth=width;
+  show();
+  return true;
+}
+void damage(int left,int right) {
+  [view setNeedsDisplayInRect:NSMakeRect(left,0,right-left,NSHeight(view.bounds))];
+}
+void unlink(void* bitmap) {
+  if(view->bitmap!=bitmap)return;
+  view->bitmap=nullptr;
+  view->topRow=nullptr;
+  [panel.parentWindow removeChildWindow:panel];
+  [panel orderOut:nil];
+}
+void destroy() {
+  [panel.parentWindow removeChildWindow:panel];
+  [panel close];
+  panel=nil;view=nil;host=nil;
+}
 }
 
 struct AMCocoaValue {

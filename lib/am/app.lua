@@ -19,7 +19,7 @@ function M.initialize(r,root,data)
   end
 end
 function M.new(r,root,data)
-  require('am.native').require(r) -- Reject an incomplete helper before changing project/settings.
+  local native_info=require('am.native').require(r) -- Reject an incomplete helper before changing project/settings.
   local required={'CF_CreatePreview','CF_PCM_Source_SetSectionInfo','JS_Window_Find','JS_File_Stat','MediaExplorerGetLastPlayedFileInfo'}
   for _,api in ipairs(required)do assert(r.APIExists(api),'Missing '..api..'. Requires REAPER 7.35+, SWS and JS_ReaScriptAPI.')end
   M.initialize(r,root,data)
@@ -36,7 +36,7 @@ function M.new(r,root,data)
     self.project=r.EnumProjects(-1)
     self.bank=Bank.new(r,self.project,data,self.definition,self.session)
     self.preview=Preview.new(r,self.project,self.bank.input)
-    self.explorer=Explorer.new(r);self.explorer:attach(function(saved)
+    self.explorer=Explorer.new(r,native_info);self.explorer:attach(function(saved)
       assert(U.write(data..'/recovery.json',J.encode{schema_version=1,session=self.session,explorer=saved}))
     end)
     self.explorer:toggle(1068,self.definition.settings.loop)

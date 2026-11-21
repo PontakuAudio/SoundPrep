@@ -20,3 +20,13 @@ inline std::intptr_t am_call_proc(AMProc proc,void* w,unsigned m,std::uintptr_t 
   return proc(w,m,p,l);
 #endif
 }
+#ifdef __APPLE__
+namespace amoverlay {
+bool create(void* wave,void* cursor_bitmap,void*(*lookup)(const char*));
+bool track(void* wave,int width,int waveform_height);
+bool present(void* bitmap,int x,int width,int source_width,int source_height);
+void damage(int left,int right);
+void unlink(void* bitmap);
+void destroy();
+}
+#endif

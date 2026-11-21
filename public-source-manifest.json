@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "0.11.16",
+  "version": "0.11.17",
   "git_history_included": false,
   "runtime_files": [
     "LICENSE",
@@ -38,7 +38,7 @@
     "docs/license.md",
     "docs/loudness-defaults-2026-10-22.json",
     "docs/loudness-defaults.md",
-    "docs/releases/0.11.16.md",
+    "docs/releases/0.11.17.md",
     "docs/source-distribution.md",
     "docs/windows.md",
     "internal/Process selection.lua",
@@ -156,7 +156,7 @@
     },
     {
       "path": "CMakeLists.txt",
-      "sha256": "fe60137b5a7bf92aca470a53dd46e1b2bf14bae57cb84837a107fea8d6ead035",
+      "sha256": "fd8a4dee3dbbb938209bf3b7bbdf8afb1c9207059e9f8541adf17482cec52098",
       "bytes": 5726
     },
     {
@@ -171,8 +171,8 @@
     },
     {
       "path": "SoundPrep - Diagnostics.lua",
-      "sha256": "162c0da8436b6395720d6304f0b2ecdb30fc79422d675d038d42207fb346c122",
-      "bytes": 4224
+      "sha256": "c2c2cca39682042b77d178f16ecd95568a0e19f937c6da325239315cde8714bc",
+      "bytes": 4237
     },
     {
       "path": "SoundPrep - Install actions.lua",
@@ -201,7 +201,7 @@
     },
     {
       "path": "SoundPrep.lua",
-      "sha256": "2a9f12a4400d2fba1fb0001c59de545d9cf05ee96050557e8991ccb64bdb5e70",
+      "sha256": "d19a630a113ce3831ccf52f72adb06a52bcf9d897dde6e1fef3e8b3a34bea80d",
       "bytes": 1899
     },
     {
@@ -350,9 +350,9 @@
       "bytes": 1864
     },
     {
-      "path": "docs/releases/0.11.16.md",
-      "sha256": "10d18f681d0f27692dfeb65b37d229e04123e5442c4ce3144626cf8b311f95da",
-      "bytes": 409
+      "path": "docs/releases/0.11.17.md",
+      "sha256": "26afb7c05749448e4d1028eda3c68e8095e3cc44c01ca72a39c92bfd079b7141",
+      "bytes": 529
     },
     {
       "path": "docs/source-distribution.md",
@@ -386,8 +386,8 @@
     },
     {
       "path": "lib/am/app.lua",
-      "sha256": "cb3415cadd378965398f9d227dae77d147ac68128de83538dffefb8c48d9c514",
-      "bytes": 43527
+      "sha256": "5e2ebac3baa0b9e82c2f1d18b38a511ad23d57aa63b1959de199a85d5ed184b7",
+      "bytes": 43557
     },
     {
       "path": "lib/am/bank.lua",
@@ -396,8 +396,8 @@
     },
     {
       "path": "lib/am/bar.lua",
-      "sha256": "a596c13dfeba058d2ab833d37eea6535e974f3ea61af4b583152b00d534909d6",
-      "bytes": 8719
+      "sha256": "21d1f292e3ffbb0e2d1b0809da6a5b38c377fbe9c9b7fc7f01d31e7750143b40",
+      "bytes": 9021
     },
     {
       "path": "lib/am/channel_mix.lua",
@@ -481,8 +481,8 @@
     },
     {
       "path": "lib/am/media_explorer.lua",
-      "sha256": "6f7392a070a652efc2aa413386e3646ba5890192a4d86340050130059e39b1e3",
-      "bytes": 15845
+      "sha256": "924852b25bf6fc25a6a183c8baede6739e98d1fa24237ec0b27ded659c0c3159",
+      "bytes": 16087
     },
     {
       "path": "lib/am/model.lua",
@@ -491,13 +491,13 @@
     },
     {
       "path": "lib/am/native.lua",
-      "sha256": "aab0691abc65b02b83dfe47a995ae755757a5aa52c98c0b149495627be637c24",
-      "bytes": 2309
+      "sha256": "3c517f13bc020dc2e4134608e0f98c2ee5a390a2091a207c593e58203fd23a06",
+      "bytes": 2907
     },
     {
       "path": "lib/am/native_contract.lua",
-      "sha256": "77903829e2d9103c44161331f662cd8b6272b20e9715876b60cc0257bdb53015",
-      "bytes": 9162
+      "sha256": "3b11584a018d35b994c0819d6a8635a07fa58f04f773539bd1c04223fb8be015",
+      "bytes": 9163
     },
     {
       "path": "lib/am/peaks.lua",
@@ -566,8 +566,8 @@
     },
     {
       "path": "native/bar.mm",
-      "sha256": "4b2437ba85ed96651ba9c87c6c73aa37c49eca1289e731c9d5be926a959e6835",
-      "bytes": 22473
+      "sha256": "da2ce85173b1afcd154c9b9ad07cb57ca35ad17fde6e9e36b9797592a66f98a4",
+      "bytes": 28733
     },
     {
       "path": "native/build-windows.ps1",
@@ -596,13 +596,13 @@
     },
     {
       "path": "native/contract.h",
-      "sha256": "48285827ea5c67011c5e4c8e35a7d9203a7ee135efedef3d902e3044994904ec",
-      "bytes": 10575
+      "sha256": "8d9fee3a4c6bdbb80b389e6a6fd78c98e8a0a7a5db412ef4d903984950ae115d",
+      "bytes": 10577
     },
     {
       "path": "native/cursor.cpp",
-      "sha256": "9bc0614f861de51b55495e125bdb82824985a94f780660edc127ad09de3fc6c0",
-      "bytes": 29173
+      "sha256": "9142c7ecfa20ce370cd8e9b5970e0aaf6483f3fa044d3837fb16e9713bc77c3e",
+      "bytes": 31942
     },
     {
       "path": "native/drop.mm",
@@ -631,8 +631,8 @@
     },
     {
       "path": "native/platform.h",
-      "sha256": "5b3855bbaedd388207575f205085ad3ed6889c9394d8b0ffdf0b0121ae7b3148",
-      "bytes": 596
+      "sha256": "268e044023742cf6b4d52b9d82e22f49ba3418bb4a1060433c4acae13de84225",
+      "bytes": 926
     },
     {
       "path": "native/prepare.mm",
@@ -691,8 +691,8 @@
     },
     {
       "path": "native/test_cursor.cpp",
-      "sha256": "72f12ad6be613e956ac052aa5fce4ebf8efaf832007f26f2c43f681e1be0e337",
-      "bytes": 25124
+      "sha256": "96781256d294a04d2083096f77fd0deda923bc0bb989881ac247b98b18c46d20",
+      "bytes": 28049
     },
     {
       "path": "native/test_preview.cpp",
@@ -856,18 +856,18 @@
     },
     {
       "path": "prebuilt/manifest.json",
-      "sha256": "a713d39957547267ceb3cd62dcb91c0db7707ee5d060358644664516fc23d752",
+      "sha256": "2e76c29928b593fc25fad274101bb9552d662fd0b86a494d66fc830ee187e597",
       "bytes": 491
     },
     {
       "path": "prebuilt/reaper_audition_macro.dll",
-      "sha256": "793caf8902b05c2797a1b1bd18ac73e5ea779b8ccb45e7ef5c27549e43dc21a6",
-      "bytes": 800256
+      "sha256": "95f3b6bfccfa9c2d958e196488f7b4e2433ca16cb92b3a16088fa6430301a241",
+      "bytes": 801280
     },
     {
       "path": "prebuilt/reaper_audition_macro.dylib",
-      "sha256": "f420ad008af736f439891fc1ec7bd4d44b8f575574319a699a554115b3e81f7b",
-      "bytes": 1047792
+      "sha256": "f18aa4688eb471e105f9aae8747826d71bbdb63c8efeceddf4ee356437302a2b",
+      "bytes": 1082656
     },
     {
       "path": "resources/audition_macro_channels_v1.jsfx",
@@ -901,12 +901,12 @@
     },
     {
       "path": "resources/native-contract.json",
-      "sha256": "ba86709f83114017c1baae2c32d43e96dafc4fb8fb025a4ee75426a0463ac849",
-      "bytes": 15311
+      "sha256": "daf41deccec250bdc707c10fd8ee2c59bf34c2a71f8034b15e1ea89afdadd7fb",
+      "bytes": 15312
     },
     {
       "path": "resources/public-source-files.json",
-      "sha256": "e76942b9d1b4bd4c854cd7bdcbd7aee83860b675528114958078b0f8e4ded316",
+      "sha256": "cb9f6b55bc65594446e0ad1b447801133c5b37171dca71e655fe9c966b976649",
       "bytes": 9754
     },
     {
@@ -921,7 +921,7 @@
     },
     {
       "path": "resources/release-manifest.json",
-      "sha256": "f6262f73865d6ccd22bd61272778e765123900fd0d9b83692543c2cc8b4963e5",
+      "sha256": "eb64db6fa334d9dfd7e59132de699dc38a5db0d1be7fa04c6dc7c01706f56616",
       "bytes": 3383
     },
     {
@@ -1086,8 +1086,8 @@
     },
     {
       "path": "tests/native.lua",
-      "sha256": "7f7bb56f6bbe305afe0562abdd8e595d121b923f8e57048d171b96401ed53d03",
-      "bytes": 3835
+      "sha256": "6b236b74f87c5950cf90fd06242481309fa85bc1915fe4a996fcffeaee4b7f78",
+      "bytes": 6164
     },
     {
       "path": "tests/native_drop_host.mm",

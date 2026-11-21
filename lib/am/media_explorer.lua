@@ -1,7 +1,7 @@
-local U=require('am.util')
+local U=require('am.util');local Native=require('am.native')
 local M={};M.__index=M
 local SECTION=32063
-function M.new(r)return setmetatable({r=r,controls={}},M)end
+function M.new(r,native_info)return setmetatable({r=r,controls={},native_info=native_info},M)end
 local function owned_window(r,w)
   local main=r.GetMainHwnd()
   for _=1,32 do
@@ -121,7 +121,9 @@ function M:attach_wave()
   if wave and clock and (self.wave_window~=wave or self.wave_clock~=clock)then
     self.wave_attachment=nil
     if self.r.AM_WaveAttach(self.native_transport,wave,clock)then
-      self.wave_window=wave;self.wave_clock=clock;self.wave_attachment={}
+      local cursor=self.r.AM_WaveCursorState and self.r.AM_WaveCursorState()
+      local _,hidden=Native.wave_renderer(self.native_info,cursor)
+      self.wave_window=wave;self.wave_clock=clock;self.wave_attachment={overlay_hidden_by_gpu=hidden}
     end
   end
 end

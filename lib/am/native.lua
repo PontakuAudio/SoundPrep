@@ -34,7 +34,17 @@ end
 function M.require(r)
   local info,err=M.inspect(r);assert(info,err);return info
 end
-function M.describe(r)
+function M.wave_renderer(info,cursor)
+  local revision=info and info.features.waveform
+  if type(revision)=='number' and revision>=10 and cursor then
+    local ok,state=pcall(J.decode,cursor)
+    if ok and type(state)=='table' then
+      return type(state.renderer_cocoa)=='string' and state.renderer_cocoa or 'unknown',state.overlay_hidden_by_gpu==true
+    end
+  end
+  return 'unknown',false
+end
+function M.describe(r,cursor)
   local info,err,detected=M.inspect(r);detected=info or detected
   local lines={'Lua package: '..C.version,'Expected native contract schema: '..C.schema}
   if detected then
@@ -42,6 +52,8 @@ function M.describe(r)
     lines[#lines+1]='Loaded features: '..J.encode(detected.features)
   end
   lines[#lines+1]=info and 'Native compatibility: OK' or 'Native compatibility: '..err
+  local renderer,hidden=M.wave_renderer(detected,cursor)
+  lines[#lines+1]='REAPER renderer (renderer_cocoa): '..renderer..(hidden and ' (waveform overlay is hidden by GPU acceleration)' or '')
   return table.concat(lines,'\n')
 end
 return M

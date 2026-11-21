@@ -3,8 +3,9 @@
 local r=reaper
 local root=debug.getinfo(1,'S').source:sub(2):match('^(.*)[/\\]')
 package.path=root..'/lib/?.lua;'..package.path
-local P=require('am.platform');local U=require('am.util')
-local lines={'SoundPrep diagnostics',require('am.native').describe(r), 'REAPER: '..r.GetAppVersion(), 'OS: '..r.GetOS(),
+local P=require('am.platform')
+local cursor=r.APIExists('AM_WaveCursorState') and r.AM_WaveCursorState()
+local lines={'SoundPrep diagnostics',require('am.native').describe(r,cursor), 'REAPER: '..r.GetAppVersion(), 'OS: '..r.GetOS(),
   'Resource: '..r.GetResourcePath(), 'Scripts: '..root}
 local required={'CF_CreatePreview','CF_PCM_Source_SetSectionInfo','JS_Window_Find','JS_File_Stat',
   'MediaExplorerGetLastPlayedFileInfo','AM_TransportAttach','AM_Preview_Create','AM_WaveAttach','AM_WaveCursorState',
@@ -27,7 +28,7 @@ end
 lines[#lines+1]=('Reported device output latency: %.2f ms'):format(r.GetOutputLatency()*1000)
 if r.APIExists('AM_Preview_Diagnostics')then lines[#lines+1]='Preview timing: '..r.AM_Preview_Diagnostics()end
 if r.APIExists('AM_WaveDiagnostics')then lines[#lines+1]='Waveform seek: '..r.AM_WaveDiagnostics()end
-if r.APIExists('AM_WaveCursorState')then lines[#lines+1]='Waveform cursor: '..r.AM_WaveCursorState()end
+if cursor then lines[#lines+1]='Waveform cursor: '..cursor end
 -- Inspect resource flags without serializing plug-in payloads or changing takes.
 local selected=r.CountSelectedMediaItems(0)
 lines[#lines+1]='Selected Timeline items: '..selected..' (inspect first 8)'

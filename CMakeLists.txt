@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(AuditionMacro VERSION 0.11.16 LANGUAGES C CXX)
+project(AuditionMacro VERSION 0.11.17 LANGUAGES C CXX)
 foreach(source analysis.cpp zwicker.cpp lufs_meter.cpp)
   if(NOT EXISTS "${CMAKE_SOURCE_DIR}/native/${source}")
     message(FATAL_ERROR "The analysis engine source is not in the public checkout. Use the prebuilt release helper; see docs/source-distribution.md.")

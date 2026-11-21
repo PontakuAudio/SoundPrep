@@ -42,6 +42,48 @@ local r,info=fixture('macOS-arm64');info.features.quiet_render=nil
 assert(N.inspect(r),'Platform-only features must not be required on the other platform')
 assert(N.describe(r):find('999.0.0',1,true))
 
+-- Renderer diagnostics belong to the attached waveform. Bar refreshes and
+-- transient messages must not replace the warning or re-read the cursor JSON.
+do
+  local Explorer=require('am.media_explorer');local Model=require('am.model')
+  local host,helper=fixture('macOS-arm64')
+  local cursor,reads,wave=nil,0,0
+  host.AM_WaveCursorState=function()reads=reads+1;return J.encode(cursor)end
+  host.AM_WaveAttach=function()return true end
+  host.EnumProjects=function()return 1 end
+  local definition=Model.defaults()
+  local app={project=1,definition=definition,message='',loudness={},preview={playing=function()return false end},
+    effective=function()return Model.effective(definition,nil)end,gain=function()return 0,'off'end,measurement=function()end}
+  local bar=require('am.bar').new(host,app)
+  local warning='Waveform overlay is hidden by REAPER GPU acceleration (macOS). Set Preferences > Advanced UI/system tweaks > GPU acceleration to Force Classic, then restart REAPER.'
+  local function attach(state)
+    cursor=state;wave=wave+1;app.explorer:attach_wave()
+  end
+  for _,revision in ipairs{9,10,11}do
+    helper.features.waveform=revision
+    local compatible,_,detected=N.inspect(host)
+    app.explorer=Explorer.new(host,compatible or detected)
+    app.explorer.native_transport=1
+    app.explorer.control=function(_,id)return id==1046 and wave or 'clock'end
+    app.message='Source changed. Replay to reload.'
+    attach({renderer_cocoa='metal',overlay_hidden_by_gpu=true})
+    local diagnostics=N.describe(host,J.encode(cursor))
+    local expected=revision>=10 and 'metal (waveform overlay is hidden by GPU acceleration)' or 'unknown'
+    assert(diagnostics:find('REAPER renderer (renderer_cocoa): '..expected,1,true))
+    local before=reads
+    assert(bar:state().status==(revision>=10 and warning or app.message))
+    app.message='Could not save preset'
+    app.explorer:attach_wave()
+    assert(bar:state().status==(revision>=10 and warning or app.message) and reads==before)
+    for _,state in ipairs{{renderer_cocoa='classic',overlay_hidden_by_gpu=false},
+        {renderer_cocoa='unknown',overlay_hidden_by_gpu=false},{renderer_cocoa='metal'},
+        {overlay_hidden_by_gpu=J.null},{overlay_hidden_by_gpu='unknown'},{}}do
+      attach(state)
+      assert(bar:state().status==app.message)
+    end
+  end
+end
+
 -- A newly declared control must have a shared Lua handler. Both native GUIs
 -- send these commands; platform-specific handlers would defeat the contract.
 local project={}

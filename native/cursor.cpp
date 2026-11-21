@@ -13,7 +13,15 @@
 #include <optional>
 #include <vector>
 #include <string>
+#ifdef __APPLE__
+#include <fstream>
+#include <sstream>
+#include <string_view>
+#endif
 #include "reaper_audio_abi.h"
+#ifdef __APPLE__
+#include "platform.h"
+#endif
 
 extern "C" int AMPreviewWavePosition(char*,int,double*,double*,double*);
 #ifndef _WIN32
@@ -21,6 +29,41 @@ extern "C" int AMWavePixelScale(void*);
 #endif
 extern "C" bool AMDrawWaveLabel(void*,const char*,int,int,int,int,unsigned int,unsigned int,int,void*(*)(const char*));
 namespace {
+#ifdef __APPLE__
+std::string renderer_cocoa="unknown";
+
+std::string parse_cocoa_renderer(std::string_view ini) {
+  auto trim=[](std::string_view text) {
+    const auto first=text.find_first_not_of(" \t\r");
+    return first==text.npos?std::string_view{}:text.substr(first,text.find_last_not_of(" \t\r")-first+1);
+  };
+  if(ini.substr(0,3)=="\xef\xbb\xbf")ini.remove_prefix(3);
+  bool in_reaper=false;
+  while(!ini.empty()) {
+    const auto end=ini.find('\n');
+    const auto line=trim(ini.substr(0,end));
+    ini.remove_prefix(end==ini.npos?ini.size():end+1);
+    if(!line.empty() && line.front()=='[')in_reaper=line=="[REAPER]";
+    if(!in_reaper)continue;
+    const auto equals=line.find('=');
+    if(equals!=line.npos && trim(line.substr(0,equals))=="renderer_cocoa")
+      return std::string(trim(line.substr(equals+1)));
+  }
+  return "unknown";
+}
+
+std::string read_cocoa_renderer(void*(*lookup)(const char*)) {
+  auto resource_path=reinterpret_cast<const char*(*)()>(lookup("GetResourcePath"));
+  const char* path=resource_path?resource_path():nullptr;
+  if(!path || !*path)return "unknown";
+  std::ifstream file(std::string(path)+"/reaper.ini");
+  if(!file)return "unknown";
+  std::ostringstream contents;
+  contents<<file.rdbuf();
+  return parse_cocoa_renderer(contents.str());
+}
+#endif
+
 void*(*font_lookup)(const char*);
 void *wave=nullptr,*clock_view=nullptr,*bitmap=nullptr;
 int (*host_register)(const char*,void*);
@@ -63,6 +106,16 @@ WaveStyle wave_style() {
     theme_pixel("col_explorer_sel",0xffffffff),mode==-1?0x26600:mode};
 }
 bool linked=false,registered=false,suspended=false;
+#ifdef __APPLE__
+bool overlay_window=false;
+#else
+constexpr bool overlay_window=false;
+#endif
+#ifdef _WIN32
+constexpr int ruler_height=16;
+#else
+constexpr int ruler_height=22;
+#endif
 int last_x=-999999;
 char native_clock[256]{},written_clock[256]{},last_path[4096]{};
 double last_fraction=-1,last_position=0,last_length=0;
@@ -116,8 +169,26 @@ void advance_peak_build(std::optional<std::chrono::milliseconds> budget) {
     }
   } while(!deadline || Clock::now()<*deadline);
 }
+bool present(void* image,int x,int width,int height,int source_width,int source_height) {
+#ifdef __APPLE__
+  if(overlay_window)return amoverlay::present(image,x,width,source_width,source_height);
+#endif
+  return composite(wave,x,0,width,height,image,0,0,source_width,source_height,false)>0;
+}
+void invalidate_bitmap(int left,int right,int bottom,bool erase) {
+#ifdef __APPLE__
+  if(overlay_window){amoverlay::damage(left,right);return;}
+#endif
+  invalidate(wave,left,0,right,bottom,erase);
+}
+void unlink_image(void* image) {
+#ifdef __APPLE__
+  if(overlay_window){amoverlay::unlink(image);return;}
+#endif
+  if(wave && window_valid(wave))unlink_bitmap(wave,image,true);
+}
 void hide_peaks() {
-  if(peak_linked && wave && window_valid(wave))unlink_bitmap(wave,peak_bitmap,true);
+  if(peak_linked)unlink_image(peak_bitmap);
   peak_linked=false;
 }
 void clear_peaks() {
@@ -147,11 +218,6 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
     hide_peaks();return false;
   }
   // Reserve REAPER's time ruler at the bottom; all coordinates are client units.
-#ifdef _WIN32
-  const int ruler_height=16;
-#else
-  const int ruler_height=22;
-#endif
   const int client_width=width,client_height=height-ruler_height;
 #ifdef _WIN32
   const int scale_factor=1; // Win32 client coordinates are already device pixels.
@@ -194,7 +260,7 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
     if(cursor_visible(old))blit(peak_bitmap,old,0,cursor_underlay,0,0,std::min(cursor_width,width-old),h,1,"COPY");
     save_cursor();peak_cursor=cursor;++cursor_updates;
     for(int x:{old,cursor})if(cursor_visible(x))
-      invalidate(wave,x/scale_factor,0,std::min(client_width,x/scale_factor+2),client_height,false);
+      invalidate_bitmap(x/scale_factor,std::min(client_width,x/scale_factor+2),client_height,false);
     return true;
   }
   if(!peak_bitmap || width!=peak_width || h!=peak_height || scale_factor!=peak_scale) {
@@ -273,8 +339,8 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
     fill_rect(peak_bitmap,sa,0,sb-sa,h,style.selection,alpha,modes[mode<6?mode:0]);
   }
   save_cursor();++peak_repaints;
-  peak_linked=composite(wave,0,0,client_width,client_height,peak_bitmap,0,0,width,h,false)>0;
-  if(peak_linked)invalidate(wave,0,0,client_width,height,true);
+  peak_linked=present(peak_bitmap,0,client_width,client_height,width,h);
+  if(peak_linked)invalidate_bitmap(0,client_width,height,true);
   peak_width=width;peak_height=h;peak_scale=scale_factor;peak_label_dpi=text_dpi;peak_start=start;peak_span=span;peak_a=a;peak_b=b;peak_cursor=cursor;peak_style=style;peak_dirty=false;labels_dirty=false;
   return peak_linked;
 }
@@ -287,7 +353,7 @@ void restore_clock() {
   *written_clock=0;
 }
 void unpaint() {
-  if(linked && wave && window_valid(wave))unlink_bitmap(wave,bitmap,true);
+  if(linked)unlink_image(bitmap);
   linked=false;last_x=-999999;
 }
 // Scrollbar coordinates need not equal client pixels (e.g. Windows/DPI).
@@ -347,7 +413,11 @@ void tick() {
     send_message(wave,0x5,0,(static_cast<std::uintptr_t>(height)<<16)|static_cast<unsigned>(width));
   }
 #endif
-  if(scroll_info(wave,"h",&at,&page,&minimum,&maximum,&track) && client_size(wave,&width,&height)) {
+  bool drawable=scroll_info(wave,"h",&at,&page,&minimum,&maximum,&track) && client_size(wave,&width,&height);
+#ifdef __APPLE__
+  if(drawable)drawable=amoverlay::track(wave,width,height-ruler_height);
+#endif
+  if(drawable) {
     actual_width=width;scroll_at=at;scroll_page=page;scroll_min=minimum;scroll_max=maximum;
     // Mic Select can restart the preview while file_info still names another file.
     const char* paint_path=peak_source?peak_path.c_str():path;
@@ -367,9 +437,9 @@ void tick() {
       // is already dirty on macOS. Register the bitmap and invalidate through
       // the dedicated API, whose already-dirty path has a defined result.
       const int old=linked?last_x:x;
-      linked=composite(wave,x,0,2,-1,bitmap,0,0,1,1,false)>0;
+      linked=present(bitmap,x,2,-1,1,1);
       int w=0,h=0;
-      if(linked && client_size(wave,&w,&h))invalidate(wave,std::max(0,std::min(old,x)),0,std::min(w,std::max(old,x)+2),h,true);
+      if(linked && client_size(wave,&w,&h))invalidate_bitmap(std::max(0,std::min(old,x)),std::min(w,std::max(old,x)+2),h,true);
       last_x=x;
     }
   } else {unpaint();hide_peaks();}
@@ -421,6 +491,9 @@ extern "C" void AMCursorDetach() {
   if(label_gdi){delete_gdi(label_gdi);label_gdi=nullptr;}
   if(registered){host_register("-timer",reinterpret_cast<void*>(tick));registered=false;}
   clear_peaks();AMCursorClear();wave=clock_view=nullptr;suspended=false;label_native=false;label_font_height=0;
+#ifdef __APPLE__
+  if(overlay_window){amoverlay::destroy();overlay_window=false;}
+#endif
   view_span=0;view_at=view_page=view_width=view_units=-1;*view_path=0;
   actual_width=scroll_at=scroll_page=scroll_min=scroll_max=0;
   peak_repaints=cursor_updates=0;
@@ -430,6 +503,9 @@ extern "C" void AMCursorDetach() {
 extern "C" void AMCursorRegister(int(*reg)(const char*,void*)){host_register=reg;}
 extern "C" bool AMCursorAttach(void* w,void* c,void*(*lookup)(const char*)) {
   AMCursorDetach();
+#ifdef __APPLE__
+  renderer_cocoa=read_cocoa_renderer(lookup);
+#endif
   font_lookup=lookup;
 #define GET(variable,name) variable=reinterpret_cast<decltype(variable)>(lookup(name))
   GET(window_valid,"JS_Window_IsWindow");GET(visible,"JS_Window_IsVisible");
@@ -453,6 +529,9 @@ extern "C" bool AMCursorAttach(void* w,void* c,void*(*lookup)(const char*)) {
   bitmap=create_bitmap(true,1,1);if(!bitmap)return false;
   cursor_color=wave_style().cursor;clear_bitmap(bitmap,cursor_color);
   wave=w;clock_view=c;
+#ifdef __APPLE__
+  overlay_window=amoverlay::create(w,bitmap,lookup);
+#endif
   registered=host_register("timer",reinterpret_cast<void*>(tick))!=0;
   if(!registered){AMCursorDetach();return false;}return true;
 }
@@ -511,6 +590,14 @@ extern "C" const char* AMCursorState() {
     registered?"true":"false",(linked || (peak_linked && peak_cursor>=0 && peak_cursor<peak_width))?"true":"false",last_x,last_fraction,last_position,last_length,actual_width,scroll_at,scroll_page,scroll_min,scroll_max,peak_linked?"true":"false",static_cast<int>(peak_channels.size()),peak_left,peak_right,peak_count,peak_start,peak_span);
   static std::string json;
   auto value=nlohmann::json::parse(result);value["selected_names"]=nlohmann::json::array();
+  value["presentation"]=overlay_window?"overlay":"composite";
+#ifdef __APPLE__
+  value["renderer_cocoa"]=renderer_cocoa;
+  value["overlay_hidden_by_gpu"]=renderer_cocoa=="metal" && !overlay_window;
+#else
+  value["renderer_cocoa"]="n/a";
+  value["overlay_hidden_by_gpu"]=false;
+#endif
   value["peak_repaints"]=peak_repaints;value["cursor_updates"]=cursor_updates;
   for(int channel:peak_channels)value["selected_names"].push_back(channel<=static_cast<int>(peak_names.size())?peak_names[channel-1]:"");
   value["name_font"]=label_native || label_font!=nullptr;
@@ -519,5 +606,6 @@ extern "C" const char* AMCursorState() {
 #else
   value["name_renderer"]=label_native?"Cocoa":"LICE";
 #endif
-  value["name_font_pixels"]=std::abs(label_font_height);value["name_dpi"]=peak_label_dpi;json=value.dump();return json.c_str();
+  value["name_font_pixels"]=std::abs(label_font_height);value["name_dpi"]=peak_label_dpi;
+  json=value.dump(-1,' ',false,nlohmann::json::error_handler_t::replace);return json.c_str();
 }

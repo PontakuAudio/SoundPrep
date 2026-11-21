@@ -68,6 +68,10 @@ function M:state()
     if not setting.preview_downmix then label=label..' · Macro FX bypassed'end
   end
   if paused then label='Paused — return to the attached project' end
+  local attachment=a.explorer and a.explorer.wave_attachment
+  if attachment and attachment.overlay_hidden_by_gpu then
+    label='Waveform overlay is hidden by REAPER GPU acceleration (macOS). Set Preferences > Advanced UI/system tweaks > GPU acceleration to Force Classic, then restart REAPER.'
+  end
   return {active=a.selected_id or 'raw',macros=macros,reverse=m.source_transform.reverse,preserve_pitch=m.source_transform.preserve_pitch,
     normalize=m.normalization.enabled,target=m.normalization.target_lufs,
     target_label=m.normalization.metric~='lufs_m_max' and ('Norm %.2f sones'):format(m.normalization.target_sones) or nil,
