@@ -321,6 +321,7 @@ void tick() {
     // deselection, so keep its selected lanes visible while stopped.
     if(!peak_source){hide_peaks();return;}
     std::snprintf(path,sizeof(path),"%s",peak_path.c_str());
+    mode=0;
   }
   char playing_path[4096]{};double fraction=0,position=0,length=0;
   const int playing=AMPreviewWavePosition(playing_path,sizeof(playing_path),&fraction,&position,&length);
@@ -348,10 +349,14 @@ void tick() {
 #endif
   if(scroll_info(wave,"h",&at,&page,&minimum,&maximum,&track) && client_size(wave,&width,&height)) {
     actual_width=width;scroll_at=at;scroll_page=page;scroll_min=minimum;scroll_max=maximum;
-    double start=0,span=1;viewport(path,at,page,minimum,maximum,width,start,span);
+    // Mic Select can restart the preview while file_info still names another file.
+    const char* paint_path=peak_source?peak_path.c_str():path;
+    double start=0,span=1;viewport(paint_path,at,page,minimum,maximum,width,start,span);
     const int x=!*last_path || suspended?-999999 : view_span>0 && am_path_equal(path,view_path)?
       rounded_pixel((last_fraction-start)/span*width):pixel(last_fraction,at,page,minimum,maximum,width);
-    const bool selected=paint_peaks(path,width,height,start,span,(mode&384)?a:0,(mode&384)?b:0,x,style);
+    const bool has_range=(mode&384) && am_path_equal(path,peak_path.c_str());
+    const int peak_x=am_path_equal(last_path,peak_path.c_str())?x:-999999;
+    const bool selected=paint_peaks(paint_path,width,height,start,span,has_range?a:0,has_range?b:0,peak_x,style);
     if(!*last_path || suspended){if(!suspended)unpaint();return;}
     if(selected){unpaint();last_x=x;}
     // Do not clamp an offscreen source position

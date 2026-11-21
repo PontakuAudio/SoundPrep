@@ -256,8 +256,9 @@ int main() {
   assert(AMWaveSetChannels("/test.wav",4,4,"v1"));painted_channels.clear();tick();
   assert(painted_channels.size()==800 && peak_left==peak_right && peak_opens==1);
   scrollbar_at=400;scrollbar_page=800;tick();assert(peak_start==.25 && peak_span==.5);
-  file="/different.wav";tick();assert(!peak_linked);
-  file="/test.wav";tick();assert(peak_linked);
+  file="/different.wav";native_selection=128;tick();
+  assert(peak_linked && peak_a==0 && peak_b==0 && peak_cursor==-999999);
+  file="/test.wav";native_selection=0;tick();assert(peak_linked);
   shown=false;tick();assert(!peak_linked);shown=true;tick();assert(peak_linked);
   assert(!AMWaveSetChannels("/test.wav",7,7,"v1"));assert(peak_left==4);
   assert(AMWaveSetChannels("/test.wav",1,2,"v2"));tick();assert(peak_opens==2 && peak_closes==1);

@@ -13,7 +13,7 @@ REAPER Media Explorer用のサウンドデザイン向け拡張スクリプト�
 1. `Extensions → ReaPack → Import repositories…` に次のURLを追加します。
 
    ```text
-   https://github.com/PontakuAudio/SoundPrep/releases/latest/download/index.xml
+   https://github.com/PontakuAudio/reapack/raw/main/index.xml
    ```
 
 2. `Browse packages…` で **SoundPrep** を検索してInstallします。
@@ -22,5 +22,11 @@ REAPER Media Explorer用のサウンドデザイン向け拡張スクリプト�
 Native helperが同時にインストールされます。同じSoundPrepパッケージの更新はReaPackから行います。
 
 新規導入時に自動登録するActionは起動用の1個です。キー操作・診断用Actionsが必要な場合だけ、同梱の `SoundPrep - Install actions.lua` を読み込んで実行します。通常の起動には不要です。既存のAction登録・キー割当は自動削除しません。
+
+## サポート
+
+SoundPrep は無料で公開しています。役に立ったら、Ko-fi で開発の支援をいただけると助かります。
+
+https://ko-fi.com/kuma_pontakuaudio
 
 [詳しい導入手順](docs/install.md) · [MIT License](docs/license.md) · [第三者ライセンス](THIRD_PARTY_NOTICES.md)

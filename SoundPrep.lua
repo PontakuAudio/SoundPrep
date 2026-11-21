@@ -1,5 +1,5 @@
 -- @description SoundPrep - Start here
--- @version 0.11.15
+-- @version 0.11.16
 -- @author Pontaku Audio
 local script=debug.getinfo(1,'S').source:sub(2)
 local root=script:match('^(.*)[/\\]')

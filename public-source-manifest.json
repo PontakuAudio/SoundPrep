@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "0.11.15",
+  "version": "0.11.16",
   "git_history_included": false,
   "runtime_files": [
     "LICENSE",
@@ -38,7 +38,7 @@
     "docs/license.md",
     "docs/loudness-defaults-2026-10-22.json",
     "docs/loudness-defaults.md",
-    "docs/releases/0.11.15.md",
+    "docs/releases/0.11.16.md",
     "docs/source-distribution.md",
     "docs/windows.md",
     "internal/Process selection.lua",
@@ -156,7 +156,7 @@
     },
     {
       "path": "CMakeLists.txt",
-      "sha256": "15c394fdeb8547423028d9d69f4b9ada526a54c11b0791bd10b6f8c4975f7741",
+      "sha256": "fe60137b5a7bf92aca470a53dd46e1b2bf14bae57cb84837a107fea8d6ead035",
       "bytes": 5726
     },
     {
@@ -166,8 +166,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "1cc04d0aa6f1126515d941a016c6308deff1ebe0b3d96b679b4ab4cc1ffe51a4",
-      "bytes": 1696
+      "sha256": "9e386fa310fed9a71dc136cf4888bb85bca5baf18118747b11bdebaf15683797",
+      "bytes": 1864
     },
     {
       "path": "SoundPrep - Diagnostics.lua",
@@ -201,7 +201,7 @@
     },
     {
       "path": "SoundPrep.lua",
-      "sha256": "9667aac76d7063eb7426606b09b4018bef5431c0880fc6ba9d4004bedb668ff8",
+      "sha256": "2a9f12a4400d2fba1fb0001c59de545d9cf05ee96050557e8991ccb64bdb5e70",
       "bytes": 1899
     },
     {
@@ -346,13 +346,13 @@
     },
     {
       "path": "docs/release-readme.md",
-      "sha256": "1cc04d0aa6f1126515d941a016c6308deff1ebe0b3d96b679b4ab4cc1ffe51a4",
-      "bytes": 1696
+      "sha256": "9e386fa310fed9a71dc136cf4888bb85bca5baf18118747b11bdebaf15683797",
+      "bytes": 1864
     },
     {
-      "path": "docs/releases/0.11.15.md",
-      "sha256": "c01540ee30e7d84e67af94dd6c993c2c1d965a929ddd19448df7c983f5d6fe7a",
-      "bytes": 626
+      "path": "docs/releases/0.11.16.md",
+      "sha256": "10d18f681d0f27692dfeb65b37d229e04123e5442c4ce3144626cf8b311f95da",
+      "bytes": 409
     },
     {
       "path": "docs/source-distribution.md",
@@ -496,7 +496,7 @@
     },
     {
       "path": "lib/am/native_contract.lua",
-      "sha256": "3f444c7cfd32774777a57455e4035de246cf2e1ade866d293da5cb65887520d2",
+      "sha256": "77903829e2d9103c44161331f662cd8b6272b20e9715876b60cc0257bdb53015",
       "bytes": 9162
     },
     {
@@ -596,13 +596,13 @@
     },
     {
       "path": "native/contract.h",
-      "sha256": "f795c215f48eba74600f74a8ab4d3608ef4b39192b3527a0ac3d7ecdb22d609e",
+      "sha256": "48285827ea5c67011c5e4c8e35a7d9203a7ee135efedef3d902e3044994904ec",
       "bytes": 10575
     },
     {
       "path": "native/cursor.cpp",
-      "sha256": "c7581a08fff35f4e7f8705e382eb595678f435fb472e401e6a850fe7f4ccbefc",
-      "bytes": 28846
+      "sha256": "9bc0614f861de51b55495e125bdb82824985a94f780660edc127ad09de3fc6c0",
+      "bytes": 29173
     },
     {
       "path": "native/drop.mm",
@@ -691,8 +691,8 @@
     },
     {
       "path": "native/test_cursor.cpp",
-      "sha256": "cb97655c9715980059dbeae2e887ab83ae558a80871194e22aa3f110789dad28",
-      "bytes": 25032
+      "sha256": "72f12ad6be613e956ac052aa5fce4ebf8efaf832007f26f2c43f681e1be0e337",
+      "bytes": 25124
     },
     {
       "path": "native/test_preview.cpp",
@@ -856,17 +856,17 @@
     },
     {
       "path": "prebuilt/manifest.json",
-      "sha256": "0d2a82c8f591ea47bc676aab356c3db84033d4ef6d404176e52d8d4cef324313",
+      "sha256": "a713d39957547267ceb3cd62dcb91c0db7707ee5d060358644664516fc23d752",
       "bytes": 491
     },
     {
       "path": "prebuilt/reaper_audition_macro.dll",
-      "sha256": "70ccb1f1d7ffee018837c8300ee916a136f13787f18c57ed927b572249c809fe",
+      "sha256": "793caf8902b05c2797a1b1bd18ac73e5ea779b8ccb45e7ef5c27549e43dc21a6",
       "bytes": 800256
     },
     {
       "path": "prebuilt/reaper_audition_macro.dylib",
-      "sha256": "b9251d6499b67c3ca33d2fb008c9f928da1f11377c93e56906079d3e33e520a3",
+      "sha256": "f420ad008af736f439891fc1ec7bd4d44b8f575574319a699a554115b3e81f7b",
       "bytes": 1047792
     },
     {
@@ -901,12 +901,12 @@
     },
     {
       "path": "resources/native-contract.json",
-      "sha256": "462dffbf2dc0b4e33806bab95e7c16f817d17db449562bfaeb204413f5b21b64",
+      "sha256": "ba86709f83114017c1baae2c32d43e96dafc4fb8fb025a4ee75426a0463ac849",
       "bytes": 15311
     },
     {
       "path": "resources/public-source-files.json",
-      "sha256": "e541cd278df3127cc0025d456d3a0c4d1ad4f01794de27eb9a89fe94ffeb4f2a",
+      "sha256": "e76942b9d1b4bd4c854cd7bdcbd7aee83860b675528114958078b0f8e4ded316",
       "bytes": 9754
     },
     {
@@ -921,7 +921,7 @@
     },
     {
       "path": "resources/release-manifest.json",
-      "sha256": "497ccdf921343e996f5c5123ec82ea0ba0441482f7b02299379b903e1e7fcfa5",
+      "sha256": "f6262f73865d6ccd22bd61272778e765123900fd0d9b83692543c2cc8b4963e5",
       "bytes": 3383
     },
     {

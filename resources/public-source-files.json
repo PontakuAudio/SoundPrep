@@ -290,6 +290,6 @@
     "docs/license.md",
     "lib/am/setup.lua",
     "tests/setup.lua",
-    "docs/releases/0.11.15.md"
+    "docs/releases/0.11.16.md"
   ]
 }

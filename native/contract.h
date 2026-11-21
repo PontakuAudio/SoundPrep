@@ -151,8 +151,8 @@ inline constexpr std::array<Field,21> editor_value_fields{{
 }};
 inline constexpr std::array<double,4> target_options{{-18,-16,-14,-12}};
 inline constexpr std::array<double,5> monitor_options{{-24,-18,-12,-6,0}};
-inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.14","platform":"windows","features":{"bar":10,"preview":5,"waveform":8,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
-inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.14","platform":"macos","features":{"bar":10,"preview":5,"waveform":8,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.16","platform":"windows","features":{"bar":10,"preview":5,"waveform":9,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.16","platform":"macos","features":{"bar":10,"preview":5,"waveform":9,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
 inline const char* helper_info() {
 #ifdef _WIN32
   return windows_info;
