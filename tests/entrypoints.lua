@@ -2,7 +2,7 @@ local root_names={'',' - Install actions',' - Diagnostics',' - Restore native pr
   ' - Restore selected source FX',' - Offline inactive source FX'}
 local actions={
   {'Reverse','reverse'},{'AB','ab'},{'Play Stop','play'},{'Replay','replay'},{'Stop','stop'},
-  {'Export','export'},{'Analyse','analyse'},{'Edit','edit'},{'Quit','quit'},
+  {'Analyse','analyse'},{'Edit','edit'},{'Quit','quit'},
 }
 for i=0,9 do actions[#actions+1]={'Slot '..i,'slot:'..i}end
 
@@ -58,12 +58,12 @@ local ok,err=xpcall(function()
       assert(title=='SoundPrep' and message:find('Launch SoundPrep.lua',1,true))
     end}
   dofile('./SoundPrep - Install actions.lua')
-  assert(calls==25 and new_id==125,'Expected 6 Main and 19 Media Explorer registrations')
+  assert(calls==24 and new_id==124,'Expected 6 Main and 18 Media Explorer registrations')
   local main_id=registered['0:./SoundPrep.lua']
   local play_id=registered['32063:./actions/SoundPrep - Play Stop.lua']
   local shortcuts={[main_id]='Ctrl+Alt+A',[play_id]='Space',[41]='Alt+A',[42]='Alt+Space'}
   dofile('./SoundPrep - Install actions.lua')
-  assert(calls==50 and new_id==125,'Reinstall changed action identities')
+  assert(calls==48 and new_id==124,'Reinstall changed action identities')
   assert(registered['0:./Audition Macro.lua']==41 and registered['32063:./actions/Audition Macro - Play Stop.lua']==42,
     'Installer changed an existing legacy action registration')
   assert(shortcuts[41]=='Alt+A' and shortcuts[42]=='Alt+Space','Installer changed legacy shortcuts')

@@ -30,9 +30,8 @@ local ok,err=xpcall(function()
  local cached=I.prepare(r,snap,1,true,dir..'/fresh');assert(cached.target==fresh.target)
  snap.macro.source_transform.reverse=true;snap.macro.source_transform.rate=.5;snap.range={.2,.7}
  local staged=I.prepare(r,snap,1,false,dir..'/stage')
- local render=E.render;E.render=function()error('Prepared copy must not render again')end
- local copiedOK,copied=pcall(I.prepare,r,snap,1,false,dir..'/copy',dir..'/stage');E.render=render
- assert(copiedOK,copied);assert(copied.target~=staged.target and U.read(copied.target)==U.read(staged.target))
+ local copied=I.prepare(r,snap,1,false,dir..'/copy',dir..'/stage',function()error('Prepared copy must not render again')end)
+ assert(copied.target~=staged.target and U.read(copied.target)==U.read(staged.target))
  plans={fresh,cached,copied}
  -- Unrelated media with no peaks must remain outside the batch.
  assert(U.copy_file(file,dir..'/unrelated.wav'))

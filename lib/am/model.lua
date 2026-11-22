@@ -6,7 +6,7 @@ function M.macro(id,name)
     source_transform={reverse=false,pitch_semitones=0,rate=1,preserve_pitch=false},
     normalization={enabled=false,metric='lufs_m_max',target_lufs=M.DEFAULT_TARGET_LUFS,target_sones=M.DEFAULT_TARGET_SONES,reference_dbfs=-20,reference_spl_db=79,basis='source_raw',max_boost_db=18},
     output_gain_db=0,source_peak_guard={enabled=false,ceiling_dbtp=-1},
-    export={tail_seconds=1,normalize_final=false,true_peak_limit=false,ceiling_dbtp=-1}}
+    export={tail_seconds=1}}
 end
 function M.raw_settings()
   local raw=M.macro('raw','Raw')
@@ -53,7 +53,7 @@ function M.validate(bank)
     normalization(m.normalization)
     number(m.output_gain_db,-60,12,'Output gain')
     local p=m.source_peak_guard;boolean(p.enabled,'source peak guard');number(p.ceiling_dbtp,-12,0,'Source peak ceiling')
-    local e=m.export;number(e.tail_seconds,0,30,'Tail');boolean(e.normalize_final,'Export normalization');boolean(e.true_peak_limit,'Export limiter');number(e.ceiling_dbtp,-12,0,'Export ceiling')
+    number(m.export.tail_seconds,0,30,'Tail')
   end
   assert(type(bank.slots)=='table','Missing slot mapping')
   for k,id in pairs(bank.slots)do assert(k:match('^[1-9]$') and ids[id],'Invalid shortcut mapping')end

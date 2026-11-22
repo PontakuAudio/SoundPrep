@@ -39,7 +39,7 @@ Mic Selectの選択に合わせ、Media Explorerの波形も切り替わりま�
 
 D&Dはドラッグ開始時の選択を固定します。チャンネル選択とゲインだけなら、**元ファイルの1 Takeのまま**挿入します。単独ch・順方向の隣接ペア（5/6など）はTakeの **Channel mode** に直接設定します。離れたペア・逆順・3ch以上の選択はTake FXの **Macro Input Channels** へ自動設定します。3ch以上ではD&D先のトラック幅も必要数へ広げ、余った出力chは無音にします。どちらも選択したchだけが鳴り、元ファイルの全chを保持します。
 
-Macro FXやPitch／Rate／Reverseを使う場合は、Source + FX／Renderedの両方へ選択を反映します。Exportも同じ選択ch数を保持します。Take FXによる選択はPitch／Rateの後に行うため、変換順が異なるPreviewとの完全一致は保証しません。以前のドロップに保存したFXマッピングは変更しません。
+Macro FXやPitch／Rate／Reverseを使う場合は、Source + FX／Renderedの両方へ選択を反映します。Take FXによる選択はPitch／Rateの後に行うため、変換順が異なるPreviewとの完全一致は保証しません。以前のドロップに保存したFXマッピングは変更しません。
 
 この機能には新しいNative helperが必要です。開発ツリーでは `sh native/build.sh` でビルドし、REAPERを終了後に `sh tools/install_native.sh` で更新して、REAPERを起動し直してください。Windowsは更新したDLLが必要です。互換性はpreview revision 5、analysis revision 3、bar revision 6、waveform revision 4で判定します。任意ペアには `AuditionMacro/channels_v2`、3ch以上には `channels_v3` を初回利用時に自動配置します。既存プロジェクト用のv1／v2の内容は変更しません。
 

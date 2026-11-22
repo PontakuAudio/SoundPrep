@@ -76,7 +76,7 @@ SoundPrep 0.11.12には、Windows・macOSともにNative helper 0.11.10が同梱
 
 | Section | 登録される追加Actions |
 |---|---|
-| Media Explorer | Slot 0〜9、Play Stop、Replay、Stop、Reverse、AB、Analyse、Export、Edit、Quit |
+| Media Explorer | Slot 0〜9、Play Stop、Replay、Stop、Reverse、AB、Analyse、Edit、Quit |
 | Main | Diagnostics、Restore native preview、Render selected drops、Restore selected source FX、Offline inactive source FX |
 
 追加Actionsの登録後も、起動するのは `SoundPrep.lua` です。必要なLuaだけを、それぞれのSectionで個別に読み込むこともできます。

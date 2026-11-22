@@ -6,9 +6,9 @@ Media Explorerの **Edit…** から開く常設パネル。macOSはCocoa、Wind
 
 - **Sound**: 名前、Reverse、Pitch、Rate、Preserve Pitch、Output gain。
 - **Normalize**: LUFS MaxM／Zwicker Max／Zwicker P95、目標値、Max boost、原音Peak guard、校正値。操作バーのCustom…はこのタブを開く。
-- **Export options**: プリセットごとのTail、最終LUFS正規化、True peak limiter。
+- **Export options**: 全尺を保持するドロップのFX Tailを設定する。
 - **Manage**: 新規作成、複製、順序変更、FXチェーン取り込み、Action slot、削除。削除は同じプリセットのConfirm deleteで確定する。
-- **Tools**: 解析結果、再解析、選択したDropのレンダー、出力フォルダー選択、WAV書き出し、REAPERのRender設定。
+- **Tools**: 解析結果の確認、再解析、選択したドロップのレンダー。Source + FXを焼き込むには、プロジェクトでアイテムを選択して **Render selected drops** を使う。
 
 音の変更は試聴に反映され、パネルを閉じたり別のプリセットへ切り替えても保持する。Save presetはFXを含めて保存し、Quit時も各プリセットを保存する。RawはNormalizeとPeak guardを保存し、Reverse／Preserve Pitchは一時的な切替になる。App settingsは引き続き独立したSettings…パネルで変更する。
 
@@ -16,7 +16,7 @@ Media Explorerの **Edit…** から開く常設パネル。macOSはCocoa、Wind
 
 ## 実装と検証
 
-`lib/am/editor_panel.lua`が両OS共通の入力検証、下書き、保存・解析・書き出しを担当する。Nativeの各イベントにプリセットIDを添え、選択変更前の遅延イベントを新しいプリセットへ適用しない。不正な値は下書きへ格納する前に拒否する。入力中の値は定期状態更新で上書きせず、別プロジェクトでは編集を無効にして閉じる操作だけを維持する。
+`lib/am/editor_panel.lua`が両OS共通の入力検証、下書き、保存・解析・選択したドロップのレンダーを担当する。Nativeの各イベントにプリセットIDを添え、選択変更前の遅延イベントを新しいプリセットへ適用しない。不正な値は下書きへ格納する前に拒否する。入力中の値は定期状態更新で上書きせず、別プロジェクトでは編集を無効にして閉じる操作だけを維持する。
 
 `tests/editor_panel.lua`で下書き保持、入力検証、Raw制約、削除確認、各操作の接続を確認する。`native/test_bar.mm`と`native/windows/test_windows.cpp`は同じ`tests/native-editor-state.json`を使い、実際のCocoa／Win32コントロール、キーボード入力、フォーカス喪失後の維持、終了時の破棄を検証する。Windowsの実行テストはMSVC x64のCI対象。
 

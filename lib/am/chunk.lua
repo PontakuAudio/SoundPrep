@@ -34,6 +34,19 @@ function M.write_item(r,item,chunk)
     assert(ok and result,'Cannot write item FX state')
   else assert(r.SetItemStateChunk(item,chunk,false),'Cannot write item FX state')end
 end
+function M.restore_items(r,entries,project)
+  local first_error
+  local function restore(entry)
+    if not project or r.ValidatePtr2(project,entry.item,'MediaItem*')then
+      M.write_item(r,entry.item,entry.chunk)
+    end
+  end
+  for _,entry in ipairs(entries)do
+    local ok,err=pcall(restore,entry)
+    if not ok then first_error=first_error or tostring(err)end
+  end
+  return first_error
+end
 function M.block(text,tag)
   local depth,start,finish=0,nil,nil
   local pos=1

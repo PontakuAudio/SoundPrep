@@ -1,5 +1,5 @@
 local A=require('am.analysis_policy');local L=require('am.loudness');local M=require('am.model')
-local U=require('am.util');local J=require('am.json');local E=require('am.export')
+local U=require('am.util');local J=require('am.json')
 local bank=M.defaults();assert(bank.raw.normalization.metric=='lufs_m_max')
 for _,normalization in ipairs{bank.raw.normalization,bank.macros[1].normalization}do
   normalization.target_sones=nil;normalization.reference_dbfs=nil;normalization.reference_spl_db=nil
@@ -102,9 +102,3 @@ local ok,err=xpcall(function()
   cache:request(identity,true,target);cache:close();assert(cancelled[cache.active.native_job_id])
 end,debug.traceback)
 U.read,U.write,os.remove=read,write,remove;assert(ok,err)
-
--- Export's optional second normalization must never interpret a sones target
--- as a REAPER LUFS target; the rejection precedes filesystem/project changes.
-macro.export.normalize_final=true
-local succeeded,error=pcall(E.render,{}, {macro=macro},'/exports','test',false)
-assert(not succeeded and tostring(error):find('Final export normalization supports LUFS only',1,true))

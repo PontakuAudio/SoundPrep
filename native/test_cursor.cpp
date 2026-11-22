@@ -1,5 +1,6 @@
 #include "cursor.cpp"
 #include <cassert>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -17,8 +18,41 @@ extern "C" int AMPreviewWavePosition(char* path,int size,double* f,double* p,dou
 }
 static int peak_reads=0,peak_opens=0,peak_closes=0;
 static double peak_source_length=12;
+static int source_rate=48000,source_channels=6;
+static const char* fast_peaks_setting="0"; // Exercise the original path in the existing regressions.
+static const auto main_thread=std::this_thread::get_id();
+static int main_sample_reads=0,fail_from_frame=-1;
+static std::atomic<int> worker_sample_reads{0};
+static std::atomic<bool> hold_second_block{false},worker_waiting{false};
+static double sample_value(int frame,int channel) {
+  return (frame%1021-510+32*channel)/1024.0;
+}
+template<class Predicate> static void wait_for_audio(Predicate ready) {
+  const auto deadline=PeakClock::now()+std::chrono::seconds(5);
+  do {
+    if(ready())return;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  } while(PeakClock::now()<deadline);
+  std::cerr<<"Timed out waiting for the mock peak decoder\n";
+  std::abort();
+}
 static int build_steps=0,build_finishes=0,build_steps_required=4;
 static std::chrono::milliseconds build_step_delay{0};
+static void check_completed_peak_build(const nlohmann::json& before,const nlohmann::json& after,
+    std::int64_t expected_samples,double min_gap_ms=0) {
+  const auto& last=after.at("last");
+  assert(last.at("mode")=="peaksbuild-fallback");
+  assert(last.at("length_s")==peak_source_length && last.at("channels")==source_channels && last.at("sample_rate_hz")==source_rate);
+  assert(last.at("samples").is_number_integer() && last.at("samples")==expected_samples);
+  assert(last.at("started_unix_ms").get<std::int64_t>()>0 && last.at("run_calls")==build_steps_required);
+  const double run_ms=last.at("run_ms"),total_ms=last.at("total_ms");
+  assert(run_ms>=build_steps_required*build_step_delay.count()-1 && total_ms>=run_ms+min_gap_ms);
+  const double throughput=last.at("samples_per_second");
+  assert(std::abs(throughput*total_ms/1000-expected_samples)<expected_samples*1e-9);
+  assert(after.at("builds_completed")==before.at("builds_completed").get<int>()+1);
+  assert(std::abs(after.at("total_run_ms").get<double>()-before.at("total_run_ms").get<double>()-run_ms)<1e-6);
+  assert(after.at("slowest_build_ms")==std::max(before.at("slowest_build_ms").get<double>(),total_ms));
+}
 static std::vector<int> painted_channels;
 static std::vector<std::string> painted_labels;
 static int requested_font_height=0;
@@ -57,16 +91,42 @@ void destroy(){assert(!displayed);}
 #endif
 extern "C" bool AMDrawWaveLabel(void*,const char*,int,int,int,int,unsigned int,unsigned int,int,void*(*)(const char*)){return false;}
 class Peaks final:public PCM_source {
+  const double duration=peak_source_length;
+  const int rate=source_rate,channels=source_channels;
+  const int failure=fail_from_frame;
+  std::atomic<int> reader{0};
 public:
   PCM_source* Duplicate()override{return new Peaks;}
   bool IsAvailable()override{return true;}
   const char* GetType()override{return "WAVE";}
   bool SetFileName(const char*)override{return false;}
-  int GetNumChannels()override{return 6;}
-  double GetSampleRate()override{return 48000;}
-  double GetLength()override{return peak_source_length;}
+  int GetNumChannels()override{return channels;}
+  double GetSampleRate()override{return rate;}
+  double GetLength()override{return duration;}
   int PropertiesWindow(HWND)override{return 0;}
-  void GetSamples(PCM_source_transfer_t*)override{}
+  void GetSamples(PCM_source_transfer_t* t)override{
+    assert(t->samples && t->nch==channels && t->samplerate==rate && t->length>0);
+    const int first=static_cast<int>(std::llround(t->time_s*t->samplerate));
+    assert(first>=0 && first+t->length<=std::llround(duration*t->samplerate));
+    const bool main=std::this_thread::get_id()==main_thread;
+    const int owner=main?1:2,previous=reader.exchange(owner);
+    assert(previous==0 || previous==owner);
+    if(main)++main_sample_reads;
+    else {
+      ++worker_sample_reads;
+      const int block=ampeaks::block_frames(channels);
+      assert(first%block==0 && t->length==std::min<long long>(block,std::llround(duration*t->samplerate)-first));
+      if(first==block && hold_second_block) {
+        worker_waiting=true;
+        wait_for_audio([]{return !hold_second_block.load();});
+        worker_waiting=false;
+      }
+    }
+    if(failure>=0 && first>=failure){t->samples_out=0;return;}
+    for(int i=0;i<t->length;++i)for(int ch=0;ch<t->nch;++ch)
+      t->samples[i*t->nch+ch]=sample_value(first+i,ch);
+    t->samples_out=t->length;
+  }
   void GetPeakInfo(PCM_source_peaktransfer_t*)override{}
   void SaveState(ProjectStateContext*)override{}
   int LoadState(const char*,ProjectStateContext*)override{return 0;}
@@ -80,6 +140,10 @@ public:
   void PeaksBuild_Finish()override{++build_finishes;}
 };
 static void* api(const char* name) {
+  if(!std::strcmp(name,"GetExtState"))return reinterpret_cast<void*>(+[](const char* section,const char* key){
+    assert(std::this_thread::get_id()==main_thread && !std::strcmp(section,"SoundPrep") && !std::strcmp(key,"fast_peaks"));
+    return fast_peaks_setting;
+  });
   if(!std::strcmp(name,"BR_Win32_SendMessage"))return reinterpret_cast<void*>(+[](void*,unsigned message,std::uintptr_t wp,std::intptr_t lp)->std::intptr_t{
     assert(message==0x5 && wp==0 && lp==((100<<16)|800));++viewport_syncs;
     if(stale_scroll){scrollbar_at=200;scrollbar_page=400;scrollbar_max=800;stale_scroll=false;}
@@ -94,8 +158,12 @@ static void* api(const char* name) {
   if(!std::strcmp(name,"LICE__SetFromHFont"))return reinterpret_cast<void*>(+[](void*,void*,int flags){assert(flags==0);});
   if(!std::strcmp(name,"LICE__SetTextColor") || !std::strcmp(name,"LICE__SetBkColor"))return reinterpret_cast<void*>(+[](void*,unsigned int)->unsigned int{return 0;});
   if(!std::strcmp(name,"JS_LICE_DrawText"))return reinterpret_cast<void*>(+[](void*,void*,const char* text,int size,int x,int y,int right,int bottom){assert(x==static_cast<int>(std::lround(8*label_dpi/96.0)) && right==allocated_width-x && bottom>y);painted_labels.emplace_back(text,size);return 12;});
-  if(!std::strcmp(name,"PCM_Source_CreateFromFile"))return reinterpret_cast<void*>(+[](const char*)->PCM_source*{++peak_opens;return new Peaks;});
-  if(!std::strcmp(name,"PCM_Source_Destroy"))return reinterpret_cast<void*>(+[](PCM_source* src){++peak_closes;delete src;});
+  if(!std::strcmp(name,"PCM_Source_CreateFromFile"))return reinterpret_cast<void*>(+[](const char*)->PCM_source*{
+    assert(std::this_thread::get_id()==main_thread);++peak_opens;return new Peaks;
+  });
+  if(!std::strcmp(name,"PCM_Source_Destroy"))return reinterpret_cast<void*>(+[](PCM_source* src){
+    assert(std::this_thread::get_id()==main_thread && src);++peak_closes;delete src;
+  });
   if(!std::strcmp(name,"PCM_Source_GetPeaks"))return reinterpret_cast<void*>(+[](PCM_source*,double rate,double start,int channels,int count,int,double* values){
     ++peak_reads;assert(rate>0 && start>=0 && channels==6);
     for(int i=0;i<count;++i)for(int c=0;c<channels;++c){values[i*channels+c]=(c+1)*.1;values[(count+i)*channels+c]=-(c+1)*.1;}
@@ -160,6 +228,293 @@ static void test_font_raster() {
   SelectObject(dc,old_bitmap);DeleteObject(bitmap);DeleteDC(dc);
 }
 #endif
+
+static ampeaks::PeakPair expected_range(int first,int end,int channel) {
+  float low=1,high=-1;
+  for(int frame=first;frame<end;++frame) {
+    const auto value=static_cast<float>(sample_value(frame,channel));
+    low=std::min(low,value);
+    high=std::max(high,value);
+  }
+  return {low,high};
+}
+static void check_bins(const PeakStore& store,int first_bin,int end_bin) {
+  for(int bin=first_bin;bin<end_bin;++bin)for(int ch=0;ch<6;++ch) {
+    const auto expected=expected_range(bin*256,std::min((bin+1)*256,store.frames),ch);
+    const auto actual=store.peaks[bin*6+ch];
+    assert(actual.low==expected.low && actual.high==expected.high);
+  }
+}
+static void paint_selected(int width,double start=0,double span=1) {
+  assert(paint_peaks(peak_path.c_str(),width,100,start,span,0,0,-999999,wave_style()));
+}
+static void check_column(int width,int column,int first,int end) {
+  for(int ch=0;ch<6;++ch) {
+    const auto expected=expected_range(first,end,ch);
+    assert(peak_values[column*6+ch]==expected.high && peak_values[(width+column)*6+ch]==expected.low);
+  }
+}
+static void check_self_stats(const char* mode,int frames) {
+  const auto diag=nlohmann::json::parse(am_peak_build_diagnostics());
+  const auto& last=diag.at("last");
+  assert(diag.at("mode")==mode && last.at("mode")==mode && last.at("samples")==frames*6);
+  assert(last.at("run_calls")==0 && last.at("run_ms")==0 && last.at("started_unix_ms").get<std::int64_t>()>0);
+  const double ms=diag.at("self_build_ms"),per_second=diag.at("self_samples_per_second");
+  assert(ms>0 && last.at("total_ms").get<double>()>=ms);
+  assert(std::abs(ms*per_second/1000-frames*6)<1e-5);
+}
+
+static void test_inline_store() {
+  assert(AMCursorAttach(&storage[0],&storage[1],api));
+  fast_peaks_setting="";
+  constexpr int frames=32785; // Partial final bin, even with only one channel selected.
+  peak_source_length=frames/48000.0;
+  const int opens=peak_opens,reads=main_sample_reads,finishes=build_finishes;
+  const auto hits=cache_hits,misses=cache_misses;
+  assert(AMWaveSetChannels("/a.wav",3,3,"v1"));
+  assert(peak_store && peak_store->ready_frames==frames && peak_opens==opens+1);
+  assert(main_sample_reads==reads+1 && build_finishes==finishes && worker_sample_reads==0);
+  assert(peak_store->peaks.size()==129*6);
+  check_bins(*peak_store,0,129);
+  check_self_stats("inline",frames);
+
+  paint_selected(64);
+  assert(main_sample_reads==reads+1 && peak_count==64);
+  // Pixel zero overlaps bins 0, 1 and the first frame of bin 2.
+  check_column(64,0,0,768);
+  paint_selected(64,.125,1./64);
+  assert(main_sample_reads==reads+2 && peak_count==64);
+  check_column(64,0,4098,4107);
+
+  auto* original=peak_store.get();
+  assert(AMWaveSetChannelSubset("/a.wav","2,4,6","v1") && peak_store.get()==original);
+  paint_selected(64,.125,1./64);
+  assert(main_sample_reads==reads+2 && peak_opens==opens+1);
+  assert(cache_hits==hits && cache_misses==misses+1);
+  assert(AMWaveSetChannels("/b.wav",1,1,"v1"));
+  assert(AMWaveSetChannels("",0,0,""));
+  AMCursorDetach();
+  assert(AMCursorAttach(&storage[0],&storage[1],api));
+  assert(AMWaveSetChannels("/a.wav",6,6,"v1") && peak_store.get()==original);
+  assert(main_sample_reads==reads+3 && peak_opens==opens+2);
+  const auto cached=nlohmann::json::parse(am_peak_build_diagnostics());
+  assert(cached.at("cache_hits")==hits+1 && cached.at("cache_misses")==misses+2);
+  assert(cached.at("last_cache_lookup")=="hit" && cached.at("mode")=="cache");
+  assert(AMWaveSetChannels("/a.wav",6,6,"v2") && peak_store.get()!=original);
+  assert(cache_misses==misses+3);
+  assert(AMWaveSetChannelNames("/a.wav","v2",R"(["","","","","","Room"])"));
+  const auto builds_before_toggle=peak_builds_completed;
+  const int peak_reads_before=peak_reads,sample_reads_before=main_sample_reads;
+  fast_peaks_setting="0";
+  assert(AMWaveSetChannels("/a.wav",6,6,"v2") && !peak_store && build_finishes==finishes+1);
+  painted_labels.clear();
+  paint_selected(64);
+  assert(painted_labels==std::vector<std::string>({"Mono ch 6  Room"}));
+  assert(peak_reads==peak_reads_before+1 && main_sample_reads==sample_reads_before);
+  const auto ab=nlohmann::json::parse(am_peak_build_diagnostics());
+  assert(ab.at("last_cache_lookup")=="bypass" && ab.at("cache_misses")==misses+3);
+  assert(ab.at("last")==ab.at("last_peaksbuild") && ab.at("last_store").at("mode")=="inline");
+  for(const char* key:{"last_store","last_peaksbuild"})
+    assert(ab.at(key).at("path")=="/a.wav" && ab.at(key).at("stamp")=="v2");
+  fast_peaks_setting="1";
+  const int opens_before=peak_opens;
+  assert(AMWaveSetChannels("/a.wav",6,6,"v2") && peak_store && peak_opens==opens_before);
+  assert(peak_builds_completed==builds_before_toggle+1);
+  const auto reused=nlohmann::json::parse(am_peak_build_diagnostics());
+  assert(reused.at("last")==ab.at("last") && reused.at("last_store")==ab.at("last_store"));
+
+  fail_from_frame=0;
+  const int failed_reads=peak_reads;
+  assert(AMWaveSetChannels("/broken.wav",1,1,"v1") && !peak_store);
+  paint_selected(64);
+  assert(main_sample_reads==sample_reads_before+1 && build_finishes==finishes+2 && peak_reads==failed_reads+1);
+  fail_from_frame=-1;
+  AMCursorDetach();
+  am_close_peak_sources();
+  assert(peak_closes==peak_opens);
+}
+
+static void test_worker_store() {
+  assert(AMCursorAttach(&storage[0],&storage[1],api));
+  constexpr int frames=4*262144;
+  peak_source_length=frames/48000.0;
+  const int opens=peak_opens,reads=main_sample_reads,old_peak_reads=peak_reads;
+  hold_second_block=true;
+  assert(AMWaveSetChannels("/test.wav",1,1,"worker"));
+  wait_for_audio([]{return worker_waiting.load();});
+  assert(peak_store && peak_store->ready_frames==262144 && peak_opens==opens+2);
+  assert(AMWaveSetChannels("/test.wav",6,6,"worker") && peak_opens==opens+2);
+  painted_labels.clear();
+  paint_selected(800);
+  assert(peak_count==200 && painted_labels==std::vector<std::string>({"Mono ch 6 ..."}));
+  check_bins(*peak_store,1023,1024);
+  paint_selected(800,.5,1./128); // Entire zoomed viewport is still unavailable.
+  assert(peak_count==0 && main_sample_reads==reads);
+  paint_selected(800,.125,1./128);
+  assert(peak_count==800 && main_sample_reads==reads+1);
+  check_column(800,0,frames/8,frames/8+11);
+  paint_selected(800);
+  assert(peak_count==200);
+
+  hold_second_block=false;
+  wait_for_audio([]{return peak_store->ready_frames.load()==peak_store->frames;});
+  check_self_stats("worker",frames);
+  painted_labels.clear();
+  paint_selected(800);
+  assert(peak_count==800 && painted_labels==std::vector<std::string>({"Mono ch 6"}));
+  assert(worker_sample_reads==4 && peak_reads==old_peak_reads);
+  check_bins(*peak_store,1024,1025);
+  check_bins(*peak_store,4095,4096);
+  // 128 frames per pixel, but over four million interleaved samples.
+  peak_values.resize(8192*6*2);
+  assert(read_store_columns(*peak_store,frames,8192,0,1,peak_values)==8192);
+  check_column(8192,0,0,256);
+  assert(main_sample_reads==reads+1);
+  const auto builds=peak_builds_completed;
+  assert(AMWaveSetChannels("",0,0,"") && AMWaveSetChannels("/test.wav",2,2,"worker"));
+  assert(peak_opens==opens+2 && peak_builds_completed==builds);
+
+  // Cancel during GetSamples and attach a different stamp before it returns.
+  hold_second_block=true;
+  assert(AMWaveSetChannels("/test.wav",1,1,"cancel"));
+  wait_for_audio([]{return worker_waiting.load();});
+  peak_source_length=(frames+17)/48000.0;
+  assert(AMWaveSetChannels("/test.wav",1,1,"replacement"));
+  assert(peak_store->ready_frames==0);
+  hold_second_block=false;
+  wait_for_audio([]{
+    tick();
+    return peak_store && peak_store->ready_frames.load()==peak_store->frames;
+  });
+  check_self_stats("worker",frames+17);
+  check_bins(*peak_store,4096,4097);
+  assert(peak_builds_completed==builds+1);
+  assert(worker_sample_reads==4+2+5);
+
+  fail_from_frame=262144;
+  const int finishes=build_finishes;
+  assert(AMWaveSetChannels("/test.wav",1,1,"failed-worker"));
+  wait_for_audio([]{tick();return !peak_store;});
+  assert(build_finishes==finishes+1 && peak_reads>old_peak_reads && peak_count==800);
+  assert(nlohmann::json::parse(am_peak_build_diagnostics()).at("last").at("mode")=="peaksbuild-fallback");
+  fail_from_frame=-1;
+  AMCursorDetach();
+  am_close_peak_sources();
+  assert(peak_closes==peak_opens);
+}
+
+static void test_store_eviction() {
+  assert(AMCursorAttach(&storage[0],&storage[1],api));
+  peak_source_length=257/48000.0;
+  for(int i=0;i<8;++i)assert(AMWaveSetChannels(std::to_string(i).c_str(),1,1,"v1"));
+  const int opens=peak_opens;
+  assert(AMWaveSetChannels("0",1,1,"v1") && peak_opens==opens);
+  assert(AMWaveSetChannels("8",1,1,"v1") && peak_cache.size()==8);
+  assert(AMWaveSetChannels("0",1,1,"v1") && peak_opens==opens+1);
+  assert(AMWaveSetChannels("1",1,1,"v1") && peak_opens==opens+2);
+  // A file without a usable stamp must be reopened on a later selection.
+  assert(AMWaveSetChannels("/unstamped.wav",1,1,""));
+  assert(AMWaveSetChannels("",0,0,""));
+  assert(AMWaveSetChannels("/unstamped.wav",1,1,"") && peak_opens==opens+4);
+  AMCursorDetach();
+  am_close_peak_sources();
+  assert(peak_closes==peak_opens);
+}
+
+// Model PCM_Source_GetPeaks independently by scanning the fixture's original
+// PCM at the requested start time and peak rate, in REAPER's two-plane layout.
+static int fixture_peaks(PCM_source* source,double rate,double start,int channels,int width,int extra,double* values) {
+  ++peak_reads;
+  assert(extra==0 && channels==source->GetNumChannels());
+  const double hz=source->GetSampleRate(),first=start*hz,step=hz/rate;
+  const int frames=static_cast<int>(std::llround(source->GetLength()*hz));
+  int column=0;
+  for(;column<width;++column) {
+    const int begin=static_cast<int>(std::floor(first+column*step));
+    if(begin>=frames)break;
+    const int end=std::min(frames,static_cast<int>(std::ceil(first+(column+1)*step)));
+    for(int ch=0;ch<channels;++ch) {
+      double low=sample_value(begin,ch),high=low;
+      for(int i=begin+1;i<end;++i) {
+        const double value=sample_value(i,ch);
+        low=std::min(low,value);
+        high=std::max(high,value);
+      }
+      values[column*channels+ch]=high;
+      values[(width+column)*channels+ch]=low;
+    }
+  }
+  return column;
+}
+
+static void test_backend_agreement() {
+  assert(AMCursorAttach(&storage[0],&storage[1],+[](const char* name)->void*{
+    return !std::strcmp(name,"PCM_Source_GetPeaks")?reinterpret_cast<void*>(fixture_peaks):api(name);
+  }));
+  constexpr int frames=32768,width=64;
+  peak_source_length=frames/48000.0;
+  const int before=peak_reads;
+  fast_peaks_setting="1";
+  assert(AMWaveSetChannelSubset("/test.wav","1,3,5","parity") && peak_store);
+  const struct {double start,span;int columns;} views[]={
+    {0,1,64},                              // Two full base bins per pixel.
+    {.25,.5,64},                           // Scrolled, one base bin per pixel.
+    {513.5/frames,1./64,64},               // Sub-bin pixels, fractional edges.
+    {(frames-65.5)/frames,1./64,9}         // Last partial pixel before EOF.
+  };
+  std::vector<std::vector<double>> store_values;
+  for(const auto& view:views) {
+    paint_selected(width,view.start,view.span);
+    assert(peak_count==view.columns);
+    store_values.push_back(peak_values);
+  }
+  assert(peak_reads==before);
+  fast_peaks_setting="0";
+  assert(AMWaveSetChannelSubset("/test.wav","1,3,5","parity") && !peak_store);
+  const int reads=main_sample_reads;
+  for(size_t i=0;i<store_values.size();++i) {
+    paint_selected(width,views[i].start,views[i].span);
+    assert(peak_count==views[i].columns && peak_values==store_values[i]);
+  }
+  assert(peak_reads==before+4 && main_sample_reads==reads);
+  fast_peaks_setting="";
+  AMCursorDetach();
+  am_close_peak_sources();
+}
+
+static void test_sample_budgets_and_deselection() {
+  static_assert(ampeaks::block_frames(2)==262144 && ampeaks::block_frames(128)==16384);
+  assert(AMCursorAttach(&storage[0],&storage[1],api));
+  source_channels=2;
+  peak_source_length=20;
+  assert(AMWaveSetChannels("/sfx.wav",1,1,"48k"));
+  assert(peak_store && peak_store->ready_frames==960000 && last_store_build.samples==1'920'000);
+  source_rate=192000;
+  hold_second_block=true;
+  const int reads=worker_sample_reads;
+  assert(AMWaveSetChannels("/sfx.wav",1,1,"192k"));
+  wait_for_audio([]{return worker_waiting.load();});
+  assert(peak_store && peak_store->ready_frames==262144 && current_peak_build.samples==7'680'000);
+  // A queued replacement loses its selection before the private decoder is free.
+  assert(AMWaveSetChannels("/transient.wav",1,1,"192k") && peak_store->ready_frames==0);
+  assert(AMWaveSetChannels("",0,0,""));
+  const int opens=peak_opens;
+  hold_second_block=false;
+  wait_for_audio([]{tick();return !worker_store;});
+  tick();
+  assert(!peak_source && !peak_store && peak_opens==opens && worker_sample_reads==reads+2);
+  assert(peak_cache.size()==1 && peak_cache.front()->stamp=="48k");
+
+  // Fewer than 200M frames, but over 200M samples across this stereo file.
+  peak_source_length=600;
+  assert(AMWaveSetChannels("/large.wav",1,1,"192k") && !peak_store);
+  assert(last_reaper_build.samples==230'400'000 && worker_sample_reads==reads+2);
+  AMCursorDetach();
+  am_close_peak_sources();
+  assert(peak_closes==peak_opens);
+  source_rate=48000;source_channels=6;
+}
+
 int main() {
 #ifdef __APPLE__
   const struct {const char* ini;const char* raw;bool hidden;} renderers[]={
@@ -228,8 +583,12 @@ int main() {
   // A short source finishes at attach even when its build exceeds the timed burst.
   fraction=0;
   build_steps_required=12;build_step_delay=std::chrono::milliseconds(30);
+  const auto initial=nlohmann::json::parse(am_peak_build_diagnostics());
+  assert(initial.at("last").is_null() && initial.at("builds_completed")==0);
+  assert(initial.at("total_run_ms")==0 && initial.at("slowest_build_ms")==0);
   assert(AMWaveSetChannels("/test.wav",5,2,"v1"));
   assert(!peak_building && build_steps==build_steps_required && build_finishes==1);
+  check_completed_peak_build(initial,nlohmann::json::parse(am_peak_build_diagnostics()),3'456'000);
   build_steps_required=4;build_step_delay=std::chrono::milliseconds(0);
   tick();assert(peak_linked && peak_cursor==0 && peak_count==800 && peak_reads==1 && peak_opens==1);
   assert(painted_labels==std::vector<std::string>({"L ch 5","R ch 2"}));
@@ -361,18 +720,25 @@ int main() {
   window_dpi=saved_dpi;AMCursorDetach();
   assert(fonts_created==fonts_destroyed && gdi_created==gdi_destroyed);
 #endif
-  // A 60 s, six-channel source needs a burst and more ticks, even with one lane selected.
+  // At 192 kHz even 15 s of six-channel audio needs a burst and more ticks.
   // Peak building still advances when audio snapshots are busy.
   // Missing optional blit support retains the complete-paint fallback.
   assert(AMCursorAttach(&storage[0],&storage[1],+[](const char* name)->void*{
     return !std::strcmp(name,"JS_LICE_Blit")?nullptr:api(name);
   }));
-  state=-1;peak_source_length=60;
+  state=-1;peak_source_length=15;source_rate=192000;
   build_steps_required=12;build_step_delay=std::chrono::milliseconds(30);
   const int finishes_before=build_finishes;
+  const auto before_burst=nlohmann::json::parse(am_peak_build_diagnostics());
+  assert(before_burst.at("builds_completed")==finishes_before);
   assert(AMWaveSetChannelSubset("/test.wav","1","busy"));
   const int steps_after_attach=build_steps;
   assert(peak_building && steps_after_attach>1 && steps_after_attach<build_steps_required-1 && build_finishes==finishes_before);
+  const auto gap_start=std::chrono::steady_clock::now();
+  const auto during=nlohmann::json::parse(am_peak_build_diagnostics());
+  assert(during.at("last")==before_burst.at("last") && during.at("builds_completed")==finishes_before);
+  assert(during.at("total_run_ms")>before_burst.at("total_run_ms"));
+  const double gap_ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-gap_start).count();
   painted_labels.clear();tick();
   assert(peak_building && build_steps==steps_after_attach+1 && build_finishes==finishes_before);
   assert(painted_labels==std::vector<std::string>({"Mono ch 1 ..."}));
@@ -381,11 +747,26 @@ int main() {
   assert(peak_building && build_steps==build_steps_required-1 && build_finishes==finishes_before);
   reads=peak_reads;painted_labels.clear();tick();
   assert(!peak_building && build_steps==build_steps_required && build_finishes==finishes_before+1 && peak_reads==reads+1);
+  const auto completed=nlohmann::json::parse(am_peak_build_diagnostics());
+  check_completed_peak_build(before_burst,completed,17'280'000,gap_ms);
   assert(painted_labels==std::vector<std::string>({"Mono ch 1"}));
   assert(peak_linked && peak_count>0 && !cursor_underlay && last_fraction<0);
   state=1;fraction=.2;tick();const auto fallback_redraws=peak_repaints;
   fraction=.4;tick();assert(peak_repaints==fallback_redraws+1);
+  // The sample count includes every source channel and can exceed 32 bits.
+  peak_source_length=18000;source_rate=48000;build_steps_required=1;build_step_delay=std::chrono::milliseconds(0);
+  fast_peaks_setting=""; // Also verify the self-build sanity cap.
+  assert(AMWaveSetChannelSubset("/test.wav","1","long"));
+  const auto long_build=nlohmann::json::parse(am_peak_build_diagnostics());
+  assert(long_build.at("last").at("samples")==5'184'000'000LL);
+  assert(long_build.at("mode")=="peaksbuild-fallback" && main_sample_reads==0 && worker_sample_reads==0);
   AMCursorDetach();assert(fonts_created==fonts_destroyed && gdi_created==gdi_destroyed);
+  assert(nlohmann::json::parse(am_peak_build_diagnostics())==long_build);
+  test_inline_store();
+  test_worker_store();
+  test_backend_agreement();
+  test_sample_budgets_and_deselection();
+  test_store_eviction();
   theme.clear();assert(wave_style().background==static_cast<int>(0xffcccccc));
   assert(wave_style().selection_mode==0x26600);
 #ifdef __APPLE__
@@ -402,13 +783,19 @@ int main() {
   amoverlay::active=false;tick();assert(!amoverlay::displayed);
   amoverlay::active=true;tick();assert(amoverlay::displayed==bitmap);
   assert(AMWaveSetChannels("/test.wav",1,1,"overlay"));tick();
-  assert(peak_linked && amoverlay::displayed==peak_bitmap);
+  assert(peak_store && peak_linked && amoverlay::displayed==peak_bitmap);
+  file="/different.wav";native_selection=128;tick();
+  assert(amoverlay::displayed==peak_bitmap && peak_a==0 && peak_b==0 && peak_cursor==-999999);
+  file="/test.wav";tick();
+  assert(peak_a==.25 && peak_b==.75 && peak_cursor>=0);
+  native_selection=0;
   AMCursorSuspend(true);assert(!amoverlay::displayed);
   tick();assert(!amoverlay::displayed);
   AMCursorSuspend(false);tick();assert(amoverlay::displayed==peak_bitmap);
   exists=false;tick();assert(!amoverlay::displayed);
   exists=true;tick();assert(amoverlay::displayed==peak_bitmap);
   AMCursorDetach();assert(!amoverlay::displayed && paints==paints_before_overlay);
+  am_close_peak_sources();
 #endif
   std::cout<<"PASS: cursor mapping, unchanged-frame budget, clock ownership, pause, hidden/stale sources, detach\n";
 }

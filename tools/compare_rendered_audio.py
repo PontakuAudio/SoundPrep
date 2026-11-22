@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare all seven WAV fixtures from two real REAPER direct acceptance runs.
+"""Compare the WAV fixtures from two real REAPER direct acceptance runs.
 
 Require identical PCM format, length and every sample; ignore WAV metadata.
 Missing fixtures and mismatches fail. No automatic tolerance or resampling.
@@ -10,8 +10,7 @@ import json
 from pathlib import Path
 import wave
 
-FIXTURES = ('direct1.wav', 'direct2.wav', 'direct3.wav', 'raw.wav',
-            'reference1.wav', 'reference2.wav', 'reference3.wav')
+FIXTURES = ('direct1.wav', 'direct2.wav', 'direct3.wav', 'raw.wav')
 
 
 def compare(before, after):
@@ -45,7 +44,7 @@ def main():
     result = compare(args.before, args.after)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + '\n')
-    print(result['status'] + ': seven real-render PCM fixtures')
+    print(f"{result['status']}: {len(FIXTURES)} real-render PCM fixtures")
     if result['status'] != 'PASS':
         raise SystemExit(1)
 

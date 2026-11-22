@@ -66,6 +66,19 @@ test('Unsupported schema and stale shortcut are rejected',function()
   local b=M.defaults();b.schema_version=2;assert(not pcall(M.validate,b))
   b=M.defaults();b.slots['1']='missing';assert(not pcall(M.validate,b))
 end)
+test('Macro export defaults to a tail and loads legacy settings without a rewrite',function()
+  local b=M.defaults();local export=b.macros[1].export
+  assert(U.equal(export,{tail_seconds=1}))
+  export.tail_seconds=31;assert(not pcall(M.validate,b))
+  export.tail_seconds=2.5;export.normalize_final=true;export.true_peak_limit=true;export.ceiling_dbtp=-3
+  local path=os.tmpname();local saved=J.encode(b)
+  local ok,err=xpcall(function()
+    assert(U.write(path,saved))
+    local loaded=assert(M.load(path))
+    assert(loaded.macros[1].export.tail_seconds==2.5 and U.read(path)==saved)
+  end,debug.traceback)
+  os.remove(path);assert(ok,err)
+end)
 test('Calibrated factory loudness targets retain explicitly saved presets and old targets',function()
   local b=M.defaults()
   for _,m in ipairs{M.effective(b,nil),M.effective(b,'heavy'),M.macro('new','New')}do
@@ -168,6 +181,8 @@ test('Prepared recipes reuse full handles and invalidate crop, FX, transform and
     range={1,3},source_gain_db=0,fade_ms=5,chain='SHOW -1\n',created_at='first'}
   local function key(snapshot,handles)return select(3,Insert.recipe(snapshot,10,handles))end
   local full,crop=key(s,true),key(s,false)
+  local legacy=U.copy(s);legacy.macro.export.normalize_final=true;legacy.macro.export.true_peak_limit=true;legacy.macro.export.ceiling_dbtp=-3
+  assert(key(legacy,true)==full and key(legacy,false)==crop)
   s.created_at='second';assert(key(s,true)==full)
   s.range={2,5};assert(key(s,true)==full and key(s,false)~=crop)
   for _,change in ipairs{
@@ -265,7 +280,7 @@ test('Warm switching changes only two branches and reconciles bypass policy',fun
 end)
 test('Deleted and failed Macro tracks release ownership and bounded PDC state',function()dofile('tests/bank_lifecycle.lua')end)
 test('Preview channel routing preserves all owned branches without changing the Master or reloading FX',function()dofile('tests/bank_channels.lua')end)
-test('Export and insertion release unassigned PCM sources on every reported allocation failure',function()dofile('tests/source_ownership.lua')end)
+test('Track population and insertion release unassigned PCM sources on every reported allocation failure',function()dofile('tests/source_ownership.lua')end)
 test('Live PDC stays out of saved/rendered chains without touching plugin payload',function()
   local C=require('am.chunk')
   local body='SHOW -1\nPDC_OPTIONS 3\n<JS test\nPDC_OPTIONS 42\n>\n'
@@ -352,7 +367,7 @@ test('Native seek-step size uses client pixels independently of scrollbar units'
   local explorer=setmetatable({r=r,control=function()return {}end},require('am.media_explorer'))
   assert(explorer:seek_step(12)==.0375)
 end)
-test('Deferred drops preserve item edits, skip removed items and roll back failed renders',function()dofile('tests/drop_pending.lua')end)
+test('Deferred drops preserve edits and skip removed items, and failed drop restores still close undo blocks',function()dofile('tests/drop_pending.lua')end)
 test('Raw and Item Volume drops preserve native items; signal processing alone renders or defers',function()dofile('tests/drop_playback.lua')end)
 test('Range audition and completed-drop transport regressions',function()dofile('tests/audition_gestures.lua')end)
 test('Native launcher keeps panels and edits across drag waits and closes on startup failure',function()dofile('tests/launcher_lifecycle.lua')end)

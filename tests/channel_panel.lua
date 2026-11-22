@@ -34,7 +34,8 @@ local csv=Selection.csv;Selection.csv=function(...)csvs=csvs+1;return csv(...)en
 r.AM_WaveSetChannels=function()end
 r.AM_WaveSetChannelSubset=function(...)subset={...};subsets=subsets+1;return not fail_subset end
 r.AM_WaveSetChannelNames=function(path,stamp,json)
-  assert(path==app.path and stamp=='100:'..app.identity.mtime);labels=J.decode(json);names=names+1;return true
+  assert(path==(app.path or '') and stamp==(app.identity and '100:'..app.identity.mtime or ''))
+  labels=J.decode(json);names=names+1;return true
 end
 local wave='wave';local explorer=Explorer.new(r);app.explorer=explorer;explorer.native_transport='window'
 explorer.control=function(_,id)return id==1046 and wave or 'clock'end
@@ -53,6 +54,15 @@ assert(subsets==4 and names==4,'The new waveform did not receive its initial cha
 app.identity.mtime=2;fail_subset=true;App.sync_channel_waveform(app)
 fail_subset=false;App.sync_channel_waveform(app);App.sync_channel_waveform(app)
 assert(subsets==6 and names==6 and subset[3]=='100:2','Failed sends must retry and successful sends must be cached')
+-- Two files can share a stamp. Only the overlay's selected path is sent to native.
+local original,identity=app.path,app.identity
+app.path='/second.wav';App.sync_channel_waveform(app);App.sync_channel_waveform(app)
+assert(subsets==7 and subset[1]==app.path and subset[3]=='100:2')
+app.path=nil;app.identity=nil;app.source_channels=0
+App.sync_channel_waveform(app);App.sync_channel_waveform(app)
+assert(subsets==8 and subset[1]=='' and subset[2]=='' and subset[3]=='')
+app.path=original;app.identity=identity;app.source_channels=6;App.sync_channel_waveform(app)
+assert(subsets==9 and subset[1]==original and subset[3]=='100:2')
 assert(not Selection.get(settings,6))
 Names.read=read;Selection.csv=csv
 -- Mono files keep their sole channel; failed saves leave the panel available.

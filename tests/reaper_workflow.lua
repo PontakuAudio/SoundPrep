@@ -67,9 +67,6 @@ local function loop()
       require('am.action').send(r,'slot:1');require('am.action').send(r,'reverse');app:commands()
       assert(app.selected_id=='heavy' and app:effective().source_transform.reverse)
       require('am.action').send(r,'slot:0');app:commands();assert(app.selected_id==nil and not app:effective().source_transform.reverse)
-      local heavy=app:preset_draft('heavy');heavy.export.normalize_final=true;heavy.export.true_peak_limit=true
-      heavy.normalization.target_lufs=-14;app:activate('heavy');app:audition_edit(heavy);app.range={.1,.6}
-      app.export_dir=data..'/exports';log('normalized_render',app:export(false))
       -- Closing the ME window before the companion must still restore settings.
       app.explorer:command(40069);app:close()
       local E=require('am.media_explorer');local ex=E.new(r);ex:window(true)

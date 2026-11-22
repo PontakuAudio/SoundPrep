@@ -9,8 +9,7 @@ local fields={
   reference_dbfs={'normalization','reference_dbfs',-120,0},reference_spl={'normalization','reference_spl_db',0,140},
   boost={'normalization','max_boost_db',0,24},gain={'output_gain_db',-60,12},
   guard={'source_peak_guard','enabled','boolean'},ceiling={'source_peak_guard','ceiling_dbtp',-12,0},
-  tail={'export','tail_seconds',0,30},final={'export','normalize_final','boolean'},
-  limiter={'export','true_peak_limit','boolean'},export_ceiling={'export','ceiling_dbtp',-12,0}}
+  tail={'export','tail_seconds',0,30}}
 local raw_allowed={normalize=true,metric=true,lufs=true,sones=true,reference_dbfs=true,reference_spl=true,boost=true,guard=true,ceiling=true,preserve=true,reverse=true}
 local function location(m,spec)
   if type(m[spec[1]])=='table'then return m[spec[1]],spec[2],3 end
@@ -97,7 +96,8 @@ local function dispatch(a,command)
   elseif e.op=='ab'then a:ab()
   elseif e.op=='focus'then a.explorer:focus_list()
   elseif e.op=='analyse'then a:analyse(true)
-  elseif e.op=='render' or e.op=='render_dialog'then a:export(e.op=='render_dialog')
+  elseif e.op=='render' or e.op=='render_dialog'then
+    a.message='SoundPrep renders through drops. To bake a Source + FX drop, use Render selected drops.'
   elseif e.op=='render_drops'then a:render_drops()
   elseif e.op=='directory_choose'then
     local result,path=a.r.JS_Dialog_BrowseForFolder('SoundPrep — Export folder',a.export_dir or '')

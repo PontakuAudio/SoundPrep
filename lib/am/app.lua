@@ -1,6 +1,6 @@
 local U=require('am.util');local J=require('am.json');local Model=require('am.model')
 local Bank=require('am.bank');local Explorer=require('am.media_explorer');local Preview=require('am.preview')
-local Loudness=require('am.loudness');local Export=require('am.export')
+local Loudness=require('am.loudness')
 local Time=require('am.timeline')
 local Mix=require('am.channel_mix')
 local Selection=require('am.channel_selection')
@@ -600,29 +600,6 @@ function M:import_chain(id,path)
   self.bank:activate(self.selected_id,self:effective().output_gain_db)
   self.message='FX imported for audition. Save preset stores the complete sound.'
 end
-function M:export(open_dialog)
-  assert(self.path and self.identity,'Select an audio file first')
-  if (self.source_channels or Preview.channels(self.r,self.path))>2 and not Selection.get(self.definition.settings,self.source_channels)then
-    self.message='Multichannel Preview is available; export supports mono/stereo sources only.';return
-  end
-  local macro=self:effective()
-  local measurement=self:measurement()
-  if macro.normalization.enabled or macro.source_peak_guard.enabled then
-    assert(measurement and (measurement.status=='ready' or measurement.status=='silence'),'Wait for analysis before normalized export')
-  end
-  local gain=self:gain()
-  local chain=self.selected_id and self.bank:chain(self.selected_id) or ''
-  local snapshot=Export.snapshot(self.r,self.path,macro,chain,gain,self.identity,self.range,self.definition.settings)
-  if snapshot.channel_mix and self.selected_id then
-    snapshot.channel_mix.fx_channels=self.r.GetMediaTrackInfo_Value(self.bank.macros[self.selected_id],'I_NCHAN')
-  end
-  self.preview:stop()
-  local basename=U.basename(self.path):gsub('%.[^.]+$',''):gsub('[^%w_%-\128-\255]','_')
-  local name=basename..'_'..macro.id..'_'..os.date('%Y%m%d_%H%M%S')..'_'..U.hash(self.r.genGuid()):sub(1,4)
-  local target=Export.render(self.r,snapshot,self.export_dir,name,open_dialog)
-  self.message=open_dialog and 'Export snapshot opened in the native Render dialog.' or 'Exported: '..target
-  return target
-end
 function M:commands(paused)
   local queue=self.r.GetExtState(M.EXT,'queue');if queue==''then return end
   self.r.DeleteExtState(M.EXT,'queue',false)
@@ -637,7 +614,6 @@ function M:commands(paused)
       elseif command=='play'then self:transport()
       elseif command=='replay'then self:play()
       elseif command=='stop'then self.preview:stop()
-      elseif command=='export'then self:export(false)
       elseif command=='analyse'then self:analyse(true)
       elseif command=='edit'then self.editor_requested=true
       elseif command:match('^search:')then self.message='Search assistance is not included in this release. Use the Media Explorer search field.'

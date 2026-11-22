@@ -1,4 +1,5 @@
 #include "wave.cpp"
+#include "vendor/json.hpp"
 #include <cassert>
 #include <iostream>
 #ifdef _WIN32
@@ -26,6 +27,7 @@ extern "C" void AMCursorClear(){}
 extern "C" void AMCursorRefresh(){}
 extern "C" void AMCursorAnchor(const char*,double,int){}
 extern "C" void AMCursorViewportChanged(){++viewport_changes;viewport_forwarded=forwarded;}
+std::string am_peak_build_diagnostics(){return R"({"builds_completed":3})";}
 extern "C" bool AMPreviewWaveSeek(const char* path,double where,double a,double b,unsigned) {
   assert(std::string(path)=="/素材.wav");
   assert(std::abs(where-(selected?.575:.625))<1e-9 && a==(selected?.2:0) && b==(selected?.8:1));++applied;return true;
@@ -184,7 +186,9 @@ int main() {
       if(mode<=2){assert(applied==before+mode && *AMWavePoll());}
       else assert(applied==before+2 && !*AMWavePoll());
     }
-    assert(std::string(AMWaveDiagnostics()).find("last_seek")!=std::string::npos);
+    const auto diagnostics=nlohmann::json::parse(AMWaveDiagnostics());
+    assert(diagnostics.at("last_seek").at("path")=="/素材.wav");
+    assert(diagnostics.at("peak_build").at("builds_completed")==3);
     nested=0;invalid_selection=true;const int before_invalid=applied;
     test_proc(test_wave,0x201,1,20);test_proc(test_wave,0x202,0,20);
     assert(applied==before_invalid && !*AMWavePoll());invalid_selection=false;

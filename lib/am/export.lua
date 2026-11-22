@@ -57,47 +57,4 @@ function M.populate(r,snapshot,track)
   r.SetMediaItemInfo_Value(item,'B_LOOPSRC',0)
   return item,duration
 end
-function M.render(r,snapshot,directory,stem,open_dialog)
-  assert(not snapshot.macro.export.normalize_final or snapshot.macro.normalization.metric=='lufs_m_max',
-    'Final export normalization supports LUFS only. Disable it to export with the Zwicker source gain.')
-  assert(not stem:find('[/\\%z\r\n]') and stem~='' and not stem:find('%$'),'Use a plain output file name')
-  r.RecursiveCreateDirectory(directory,0)
-  local target=directory..'/'..stem..'.wav'
-  assert(not r.file_exists(target),'Output exists; choose a new name')
-  assert(L.same(snapshot.identity,L.identity(r,snapshot.path)),'Source changed after snapshot')
-  local original=r.EnumProjects(-1);local project
-  local ok,err=xpcall(function()
-    r.Main_OnCommand(41929,0) -- New project tab (ignore default template)
-    project=r.EnumProjects(-1);assert(project~=original,'Could not create export project')
-    r.InsertTrackAtIndex(0,false);local track=r.GetTrack(project,0)
-    local item,duration=M.populate(r,snapshot,track)
-    local e=snapshot.macro.export
-    -- REAPER 7.80's custom render bounds round-trip through a millisecond UI
-    -- field when opening the render command. A project time selection preserves
-    -- the exact rate-adjusted duration instead of truncating ~1 ms of audio.
-    r.GetSet_LoopTimeRange2(project,true,false,0,duration,false)
-    local values={RENDER_SETTINGS=0,RENDER_BOUNDSFLAG=2,RENDER_CHANNELS=Channels.output(snapshot),RENDER_SRATE=48000,
-      RENDER_STARTPOS=0,RENDER_ENDPOS=duration,RENDER_TAILFLAG=4,RENDER_TAILMS=e.tail_seconds*1000,
-      RENDER_ADDTOPROJ=0,RENDER_DITHER=0,
-      RENDER_NORMALIZE=(e.normalize_final and 9 or 0)+(e.true_peak_limit and 192 or 0),
-      RENDER_NORMALIZE_TARGET=U.gain(snapshot.macro.normalization.target_lufs),RENDER_BRICKWALL=U.gain(e.ceiling_dbtp)}
-    for k,v in pairs(values)do r.GetSetProjectInfo(project,k,v,true)end
-    r.GetSetProjectInfo_String(project,'RENDER_FILE',directory,true)
-    r.GetSetProjectInfo_String(project,'RENDER_PATTERN',stem,true)
-    r.GetSetProjectInfo_String(project,'RENDER_FORMAT','evaw',true)
-    r.GetSetProjectInfo_String(project,'RENDER_FORMAT2','',true)
-    r.Main_SaveProjectEx(project,directory..'/'..stem..'.rpp',8)
-    assert(U.write(directory..'/'..stem..'.macro.json',J.encode(snapshot)))
-    if open_dialog then r.Main_OnCommand(40015,0)
-    else
-      r.Main_OnCommand(42230,0) -- Render using latest settings, auto-close render dialog.
-      assert(r.file_exists(target),'Render cancelled or output was not created; snapshot project is retained')
-      r.Main_SaveProjectEx(project,directory..'/'..stem..'.rpp',8)
-      r.Main_OnCommand(40860,0) -- Close saved scratch tab.
-    end
-  end,debug.traceback)
-  if not open_dialog or not ok then r.SelectProjectInstance(original)end
-  if not ok then error(err)end
-  return target
-end
 return M

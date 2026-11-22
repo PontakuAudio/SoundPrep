@@ -126,7 +126,7 @@ inline constexpr std::array<Field,12> editor_fields{{
   {"presets",Kind::array,true},
   {"values",Kind::object,true},
 }};
-inline constexpr std::array<Field,21> editor_value_fields{{
+inline constexpr std::array<Field,18> editor_value_fields{{
   {"name",Kind::string,true},
   {"metric",Kind::string,true},
   {"directory",Kind::string,true},
@@ -134,8 +134,6 @@ inline constexpr std::array<Field,21> editor_value_fields{{
   {"preserve",Kind::boolean,true},
   {"normalize",Kind::boolean,true},
   {"guard",Kind::boolean,true},
-  {"final",Kind::boolean,true},
-  {"limiter",Kind::boolean,true},
   {"pitch",Kind::number,true},
   {"rate",Kind::number,true},
   {"lufs",Kind::number,true},
@@ -146,13 +144,12 @@ inline constexpr std::array<Field,21> editor_value_fields{{
   {"gain",Kind::number,true},
   {"ceiling",Kind::number,true},
   {"tail",Kind::number,true},
-  {"export_ceiling",Kind::number,true},
   {"slot",Kind::number,true},
 }};
 inline constexpr std::array<double,4> target_options{{-18,-16,-14,-12}};
 inline constexpr std::array<double,5> monitor_options{{-24,-18,-12,-6,0}};
-inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.17","platform":"windows","features":{"bar":10,"preview":5,"waveform":10,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
-inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.17","platform":"macos","features":{"bar":10,"preview":5,"waveform":10,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.18","platform":"windows","features":{"bar":11,"preview":5,"waveform":10,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.18","platform":"macos","features":{"bar":11,"preview":5,"waveform":10,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
 inline const char* helper_info() {
 #ifdef _WIN32
   return windows_info;

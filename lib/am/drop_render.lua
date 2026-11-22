@@ -84,8 +84,10 @@ function M.selected(r)
     end
     I.build_missing_peaks(r,project,items,defer_peaks)
   end,debug.traceback)
-  if not ok then for _,e in ipairs(entries)do if r.ValidatePtr2(project,e.item,'MediaItem*')then C.write_item(r,e.item,e.chunk)end end end
+  local restore_error
+  if not ok then restore_error=C.restore_items(r,entries,project)end
   r.Undo_EndBlock2(project,ok and 'Render selected SoundPrep drops' or 'SoundPrep render failed',-1)
+  if restore_error then err='Item restore failed: '..restore_error..'; render failed: '..tostring(err)end
   assert(ok,err)
   return #entries
 end

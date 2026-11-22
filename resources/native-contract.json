@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "version": "0.11.17",
+  "version": "0.11.18",
   "features": {
     "bar": {
-      "revision": 10,
+      "revision": 11,
       "apis": [
         "AM_BarAttach",
         "AM_BarSetState",
@@ -660,16 +660,6 @@
         "required": true
       },
       {
-        "name": "final",
-        "type": "boolean",
-        "required": true
-      },
-      {
-        "name": "limiter",
-        "type": "boolean",
-        "required": true
-      },
-      {
         "name": "pitch",
         "type": "number",
         "required": true
@@ -716,11 +706,6 @@
       },
       {
         "name": "tail",
-        "type": "number",
-        "required": true
-      },
-      {
-        "name": "export_ceiling",
         "type": "number",
         "required": true
       },

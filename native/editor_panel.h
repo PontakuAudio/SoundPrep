@@ -60,7 +60,7 @@
   for(const auto& s:ameditor::actions){NSButton* button=[self button:[NSString stringWithUTF8String:s.title] op:[NSString stringWithUTF8String:s.op]
     parent:self.tabs.tabViewItems[s.page].view frame:NSMakeRect(s.x,s.y,s.w,30)];[self.actions addObject:button];}
   self.measurement=[self label:@"" parent:self.tabs.tabViewItems[4].view frame:NSMakeRect(14,12,608,100)];self.measurement.selectable=YES;
-  const int helpY[]={294,404,208,312,340};
+  const int helpY[]={294,404,62,312,340};
   for(int i=0;i<5;++i){NSTextField* help=[self label:[NSString stringWithUTF8String:ameditor::help[i]] parent:self.tabs.tabViewItems[i].view frame:NSMakeRect(14,helpY[i],608,i==1?42:104)];help.font=[NSFont systemFontOfSize:11];help.textColor=NSColor.secondaryLabelColor;help.toolTip=help.stringValue;}
   self.notice=[self label:@"" parent:root frame:NSMakeRect(20,644,554,46)];self.notice.font=[NSFont systemFontOfSize:11];
   [self button:@"Done" op:@"close" parent:root frame:NSMakeRect(590,650,90,28)];

@@ -1,4 +1,4 @@
-"""Check helper versions and settings contract fields without rewriting sources."""
+"""Check helper versions and panel contract fields without rewriting sources."""
 import importlib.util
 import json
 from pathlib import Path
@@ -76,16 +76,18 @@ class NativeContractVersions(unittest.TestCase):
                         generator.outputs()
 
 
-class NativeSettingsContract(unittest.TestCase):
-    def test_settings_value_fields_match_native_fixture(self):
+class NativePanelContract(unittest.TestCase):
+    def test_value_fields_match_native_fixtures(self):
         contract = json.loads((ROOT / 'resources/native-contract.json').read_text(encoding='utf-8'))
-        state = json.loads((ROOT / 'tests/native-settings-state.json').read_text(encoding='utf-8'))
-        types = {bool: 'boolean', int: 'number', float: 'number'}
-        self.assertCountEqual(
-            [(field['name'], field['type'], field['required'])
-             for field in contract['bar']['settings_value_fields']],
-            [(name, types[type(value)], True) for name, value in state['values'].items()],
-        )
+        types = {bool: 'boolean', int: 'number', float: 'number', str: 'string'}
+        for panel in ('settings', 'editor'):
+            with self.subTest(panel=panel):
+                state = json.loads((ROOT / f'tests/native-{panel}-state.json').read_text(encoding='utf-8'))
+                self.assertCountEqual(
+                    [(field['name'], field['type'], field['required'])
+                     for field in contract['bar'][f'{panel}_value_fields']],
+                    [(name, types[type(value)], True) for name, value in state['values'].items()],
+                )
 
 
 if __name__ == '__main__':

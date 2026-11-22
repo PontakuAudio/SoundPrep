@@ -31,11 +31,16 @@ function M:complete(batch)
     end
     I.build_missing_peaks(r,a.project,items,true)
   end,debug.traceback)
-  if not ok then for _,value in ipairs(valid)do C.write_item(r,value.item,value.chunk)end end
+  local restore_error
+  if not ok then restore_error=C.restore_items(r,valid)end
   r.Undo_EndBlock2(a.project,ok and 'Finish SoundPrep render' or 'SoundPrep render failed',-1)
   r.DeleteExtState(EXT,'busy',false)
-  a.message=ok and ('Rendered %d item(s); %d edited/removed item(s) skipped'):format(#valid,#batch.entries-#valid) or
-    ('Source + FX retained: '..tostring(err):match('^[^\n]+'))
+  if ok then
+    a.message=('Rendered %d item(s); %d edited/removed item(s) skipped'):format(#valid,#batch.entries-#valid)
+  else
+    local reason=tostring(err):match('^[^\n]*')
+    a.message=restore_error and ('Render failed: '..reason..'; item restore failed: '..restore_error) or ('Source + FX retained: '..reason)
+  end
 end
 function M:tick()
   local r,a=self.r,self.app;local text=r.GetExtState(EXT,'queue')

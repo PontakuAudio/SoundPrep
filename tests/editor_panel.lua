@@ -13,8 +13,12 @@ local original=U.copy(a.definition)
 event('set','name','マイク 🎤 Test');event('set','pitch',-7.5);event('set','rate',.63);event('set','preserve',true)
 event('set','gain',-3);event('set','normalize',true);event('set','metric','zwicker_p95');event('set','sones',12.5)
 event('set','reference_dbfs',-18);event('set','reference_spl',83);event('set','guard',true);event('set','ceiling',-2)
-event('set','tail',2.5);event('set','final',true);event('set','limiter',true);event('set','export_ceiling',-1.5)
+event('set','tail',2.5)
 state=Editor.state(a);assert(state.dirty and state.values.name=='マイク 🎤 Test' and state.values.rate==.63 and state.values.preserve)
+assert(state.values.tail==2.5 and a:preset_draft('heavy').export.tail_seconds==2.5)
+for key,value in pairs{final=true,limiter=true,export_ceiling=-1.5}do
+  assert(state.values[key]==nil and not pcall(event,'set',key,value))
+end
 assert(U.equal(a.definition,original),'Native editing prematurely saved the bank')
 local draft=J.encode(a:preset_draft('heavy'))
 for _,bad in ipairs{{'name',''},{'name',string.rep('a',129)},{'name','x\ny'},{'pitch',25},{'rate',0},{'preserve',1},{'metric','bogus'},{'sones',0},{'gain',13},{'unknown',1},{'slot',1.5},{'directory',false}}do
@@ -35,11 +39,13 @@ a.revert_preset=function(_,id)assert(id=='heavy');calls.revert=true end
 a.new_macro=function(_,id)calls[id and 'duplicate' or 'new']=true end
 a.move=function(_,id,delta)assert(id=='heavy');calls[delta<0 and 'up' or 'down']=true end
 a.slot=function(_,id,value)assert(id=='heavy' and value==5);calls.slot=true end
-a.export=function(_,dialog)calls[dialog and 'render_dialog' or 'render']=true end
+for _,op in ipairs{'render','render_dialog'}do
+  a.message='';event(op);assert(a.message:find('Render selected drops',1,true))
+end
 for _,op in ipairs{'transport','play','ab','analyse','render_drops'}do a[op]=function()calls[op]=true end end
-for _,op in ipairs{'save','revert','fx','import','new','duplicate','up','down','render','render_dialog','play','replay','ab','analyse','render_drops','focus'}do event(op)end
+for _,op in ipairs{'save','revert','fx','import','new','duplicate','up','down','play','replay','ab','analyse','render_drops','focus'}do event(op)end
 event('set','slot',5)
-for _,op in ipairs{'save','revert','fx','import','new','duplicate','up','down','slot','render','render_dialog','transport','play','ab','analyse','render_drops','focus'}do assert(calls[op],op)end
+for _,op in ipairs{'save','revert','fx','import','new','duplicate','up','down','slot','transport','play','ab','analyse','render_drops','focus'}do assert(calls[op],op)end
 assert(not pcall(event,'confirm_delete'));event('delete');assert(Editor.state(a).deleting);event('cancel_delete');assert(not Editor.state(a).deleting)
 event('delete');event('select',nil,'dark');assert(not Editor.state(a).deleting);assert(not pcall(event,'confirm_delete'))
 event('select',nil,'heavy');event('delete');a.delete=function(_,id)assert(id=='heavy');calls.delete=true end;event('confirm_delete');assert(calls.delete)

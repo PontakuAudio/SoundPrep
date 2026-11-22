@@ -54,10 +54,8 @@ function M.recipe(snapshot,length,handles)
   Channels.validate(snapshot)
   local plan=M.layout(length,snapshot.range,snapshot.macro.source_transform,handles)
   local render=U.copy(snapshot);render.range=plan.render_range
-  -- Arrange inserts sound like the audition. Optional export-only mastering is
-  -- deliberately not applied. Full renders preserve FX tails as extra handles.
-  render.macro.export.normalize_final=false;render.macro.export.true_peak_limit=false
-  if not handles then render.macro.export.tail_seconds=0 end
+  -- Full renders preserve FX tails as extra handles.
+  render.macro.export={tail_seconds=handles and snapshot.macro.export.tail_seconds or 0}
   local identity=U.copy(render);identity.created_at=nil
   identity.render_revision=5 -- preserve JSON null when copying full-source snapshots
   identity.chain=require('am.chunk').portable(identity.chain)

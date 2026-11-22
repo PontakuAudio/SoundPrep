@@ -10,7 +10,7 @@
   ],
   "media_explorer_actions": [],
   "support_files": [
-    "docs/releases/0.11.17.md",
+    "docs/releases/0.11.18.md",
     "SoundPrep - Install actions.lua",
     "SoundPrep - Diagnostics.lua",
     "SoundPrep - Restore native preview.lua",
@@ -20,7 +20,6 @@
     "actions/SoundPrep - AB.lua",
     "actions/SoundPrep - Analyse.lua",
     "actions/SoundPrep - Edit.lua",
-    "actions/SoundPrep - Export.lua",
     "actions/SoundPrep - Play Stop.lua",
     "actions/SoundPrep - Quit.lua",
     "actions/SoundPrep - Replay.lua",

@@ -11,7 +11,7 @@ local Direct=require('am.render_item');local EXT=require('am.drop').EXT
 local result={status='RUNNING',checks=J.array{},times=J.array{},drops=J.array{},render_calls=J.array{}}
 local path=host.."/media 素材/test one's 音.wav";local directory=host..'/direct-media'
 local chain='BYPASS 0 0 0\n<JS utility/volume_pan ""\n-12 0 0\n>\nWAK 0 0\n'
-local lastSnapshot;local references={}
+local lastSnapshot
 local function check(name)result.checks[#result.checks+1]=name;U.write(host..'/'..(options.report or 'direct-review')..'-progress.json',J.encode(result))end
 local function preferences()
   local out={}
@@ -54,7 +54,6 @@ local ok,err=xpcall(function()
     assert(U.equal(prefs,preferences()),'Render preferences were not restored')
     local src=r.PCM_Source_CreateFromFile(output)
     result.times[#result.times+1]={seconds=elapsed,length=r.GetMediaSourceLength(src),path=output};r.PCM_Source_Destroy(src)
-    references[n]=snapshot
   end
   if options.observe_progress then
     local shows=U.read(host..'/window-shows.txt') or ''
@@ -196,7 +195,6 @@ local ok,err=xpcall(function()
   state.macro.output_gain_db=-5;drop(3,nil,nil,'manual')
   r.AM_DropContext,r.AM_DropResult=savedContext,savedResult
   assert(U.equal(prefs,preferences()))
-  for n,snapshot in ipairs(references)do E.render(r,snapshot,directory,'reference'..n,false)end
   local saved=directory..'/takes.rpp';r.Main_SaveProjectEx(project,saved,8);r.Main_openProject(saved)
   local restored=0
   for n=0,r.CountMediaItems(0)-1 do

@@ -42,6 +42,7 @@ extern "C" bool AMWaveAttach(void*,void*,void*,void*(*)(const char*));
 extern "C" const char* AMWavePoll();
 extern "C" const char* AMWaveDiagnostics();
 extern "C" void AMWaveDetach();
+void am_close_peak_sources();
 extern "C" void AMCursorRegister(int(*)(const char*,void*));
 extern "C" void AMCursorRestoreClock();
 extern "C" const char* AMCursorState();
@@ -247,6 +248,9 @@ extern "C" AM_EXPORT int ReaperPluginEntry(void*, am::PluginInfo* info) {
 #endif
     // JS can be unloaded before this extension during REAPER shutdown.
     if (am::host.GetFunc && am::resolve()) am::detach();
+#ifdef AM_EMBEDDED_BAR
+    am_close_peak_sources();
+#endif
     return 0;
   }
   if (info->caller_version != 0x20e || !info->Register || !info->GetFunc) return 0;

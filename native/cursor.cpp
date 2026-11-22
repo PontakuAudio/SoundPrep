@@ -4,21 +4,26 @@
 // Overlay selected source peaks and the playhead without intercepting gestures.
 // REAPER continues to own the ruler, zoom, range, scrollbar and drag source.
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <limits>
+#include <list>
+#include <memory>
 #include <optional>
 #include <vector>
 #include <string>
+#include <thread>
 #ifdef __APPLE__
 #include <fstream>
 #include <sstream>
 #include <string_view>
 #endif
-#include "reaper_audio_abi.h"
+#include "peak_store.h"
 #ifdef __APPLE__
 #include "platform.h"
 #endif
@@ -125,9 +130,15 @@ double view_units=-1;
 int actual_width=0,scroll_at=0,scroll_page=0,scroll_min=0,scroll_max=0;
 char view_path[4096]{};
 
-PCM_source* peak_source=nullptr;
+std::shared_ptr<PCM_source> peak_source;
 PCM_source* (*open_source)(const char*);
 void (*close_source)(PCM_source*);
+std::shared_ptr<PCM_source> open_peak_source(const char* path) {
+  auto* source=open_source(path);
+  if(!source)return {};
+  return {source,close_source};
+}
+const char* (*get_ext_state)(const char*,const char*);
 int (*get_peaks)(PCM_source*,double,double,int,int,int,double*);
 void (*fill_rect)(void*,int,int,int,int,int,double,const char*);
 void (*blit)(void*,int,int,void*,int,int,int,int,double,const char*);
@@ -155,20 +166,160 @@ int peak_left=0,peak_right=0,peak_width=0,peak_height=0,peak_count=0,peak_cursor
 double peak_start=-1,peak_span=-1,peak_a=-1,peak_b=-1;
 bool peak_linked=false,peak_building=false,peak_dirty=true;
 
+using PeakClock=std::chrono::steady_clock;
+struct PeakBuildStats {
+  double length_s=0;
+  int channels=0;
+  double sample_rate_hz=0;
+  std::int64_t samples=0,started_unix_ms=0;
+  PeakClock::time_point started{};
+  std::uint64_t run_calls=0;
+  PeakClock::duration run_time{},total_time{},decode_time{};
+  const char* mode="none";
+  std::string path{},stamp{};
+};
+PeakBuildStats current_peak_build,last_store_build,last_reaper_build;
+const PeakBuildStats* last_peak_build=nullptr;
+std::uint64_t peak_builds_completed=0;
+PeakClock::duration total_peak_run_time{},slowest_peak_build{};
+
+void record_peak_build(PeakBuildStats& last_for_backend) {
+  last_for_backend=current_peak_build;
+  last_peak_build=&last_for_backend;
+  ++peak_builds_completed;
+  slowest_peak_build=std::max(slowest_peak_build,current_peak_build.total_time);
+}
+
 void advance_peak_build(std::optional<std::chrono::milliseconds> budget) {
   if(!peak_building)return;
-  using Clock=std::chrono::steady_clock;
-  const auto deadline=budget?std::optional{Clock::now()+*budget}:std::nullopt;
+  const auto deadline=budget?std::optional{PeakClock::now()+*budget}:std::nullopt;
   // A timed build can yield only between synchronous REAPER build steps.
   do {
-    if(!peak_source->PeaksBuild_Run()) {
+    const auto run_start=PeakClock::now();
+    const int remaining=peak_source->PeaksBuild_Run();
+    const auto run_time=PeakClock::now()-run_start;
+    ++current_peak_build.run_calls;
+    current_peak_build.run_time+=run_time;
+    // Session Run time includes work on sources replaced before completion.
+    total_peak_run_time+=run_time;
+    if(!remaining) {
       peak_source->PeaksBuild_Finish();
+      current_peak_build.total_time=PeakClock::now()-current_peak_build.started;
+      record_peak_build(last_reaper_build);
       peak_building=false;
       peak_dirty=true;
       return;
     }
-  } while(!deadline || Clock::now()<*deadline);
+  } while(!deadline || PeakClock::now()<*deadline);
 }
+void start_peak_timer(const char* mode) {
+  current_peak_build.mode=mode;
+  const auto wall_start=std::chrono::system_clock::now().time_since_epoch();
+  current_peak_build.started_unix_ms=std::chrono::duration_cast<std::chrono::milliseconds>(wall_start).count();
+  current_peak_build.started=PeakClock::now();
+}
+void begin_peaksbuild() {
+  start_peak_timer("peaksbuild-fallback");
+  peak_building=peak_source->PeaksBuild_Begin()!=0;
+  // Preserve the old 48 kHz attach budget (240 channel-seconds) at any rate.
+  constexpr int synchronous_sample_limit=11'520'000;
+  if(current_peak_build.samples>0 && current_peak_build.samples<=synchronous_sample_limit)advance_peak_build(std::nullopt);
+  else advance_peak_build(std::chrono::milliseconds(250));
+}
+
+using ampeaks::PeakStore;
+constexpr int inline_sample_limit=2'000'000,store_sample_limit=200'000'000;
+constexpr size_t cache_byte_limit=64*1024*1024,cache_entry_limit=8;
+std::list<std::shared_ptr<PeakStore>> peak_cache; // most recently selected first
+std::shared_ptr<PeakStore> peak_store,worker_store;
+std::shared_ptr<PCM_source> worker_source;
+std::thread store_thread;
+int painted_store_frames=-1;
+bool fast_peaks_enabled=true;
+std::uint64_t cache_hits=0,cache_misses=0;
+const char* last_cache_lookup="none";
+
+void finish_store_worker(bool wait) {
+  if(!worker_store)return;
+  const int ready=worker_store->ready_frames.load(std::memory_order_acquire);
+  if(!wait && ready>=0 && ready<worker_store->frames)return;
+  store_thread.join();
+  worker_source.reset();
+  worker_store.reset();
+}
+
+// At most one decoder is in flight. A new selection can paint immediately
+// while a cancelled GetSamples finishes. The timer starts the latest request.
+void service_store_worker() {
+  finish_store_worker(false);
+  if(worker_store || !peak_store || peak_store->ready_frames.load()!=0)return;
+  try {
+    // open_source and close_source are global REAPER APIs. Create and destroy
+    // the private source here; only the worker uses its PCM_source methods.
+    worker_source=open_peak_source(peak_store->path.c_str());
+    if(worker_source) {
+      store_thread=std::thread(ampeaks::build_store,std::ref(*peak_store),std::ref(*worker_source));
+      worker_store=peak_store;
+      return;
+    }
+  } catch(...) {}
+  worker_source.reset();
+  peak_store->ready_frames.store(-1);
+}
+
+void record_store_if_complete(int ready) {
+  if(ready!=peak_store->frames || peak_store->recorded)return;
+  peak_store->recorded=true;
+  current_peak_build.decode_time=peak_store->decode_time;
+  current_peak_build.samples=static_cast<std::int64_t>(ready)*peak_store->channels;
+  current_peak_build.total_time=peak_store->finished-current_peak_build.started;
+  record_peak_build(last_store_build);
+}
+
+int observe_store() {
+  if(!peak_store)return 0;
+  const int ready=peak_store->ready_frames.load(std::memory_order_acquire);
+  if(ready>=0) {
+    record_store_if_complete(ready);
+    return ready;
+  }
+  peak_cache.pop_front();
+  peak_store.reset();
+  peak_dirty=true;
+  begin_peaksbuild();
+  return 0;
+}
+
+bool start_store() {
+  const double frame_count=current_peak_build.length_s*current_peak_build.sample_rate_hz;
+  if(current_peak_build.sample_rate_hz<1 || !(frame_count>0 && frame_count<=store_sample_limit+0.5))return false;
+  const int frames=static_cast<int>(std::llround(frame_count));
+  const auto samples=static_cast<std::int64_t>(frames)*current_peak_build.channels;
+  if(!frames || samples>store_sample_limit)return false;
+  const bool inline_build=samples<=inline_sample_limit;
+  start_peak_timer(inline_build?"inline":"worker");
+  try {
+    auto store=std::make_shared<PeakStore>(peak_path,peak_stamp,peak_source,frames,
+      current_peak_build.channels,current_peak_build.sample_rate_hz);
+    size_t bytes=store->peaks.size()*sizeof(ampeaks::PeakPair);
+    if(bytes>cache_byte_limit)return false;
+    for(const auto& entry:peak_cache)bytes+=entry->peaks.size()*sizeof(ampeaks::PeakPair);
+    while(peak_cache.size()>=cache_entry_limit || bytes>cache_byte_limit) {
+      bytes-=peak_cache.back()->peaks.size()*sizeof(ampeaks::PeakPair);
+      peak_cache.pop_back();
+    }
+    peak_cache.push_front(store);
+    peak_store=store;
+  } catch(...) {return false;}
+  if(inline_build) {
+    build_store(*peak_store,*peak_source);
+  } else {
+    service_store_worker();
+  }
+  observe_store();
+  return true;
+}
+
 bool present(void* image,int x,int width,int height,int source_width,int source_height) {
 #ifdef __APPLE__
   if(overlay_window)return amoverlay::present(image,x,width,source_width,source_height);
@@ -191,16 +342,33 @@ void hide_peaks() {
   if(peak_linked)unlink_image(peak_bitmap);
   peak_linked=false;
 }
-void clear_peaks() {
-  hide_peaks();
+void release_peak_source() {
+  if(peak_store) {
+    const int ready=peak_store->ready_frames.load(std::memory_order_acquire);
+    if(ready==peak_store->frames)record_store_if_complete(ready);
+    else peak_store->cancelled=true;
+    // An unstamped selection is usable until release. Its identity cannot
+    // be verified on a later attach.
+    if(ready!=peak_store->frames || peak_store->stamp.empty())
+      peak_cache.pop_front();
+    peak_store.reset();
+  }
+  finish_store_worker(false);
   if(peak_source) {
     if(peak_building)peak_source->PeaksBuild_Finish();
-    close_source(peak_source);peak_source=nullptr;
+    peak_source.reset();
   }
+  peak_building=false;
+  painted_store_frames=-1;
+  peak_dirty=true;
+}
+void clear_peaks() {
+  hide_peaks();
+  release_peak_source();
   if(peak_bitmap){destroy_bitmap(peak_bitmap);peak_bitmap=nullptr;}
   if(cursor_underlay){destroy_bitmap(cursor_underlay);cursor_underlay=nullptr;}
   peak_path.clear();peak_stamp.clear();peak_values.clear();peak_channels.clear();peak_names.clear();peak_names_json.clear();labels_dirty=true;peak_left=peak_right=peak_count=0;
-  peak_width=peak_height=0;peak_start=peak_span=-1;peak_building=false;peak_dirty=true;
+  peak_width=peak_height=0;peak_start=peak_span=-1;
 }
 void viewport(const char* path,int at,int page,int minimum,int maximum,int width,double& start,double& span) {
   const double units=static_cast<double>(maximum)-minimum;
@@ -213,6 +381,7 @@ void viewport(const char* path,int at,int page,int minimum,int maximum,int width
     view_at=at;view_page=page;view_width=width;view_units=units;
   } else if(view_at>=0 && (page!=view_page || units!=view_units))view_span=0;
 }
+
 bool paint_peaks(const char* path,int width,int height,double start,double span,double a,double b,int cursor,const WaveStyle& style) {
   if(!peak_source || !am_path_equal(path,peak_path.c_str()) || width<1 || width>16384 || height<24 || height>4096) {
     hide_peaks();return false;
@@ -240,10 +409,13 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
   const int font_height=text_px(11),label_height=text_px(14),minimum_lane=text_px(24),text_top=text_px(3);
 #endif
   width*=scale_factor;
-  const int h=client_height*scale_factor,channels=peak_source->GetNumChannels();
+  const int h=client_height*scale_factor;
   if(cursor>=0 && cursor<client_width)cursor*=scale_factor;else cursor=-999999;
-  advance_peak_build(std::chrono::milliseconds(24));
-  const bool reload=peak_dirty || scale_factor!=peak_scale || width!=peak_width || start!=peak_start || span!=peak_span;
+  const int ready=observe_store();
+  const int channels=peak_store?peak_store->channels:peak_source->GetNumChannels();
+  if(!peak_store)advance_peak_build(std::chrono::milliseconds(24));
+  const bool reload=peak_dirty || (peak_store && ready!=painted_store_frames) ||
+    scale_factor!=peak_scale || width!=peak_width || start!=peak_start || span!=peak_span;
   const bool repaint=reload || labels_dirty || text_dpi!=peak_label_dpi || !(style==peak_style) || h!=peak_height || a!=peak_a || b!=peak_b || !peak_linked;
   if(!repaint && cursor==peak_cursor)return true;
   // Keep just the pixels covered by the cursor. Moving it must not redraw
@@ -271,9 +443,14 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
   }
   if(reload) {
     peak_values.assign(static_cast<size_t>(width)*channels*2,0);
-    const double length=peak_source->GetLength();
-    peak_count=get_peaks(peak_source,width/(length*span),start*length,channels,width,0,peak_values.data())&0xfffff;
-    peak_count=std::clamp(peak_count,0,width);
+    if(peak_store) {
+      peak_count=read_store_columns(*peak_store,ready,width,start,span,peak_values);
+      painted_store_frames=ready;
+    } else {
+      const double length=peak_source->GetLength();
+      peak_count=get_peaks(peak_source.get(),width/(length*span),start*length,channels,width,0,peak_values.data())&0xfffff;
+      peak_count=std::clamp(peak_count,0,width);
+    }
   }
   clear_bitmap(peak_bitmap,style.background);
   const int sa=static_cast<int>(std::clamp((a-start)/span*width,0.0,static_cast<double>(width)));
@@ -296,7 +473,7 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
     const std::string number="ch "+std::to_string(channel+1);
     std::string label=role+" "+number;
     if(channel<static_cast<int>(peak_names.size()) && !peak_names[channel].empty())label=role+" "+number+"  "+peak_names[channel];
-    if(peak_building)label+=" ...";
+    if(peak_building || (peak_store && ready<peak_store->frames))label+=" ...";
 #ifdef _WIN32
     label_native=AMDrawWaveLabel(peak_bitmap,label.c_str(),text_px(8),top+text_px(2),width-text_px(16),label_height,style.text,style.background,text_dpi,font_lookup);
     if(label_native){label_font_height=font_height;continue;}
@@ -325,7 +502,7 @@ bool paint_peaks(const char* path,int width,int height,double start,double span,
       font_color(label_font,style.text);font_background(label_font,style.background);
       draw_text(peak_bitmap,label_font,label.c_str(),static_cast<int>(label.size()),text_px(8),top+text_top,std::max(text_px(8),width-text_px(8)),top+text_px(2)+label_height);
     } else {
-      const auto fallback=role+" "+number;
+      const auto fallback=role+" "+number+(peak_store && ready<peak_store->frames?" ...":"");
       fill_rect(peak_bitmap,4,top+3,std::min(width-4,static_cast<int>(fallback.size())*8+8),12,style.background,1,"COPY");
       for(size_t i=0;i<fallback.size() && 8+static_cast<int>(i)*8<width-8;++i)draw_char(peak_bitmap,8+static_cast<int>(i)*8,top+5,fallback[i],style.text,1,"COPY");
     }
@@ -372,6 +549,8 @@ void format(char* out,int size,double t,bool rounded) {
   else std::snprintf(out,size,"%lld:%02lld.%03lld",seconds/60,seconds%60,ms%1000);
 }
 void tick() {
+  service_store_worker();
+  observe_store();
   // REAPER owns transient range feedback inside its native mouse loop. Do not
   // cover it with the old playhead or an opaque selected-channel composite,
   // even when its last-played API still reports the pre-drag range.
@@ -486,11 +665,20 @@ extern "C" void AMCursorSuspend(bool on){
   if(on){unpaint();hide_peaks();restore_clock();}
 }
 extern "C" void AMCursorClear(){unpaint();restore_clock();*last_path=0;last_fraction=-1;}
+// REAPER can unload JS_ReaScriptAPI first. Source teardown also has to work
+// when the window and bitmap callbacks are no longer callable.
+void am_close_peak_sources() {
+  if(registered){host_register("-timer",reinterpret_cast<void*>(tick));registered=false;}
+  release_peak_source();
+  finish_store_worker(true);
+  peak_cache.clear();
+}
 extern "C" void AMCursorDetach() {
   if(label_font){destroy_font(label_font);label_font=nullptr;}
   if(label_gdi){delete_gdi(label_gdi);label_gdi=nullptr;}
   if(registered){host_register("-timer",reinterpret_cast<void*>(tick));registered=false;}
   clear_peaks();AMCursorClear();wave=clock_view=nullptr;suspended=false;label_native=false;label_font_height=0;
+  finish_store_worker(true);
 #ifdef __APPLE__
   if(overlay_window){amoverlay::destroy();overlay_window=false;}
 #endif
@@ -515,6 +703,7 @@ extern "C" bool AMCursorAttach(void* w,void* c,void*(*lookup)(const char*)) {
   GET(create_bitmap,"JS_LICE_CreateBitmap");GET(destroy_bitmap,"JS_LICE_DestroyBitmap");GET(clear_bitmap,"JS_LICE_Clear");
   GET(composite,"JS_Composite");GET(unlink_bitmap,"JS_Composite_Unlink");
   GET(open_source,"PCM_Source_CreateFromFile");GET(close_source,"PCM_Source_Destroy");GET(get_peaks,"PCM_Source_GetPeaks");
+  GET(get_ext_state,"GetExtState");
   GET(fill_rect,"JS_LICE_FillRect");GET(draw_char,"JS_LICE_DrawChar");
   GET(blit,"JS_LICE_Blit");
   GET(create_font,"JS_LICE_CreateFont");GET(destroy_font,"JS_LICE_DestroyFont");GET(set_font,"LICE__SetFromHFont");
@@ -540,23 +729,54 @@ extern "C" bool AMWaveSetChannelSubset(const char* path,const char* csv,const ch
   std::vector<int> channels;
   if(!amchannels::parse(csv,channels) || !registered || !open_source || !close_source || !get_peaks || !fill_rect || !draw_char || !stamp)return false;
   const int highest=*std::max_element(channels.begin(),channels.end());
+  const char* setting=get_ext_state?get_ext_state("SoundPrep","fast_peaks"):nullptr;
+  const bool enabled=!setting || std::strcmp(setting,"0")!=0;
+  std::shared_ptr<PCM_source> source;
   if(am_path_equal(path,peak_path.c_str()) && peak_stamp==stamp && peak_source) {
-    if(highest>peak_source->GetNumChannels())return false;
-    if(channels!=peak_channels){peak_channels=channels;peak_left=channels.front();peak_right=channels.back();peak_dirty=true;}
-    return true;
-  }
-  clear_peaks();
-  PCM_source* source=open_source(path);if(!source)return false;
-  const int source_channels=source->GetNumChannels();
+    if(highest>(peak_store?peak_store->channels:peak_source->GetNumChannels()))return false;
+    if(enabled==fast_peaks_enabled) {
+      if(channels!=peak_channels) {
+        peak_channels=channels;peak_left=channels.front();peak_right=channels.back();
+        // Even a deep-zoom sample read already contains every channel.
+        if(peak_store)labels_dirty=true;
+        else peak_dirty=true;
+      }
+      return true;
+    }
+    // Switch backends in place, keeping the selected file and its microphone labels.
+    source=peak_source;
+    release_peak_source();
+  } else clear_peaks();
+  fast_peaks_enabled=enabled;
+  auto cached=peak_cache.end();
+  if(enabled)cached=std::find_if(peak_cache.begin(),peak_cache.end(),[&](const auto& entry) {
+    return entry->stamp==stamp && am_path_equal(path,entry->path.c_str());
+  });
+  if(cached!=peak_cache.end())source=(*cached)->paint_source;
+  else if(!source)source=open_peak_source(path);
+  if(!source)return false;
+  const int source_channels=cached!=peak_cache.end()?(*cached)->channels:source->GetNumChannels();
   const double length=source->GetLength();
   if(source_channels>128 || highest>source_channels ||
-      !std::isfinite(length) || length<=0){close_source(source);return false;}
+      !std::isfinite(length) || length<=0)return false;
   peak_source=source;peak_path=path;peak_stamp=stamp;peak_channels=channels;peak_left=channels.front();peak_right=channels.back();
-  peak_building=source->PeaksBuild_Begin()!=0;
-  // Building peaks reads the entire source, including channels outside the selection.
-  constexpr double synchronous_channel_seconds=240;
-  if(length*source_channels<=synchronous_channel_seconds)advance_peak_build(std::nullopt);
-  else advance_peak_build(std::chrono::milliseconds(250));
+  current_peak_build={length,source_channels,source->GetSampleRate()};
+  current_peak_build.path=path;
+  current_peak_build.stamp=stamp;
+  const double samples=std::round(length*current_peak_build.sample_rate_hz)*source_channels;
+  if(samples>0 && samples<static_cast<double>(std::numeric_limits<std::int64_t>::max()))
+    current_peak_build.samples=std::llround(samples);
+  if(cached!=peak_cache.end()) {
+    ++cache_hits;
+    last_cache_lookup="hit";
+    peak_store=*cached;
+    peak_cache.splice(peak_cache.begin(),peak_cache,cached);
+    current_peak_build.mode="cache";
+  } else {
+    last_cache_lookup=enabled?"miss":"bypass";
+    if(enabled)++cache_misses;
+    if(!enabled || !start_store())begin_peaksbuild();
+  }
   return true;
 }
 extern "C" bool AMWaveSetChannelNames(const char* path,const char* stamp,const char* text) {
@@ -583,6 +803,28 @@ extern "C" bool AMWaveSetChannels(const char* path,int left,int right,const char
   if(left==right)std::snprintf(csv,sizeof(csv),"%d",left);
   else std::snprintf(csv,sizeof(csv),"%d,%d",left,right);
   return AMWaveSetChannelSubset(path,csv,stamp);
+}
+std::string am_peak_build_diagnostics() {
+  if(peak_store)record_store_if_complete(peak_store->ready_frames.load(std::memory_order_acquire));
+  using Milliseconds=std::chrono::duration<double,std::milli>;
+  auto describe=[](const PeakBuildStats& build)->nlohmann::json {
+    if(!build.started_unix_ms)return nullptr;
+    const double seconds=std::chrono::duration<double>(build.total_time).count();
+    return {{"length_s",build.length_s},{"channels",build.channels},{"sample_rate_hz",build.sample_rate_hz},
+      {"path",build.path},{"stamp",build.stamp},
+      {"samples",build.samples},{"started_unix_ms",build.started_unix_ms},{"run_calls",build.run_calls},
+      {"run_ms",Milliseconds(build.run_time).count()},{"total_ms",Milliseconds(build.total_time).count()},
+      {"samples_per_second",seconds>0?build.samples/seconds:0},{"mode",build.mode}};
+  };
+  const double self_seconds=std::chrono::duration<double>(last_store_build.decode_time).count();
+  return nlohmann::json{{"last",last_peak_build?describe(*last_peak_build):nlohmann::json(nullptr)},
+    {"last_store",describe(last_store_build)},{"last_peaksbuild",describe(last_reaper_build)},
+    {"builds_completed",peak_builds_completed},{"mode",current_peak_build.mode},
+    {"cache_hits",cache_hits},{"cache_misses",cache_misses},{"last_cache_lookup",last_cache_lookup},
+    {"self_build_ms",Milliseconds(last_store_build.decode_time).count()},
+    {"self_samples_per_second",self_seconds>0?last_store_build.samples/self_seconds:0},
+    {"total_run_ms",Milliseconds(total_peak_run_time).count()},
+    {"slowest_build_ms",Milliseconds(slowest_peak_build).count()}}.dump(-1,' ',false,nlohmann::json::error_handler_t::replace);
 }
 extern "C" const char* AMCursorState() {
   static char result[1024];

@@ -44,6 +44,26 @@ function M.wave_renderer(info,cursor)
   end
   return 'unknown',false
 end
+function M.peak_build_summary(raw)
+  local ok,wave=pcall(J.decode,raw)
+  local peaks=ok and type(wave)=='table' and wave.peak_build
+  if type(peaks)~='table' or not peaks.last_cache_lookup then return end
+  local lines={('Peak cache %s (hits %d, misses %d). %d builds completed, slowest %.1f ms.'):format(
+    peaks.last_cache_lookup,peaks.cache_hits,peaks.cache_misses,peaks.builds_completed,peaks.slowest_build_ms)}
+  local function timing(build,work)
+    return ('%s [%s]  %d samples, %s, %.1f ms total (%.2f M samples/s)'):format(
+      build.path,build.mode,build.samples,work,build.total_ms,build.samples_per_second/1e6)
+  end
+  local store,legacy=peaks.last_store,peaks.last_peaksbuild
+  if store and store~=J.null then
+    lines[#lines+1]='Peak store  '..timing(store,('%.1f ms decode (%.2f M samples/s)'):format(
+      peaks.self_build_ms,peaks.self_samples_per_second/1e6))
+  end
+  if legacy and legacy~=J.null then
+    lines[#lines+1]='REAPER PeaksBuild  '..timing(legacy,('%.1f ms in %d Run calls'):format(legacy.run_ms,legacy.run_calls))
+  end
+  return table.concat(lines,'\n')
+end
 function M.describe(r,cursor)
   local info,err,detected=M.inspect(r);detected=info or detected
   local lines={'Lua package: '..C.version,'Expected native contract schema: '..C.schema}

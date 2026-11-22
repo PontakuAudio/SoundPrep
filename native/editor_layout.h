@@ -35,9 +35,6 @@ inline constexpr Control controls[]={
  {"reference_dbfs","Calibration (dBFS)",number,1,318,-120,0,false},
  {"reference_spl","Calibration (dB SPL)",number,1,364,0,140,false},
  {"tail","Export tail (seconds)",number,2,12,0,30,true},
- {"final","Normalize final export to the LUFS target",toggle,2,62,0,0,true},
- {"limiter","Export true peak limiter",toggle,2,104,0,0,true},
- {"export_ceiling","Export ceiling (dBTP)",number,2,146,-12,0,true},
  {"slot","Action slot (0 = unassigned)",number,3,160,0,9,true},
  {"directory","Export directory",text,4,190,0,0,false}
 };
@@ -55,7 +52,7 @@ inline constexpr Action actions[]={
 inline constexpr const char* help[]={
  "Changes audition live and stay when switching presets or closing this panel. Save preset stores the complete sound, including FX. Quit saves every preset.\n\nRaw saves normalization and peak guard. Its Reverse / Preserve Pitch switches are temporary.",
  "Source ceiling applies before pitch, rate and FX; use an FX limiter for output. Zwicker Max suits short effects; P95 includes silence. Calibration maps digital levels to SPL.",
- "These options are saved with the preset. Final export normalization uses the LUFS target; source Zwicker gain remains in preview, drops and exports. Monitor level is excluded.",
+ "The tail lets effects ring out after the source ends when rendering a drop with handles.",
  "New, duplicate, order and action slots are saved immediately. Imported FX remain a draft until Save preset. Slots 1–9 switch presets; 0 is reserved for Raw.",
  "Stereo WAV, 48 kHz. Monitor level is excluded. A project and preset snapshot are saved beside the audio. Use Native render settings for other formats."
 };

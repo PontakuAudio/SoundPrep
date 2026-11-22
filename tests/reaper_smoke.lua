@@ -64,9 +64,6 @@ local function loop()
       log('worker_lufs_m',measurement.max_momentary_lufs,'worker_tp',measurement.true_peak_dbtp)
       local m=Model.find(app.definition,'heavy');m.normalization.enabled=true;m.normalization.target_lufs=-14
       app:activate('heavy');app:play();log('applied_gain',app.applied_gain);app.preview:stop()
-      app.export_dir=data..'/exports'
-      local target=app:export(false);log('rendered',target)
-      assert(r.file_exists(target),'Missing rendered audio')
       finish(true)
     elseif frame>600 then error('Timed out waiting for worker')end
   end,debug.traceback)

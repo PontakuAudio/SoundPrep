@@ -20,6 +20,8 @@ for _,os in ipairs{'Win64','macOS-arm64'}do
   assert(not require('am.bar').available(r),'Old helper silently retained the withdrawn Search UI')
   info.version='0.11.10';info.features.bar=9
   assert(not N.inspect(r),'Helper without the normalization fade setting was accepted')
+  info.version='0.11.17';info.features.bar=10
+  assert(not N.inspect(r),'Helper requiring the removed Export settings was accepted')
   info.version='999.0.0'
   info.features.bar=C.features.bar.revision
   info.features.preview=1;assert(not N.inspect(r),'Old helper silently accepted multichannel preview')
@@ -41,6 +43,26 @@ end
 local r,info=fixture('macOS-arm64');info.features.quiet_render=nil
 assert(N.inspect(r),'Platform-only features must not be required on the other platform')
 assert(N.describe(r):find('999.0.0',1,true))
+
+-- Diagnostics can be run against an older helper, before either backend
+-- has built anything, or after comparing the same selection on both.
+do
+  assert(not N.peak_build_summary('{"last_seek":null}') and not N.peak_build_summary(''))
+  local peaks={last_cache_lookup='none',cache_hits=0,cache_misses=0,builds_completed=0,slowest_build_ms=0,
+    last_store=J.null,last_peaksbuild=J.null}
+  local function summary()return N.peak_build_summary(J.encode({peak_build=peaks}))end
+  assert(summary():find('0 builds completed',1,true))
+  peaks.last_cache_lookup='hit';peaks.cache_hits=1;peaks.cache_misses=1;peaks.builds_completed=2;peaks.slowest_build_ms=320
+  peaks.last_store={mode='worker',path='/field.wav',samples=7680000,total_ms=30,samples_per_second=256e6}
+  peaks.self_build_ms=24;peaks.self_samples_per_second=320e6
+  peaks.last_peaksbuild={mode='peaksbuild-fallback',path='/field.wav',samples=7680000,total_ms=320,
+    samples_per_second=24e6,run_ms=220,run_calls=9}
+  local report=summary()
+  for _,s in ipairs{'Peak cache hit (hits 1, misses 1)','2 builds completed, slowest 320.0 ms',
+      'Peak store  /field.wav [worker]','7680000 samples, 24.0 ms decode (320.00 M samples/s)',
+      '30.0 ms total (256.00 M samples/s)','REAPER PeaksBuild  /field.wav','220.0 ms in 9 Run calls',
+      '320.0 ms total (24.00 M samples/s)'}do assert(report:find(s,1,true),s)end
+end
 
 -- Renderer diagnostics belong to the attached waveform. Bar refreshes and
 -- transient messages must not replace the warning or re-read the cursor JSON.

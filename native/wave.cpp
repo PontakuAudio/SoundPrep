@@ -21,6 +21,7 @@ extern "C" void AMCursorClear();
 extern "C" void AMCursorRefresh();
 extern "C" void AMCursorAnchor(const char*,double,int);
 extern "C" void AMCursorViewportChanged();
+std::string am_peak_build_diagnostics();
 namespace {
 using Window=void*;
 using Proc=std::intptr_t(*)(Window,unsigned,std::uintptr_t,std::intptr_t);
@@ -201,5 +202,6 @@ extern "C" const char* AMWaveDiagnostics() {
   static std::string result;char state[384];
   std::snprintf(state,sizeof(state),"{\"revision\":2,\"attached\":%s,\"pressed\":%s,\"downs\":%u,\"releases\":%u,\"queued_releases\":%u,\"cancellations\":%u,\"last_seek\":",
     active?"true":"false",gesture.pressed?"true":"false",downs,releases,queued_releases,cancellations);
-  result=state+(last_event.empty()?"null":last_event)+"}";return result.c_str();
+  result=state+(last_event.empty()?"null":last_event)+",\"peak_build\":"+am_peak_build_diagnostics()+"}";
+  return result.c_str();
 }

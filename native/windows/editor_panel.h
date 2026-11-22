@@ -78,7 +78,7 @@ struct EditorPanel {
     }
     int i=0;for(const auto& s:ameditor::actions)actions.push_back(child(L"BUTTON",s.title,WS_TABSTOP,4300+i++,s.page,16+s.x,182+s.y,s.w,30));
     measurement=child(L"EDIT","",WS_TABSTOP|ES_MULTILINE|ES_READONLY|WS_VSCROLL,0,4,30,194,608,100);
-    const int helpY[]={294,404,208,312,340};for(int p=0;p<5;++p)child(L"STATIC",ameditor::help[p],SS_NOPREFIX,0,p,30,182+helpY[p],608,p==1?42:104);
+    const int helpY[]={294,404,62,312,340};for(int p=0;p<5;++p)child(L"STATIC",ameditor::help[p],SS_NOPREFIX,0,p,30,182+helpY[p],608,p==1?42:104);
     notice=child(L"STATIC","",SS_NOPREFIX,0,-1,20,644,554,46);child(L"BUTTON","Done",WS_TABSTOP|BS_DEFPUSHBUTTON,4009,-1,590,650,90,28);
     layout();
   }

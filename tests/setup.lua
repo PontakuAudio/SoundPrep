@@ -126,7 +126,7 @@ local ok,err=xpcall(function()
   for launch=1,2 do
     notice=nil;dofile('./SoundPrep - Install actions.lua')
     assert(notice:find(Setup.update_restart_notice,1,true)==1 and files[target]=='bundled helper')
-    assert(registrations==25*launch)
+    assert(registrations==24*launch)
   end
 end,debug.traceback)
 io.open,os.rename,os.remove,reaper=open,rename,remove,reaper_before

@@ -10,7 +10,7 @@ if not ok then r.ShowMessageBox(tostring(status),'SoundPrep',0);return end
 for _,file in ipairs(scripts)do assert(r.AddRemoveReaScript(true,0,root..'/'..file,true)>0)end
 local names={}
 for i=0,9 do names[#names+1]='Slot '..i end
-for _,name in ipairs{'Reverse','AB','Play Stop','Replay','Stop','Export','Analyse','Edit','Quit'}do names[#names+1]=name end
+for _,name in ipairs{'Reverse','AB','Play Stop','Replay','Stop','Analyse','Edit','Quit'}do names[#names+1]=name end
 for _,name in ipairs(names)do
   local path=root..'/actions/SoundPrep - '..name..'.lua'
   assert(r.AddRemoveReaScript(true,32063,path,true)>0)
