@@ -148,7 +148,6 @@ local function select_case()
   local case=cases[index];app.preview:stop(true)
   app.definition.settings.preview_downmix=case.mode~=0
   app.definition.settings.preview_downmix_mode=case.mode==1 and 'discrete'or 'auto'
-  app.definition.macros[1].source_peak_guard.ceiling_dbtp=case.silent_w and -12 or -3
   app.definition.macros[1].normalization.metric=case.metric or 'lufs_m_max'
   app.definition.settings.analysis_timeout_seconds=case.metric and 90 or 45
   app.effective_macro=nil;app.path=case.fixture.path;app.identity=assert(L.identity(r,app.path))
@@ -187,9 +186,9 @@ local ok,err=xpcall(function()
     {name='Zwicker Max AmbiX ON',fixture=ambix,mode=2,metric='zwicker_max'},
     {name='Zwicker P95 AmbiX ON',fixture=ambix,mode=2,metric='zwicker_p95'}}
   local definition=Model.defaults();local macro=Model.macro('normalize','Normalization test')
-  macro.normalization.enabled=true;macro.normalization.target_lufs=-24;macro.source_peak_guard.enabled=true
+  macro.normalization.enabled=true;macro.normalization.target_lufs=-24
   macro.output_gain_db=3;macro.export.tail_seconds=0
-  definition.macros=J.array{macro};definition.slots={};definition.settings.monitor_gain_db=0
+  definition.macros=J.array{macro};definition.settings.monitor_gain_db=0
   definition.settings.keep_fx_running=true;definition.settings.loop=true
   definition.settings.preview_fade_ms=0;definition.settings.fade_ms=0;definition.settings.analysis_timeout_seconds=45
   definition.settings.auto_render_drops=true
@@ -232,11 +231,11 @@ local function tick()
           'Zwicker result lost its selected summary, solved gain or response tail')
       else assert(spec.revision==1 and measurement.profile==L.MULTICHANNEL_PROFILE)end
       assert(app.loudness.counter==case.counter_before+(case.cached and 0 or 1),'Worker policy cache reuse was incorrect')
-      gain=app:gain();assert(math.abs(gain)>.05,'Fixture did not exercise a nonzero source gain')
+      gain=app:gain()
       if case.silent_w then
-        assert(measurement.status=='silence'and U.finite(measurement.true_peak_dbtp)and gain<0,
-          'Silent W failed to retain directional true-peak protection')
-      else assert(measurement.status=='ready')end
+        assert(measurement.status=='silence'and U.finite(measurement.true_peak_dbtp)and gain==0,
+          'Silent W should leave the directional channels at unity')
+      else assert(measurement.status=='ready' and math.abs(gain)>.05)end
       expected=wanted(case,gain);reference=1
       for ch,value in ipairs(expected)do if math.abs(value)>math.abs(expected[reference])then reference=ch end end
       assert(app:play(0,true))

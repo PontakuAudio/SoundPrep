@@ -9,6 +9,7 @@ function app:set_downmix(value)settings.channel_selections[tostring(self.source_
 local read=Names.read;Names.read=function()return {[1]='Boom & A',[3]='Boom & A',[5]='風鈴 🎤'}end
 local r={EnumProjects=function()return project end};local bar=setmetatable({r=r,app=app},Bar)
 bar:dispatch('channels');local state=Panel.state(app);assert(state.open and state.items[1].name=='Boom & A'and state.items[2].name==''and #state.items==6)
+assert(state.paged==false)
 assert(not app.channels_requested and not app.editor_requested,'Mic selection must not open the preset editor')
 local function command(op,channel,source)bar:dispatch('channels@'..J.encode{op=op,channel=channel,source=source or Panel.state(app).source})end
 command('toggle',1);command('toggle',3);command('toggle',5)
@@ -18,6 +19,7 @@ command('toggle',3);command('swap');assert(U.equal(Selection.list(Selection.get(
 command('toggle',5);command('toggle',1);assert(app.channel_panel_notice and #Selection.list(Selection.get(settings,6))==1)
 local source=state.source;local before=writes;app.path='/other.wav';command('toggle',2,source);assert(writes==before)
 app.source_channels=128;app:set_channel_selection({127});state=Panel.state(app);assert(state.items[1].channel==121 and state.items[8].channel==128 and not state.next)
+assert(state.paged==true)
 command('previous');assert(Panel.state(app).items[1].channel==113)
 command('next');assert(Panel.state(app).items[1].channel==121)
 command('next');assert(not Panel.state(app).next)
@@ -25,7 +27,7 @@ project={};before=writes;command('toggle',128);assert(writes==before)
 bar:dispatch('channels:close');assert(not app.channel_panel_open)
 project=app.project;app.source_channels=6;app.path='/recording.wav'
 command('all');assert(not Selection.get(settings,6)and not settings.preview_downmix)
-command('downmix');assert(Panel.state(app).downmix)
+app:set_downmix(true);state=Panel.state(app);assert(state.downmix and state.summary=='Downmix all channels')
 app.source_channels=0;state=Panel.state(app);assert(not state.enabled and #state.items==0)
 -- Wave labels are dense and indexed by original file channel, independent of order.
 app.source_channels=6;app:set_channel_selection({5,1});app.r=r

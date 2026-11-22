@@ -75,9 +75,7 @@ local value={status='silence',identity=identity,analyzer_key='analyzer',profile=
   duration=10,max_momentary_lufs=J.null,true_peak_dbtp=3}
 assert(L.matches_measurement(value,identity,'analyzer',w))
 local macro=Model.macro('test','Test');macro.normalization.enabled=true
-assert(L.gain(macro,value)==-4,'A silent reference must still protect peaks on the other channels')
-macro.source_peak_guard.enabled=true
-local gain,reason=L.gain(macro,value);assert(gain==-4 and reason=='source peak capped')
+local gain,reason=L.gain(macro,value);assert(gain==0 and reason=='silence')
 value.true_peak_dbtp=-12;gain,reason=L.gain(macro,value);assert(gain==0 and reason=='silence')
 value.true_peak_dbtp=J.null;assert(L.gain(macro,value)==0)
 value.true_peak_dbtp=0/0;assert(not L.matches_measurement(value,identity,'analyzer',w))

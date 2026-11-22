@@ -56,7 +56,7 @@ local function tick()
     if stage==0 then
       index=index+1;if index>#cases then finish(true);return end
       chosen=cases[index];local data=dir..'/case'..index
-      App.initialize(r,root,data);local b=Model.defaults();b.macros=J.array{Model.macro('delay','Delay'),Model.macro('other','Other')};b.slots={['1']='delay',['2']='other'}
+      App.initialize(r,root,data);local b=Model.defaults();b.macros=J.array{Model.macro('delay','Delay'),Model.macro('other','Other')}
       b.settings.autoplay=false;b.settings.keep_fx_running=chosen.keep or false;b.settings.monitor_gain_db=0;b.settings.preview_fade_ms=50
       for _,m in ipairs(b.macros)do
         assert(U.write(data..'/'..m.fx_chain,chosen.kind=='JS'and'SHOW -1\nBYPASS 0 0 0\n<JS am_buffer_probe ""\n500\n>\nWAK 0 0\n'or'SHOW -1\nLASTSEL 0\nDOCKED 0\n'))

@@ -12,7 +12,7 @@
 @implementation AMEditorPanel
 - (void)create:(NSView*)anchor {
   self.window=[[NSPanel alloc]initWithContentRect:NSMakeRect(0,0,700,738) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];
-  self.window.title=@"SoundPrep — Presets & Tools";self.window.releasedWhenClosed=NO;self.window.hidesOnDeactivate=NO;
+  self.window.title=@"SoundPrep — Presets";self.window.releasedWhenClosed=NO;self.window.hidesOnDeactivate=NO;
   self.window.floatingPanel=NO;self.window.level=NSNormalWindowLevel;self.window.delegate=self;
   __weak AMEditorPanel* weakSelf=self;
   self.keyboardMonitor=[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^NSEvent*(NSEvent* event){
@@ -34,12 +34,12 @@
   [self button:@"Focus ME" op:@"focus" parent:root frame:NSMakeRect(368,108,100,28)];
   self.tabs=[[NSTabView alloc]initWithFrame:NSMakeRect(14,148,672,486)];[root addSubview:self.tabs];
   for(const char* name:ameditor::pages){NSTabViewItem* tab=[[NSTabViewItem alloc]initWithIdentifier:[NSString stringWithUTF8String:name]];
-    tab.label=tab.identifier;tab.view=[[AMSettingsPage alloc]initWithFrame:NSMakeRect(0,0,644,446)];[self.tabs addTabViewItem:tab];}
+    tab.label=tab.identifier;tab.view=[[AMSettingsPage alloc]initWithFrame:NSMakeRect(0,0,644,470)];[self.tabs addTabViewItem:tab];}
   self.controls=[NSMutableArray array];self.numbers=[NSMutableDictionary dictionary];self.actions=[NSMutableArray array];
   for(int i=0;i<ameditor::count;++i){
     const auto& s=ameditor::controls[i];NSView* page=self.tabs.tabViewItems[s.page].view;NSControl* control;
     NSString* label=[NSString stringWithUTF8String:s.label];
-    if(s.kind==ameditor::toggle){control=[NSButton checkboxWithTitle:label target:self action:@selector(changed:)];control.frame=NSMakeRect(14,s.y,610,26);}
+    if(s.kind==ameditor::toggle){control=[NSButton checkboxWithTitle:label target:self action:@selector(changed:)];control.frame=NSMakeRect(s.x,s.y,s.w,26);}
     else {
       [self label:label parent:page frame:NSMakeRect(14,s.y+4,204,28)];
       if(s.kind==ameditor::number){
@@ -59,11 +59,11 @@
   }
   for(const auto& s:ameditor::actions){NSButton* button=[self button:[NSString stringWithUTF8String:s.title] op:[NSString stringWithUTF8String:s.op]
     parent:self.tabs.tabViewItems[s.page].view frame:NSMakeRect(s.x,s.y,s.w,30)];[self.actions addObject:button];}
-  self.measurement=[self label:@"" parent:self.tabs.tabViewItems[4].view frame:NSMakeRect(14,12,608,100)];self.measurement.selectable=YES;
-  const int helpY[]={294,404,62,312,340};
-  for(int i=0;i<5;++i){NSTextField* help=[self label:[NSString stringWithUTF8String:ameditor::help[i]] parent:self.tabs.tabViewItems[i].view frame:NSMakeRect(14,helpY[i],608,i==1?42:104)];help.font=[NSFont systemFontOfSize:11];help.textColor=NSColor.secondaryLabelColor;help.toolTip=help.stringValue;}
+  self.measurement=[self label:@"" parent:self.tabs.tabViewItems[1].view frame:NSMakeRect(14,ameditor::measurementY,608,70)];self.measurement.selectable=YES;
+  for(int i=0;i<ameditor::page_count;++i){NSTextField* help=[self label:[NSString stringWithUTF8String:ameditor::help[i]] parent:self.tabs.tabViewItems[i].view frame:NSMakeRect(14,ameditor::helpY[i],608,i==1?42:104)];help.font=[NSFont systemFontOfSize:11];help.textColor=NSColor.secondaryLabelColor;help.toolTip=help.stringValue;}
   self.notice=[self label:@"" parent:root frame:NSMakeRect(20,644,554,46)];self.notice.font=[NSFont systemFontOfSize:11];
   [self button:@"Done" op:@"close" parent:root frame:NSMakeRect(590,650,90,28)];
+  amoverlay::registerPanel(self.window);
   [self.window setFrameAutosaveName:@"SoundPrepPresetEditor"];
   NSRect frame=self.window.frame,screen=(anchor.window.screen?:NSScreen.mainScreen).visibleFrame;
   frame.size.height=MIN(frame.size.height,NSHeight(screen));
@@ -80,7 +80,7 @@
   const auto& s=ameditor::controls[sender.tag];id value;
   if(s.kind==ameditor::toggle)value=@([(NSButton*)sender state]==NSControlStateValueOn);
   else if(s.kind==ameditor::choice)value=[NSString stringWithUTF8String:ameditor::metrics[[(NSPopUpButton*)sender indexOfSelectedItem]]];
-  else {double scale=!strcmp(s.key,"slot")?1:100;double n=std::round(sender.doubleValue*scale)/scale;value=@(n);self.numbers[@(sender.tag)].stringValue=[NSString stringWithFormat:!strcmp(s.key,"slot")?@"%.0f":@"%.2f",n];}
+  else {double n=std::round(sender.doubleValue*100)/100;value=@(n);self.numbers[@(sender.tag)].stringValue=[NSString stringWithFormat:@"%.2f",n];}
   [self event:@{@"op":@"set",@"key":[NSString stringWithUTF8String:s.key],@"value":value}];
 }
 - (void)fieldChanged:(NSTextField*)field {
@@ -88,9 +88,9 @@
   if(s.kind==ameditor::number){
     NSScanner* scanner=[NSScanner scannerWithString:[field.stringValue stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]];
     scanner.locale=[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];double n;
-    if(![scanner scanDouble:&n] || !scanner.isAtEnd || !std::isfinite(n) || n<s.low || n>s.high || (!strcmp(s.key,"slot") && std::floor(n)!=n)){
-      field.stringValue=[NSString stringWithFormat:!strcmp(s.key,"slot")?@"%.0f":@"%.2f",[self.state[@"values"][key] doubleValue]];
-      self.notice.stringValue=[NSString stringWithFormat:@"Enter %@ between %g and %g.",!strcmp(s.key,"slot")?@"an integer":@"a number",s.low,s.high];return;
+    if(![scanner scanDouble:&n] || !scanner.isAtEnd || !std::isfinite(n) || n<s.low || n>s.high){
+      field.stringValue=[NSString stringWithFormat:@"%.2f",[self.state[@"values"][key] doubleValue]];
+      self.notice.stringValue=[NSString stringWithFormat:@"Enter a number between %g and %g.",s.low,s.high];return;
     }value=@(n);
   }
   if(![value isEqual:self.state[@"values"][key]])[self event:@{@"op":@"set",@"key":key,@"value":value}];
@@ -142,14 +142,14 @@
     if(s.kind==ameditor::toggle)[(NSButton*)c setState:[value boolValue]?NSControlStateValueOn:NSControlStateValueOff];
     else if(s.kind==ameditor::choice){for(int k=0;k<3;++k)if([value isEqual:[NSString stringWithUTF8String:ameditor::metrics[k]]])[(NSPopUpButton*)c selectItemAtIndex:k];}
     else if(s.kind==ameditor::text){if(!c.currentEditor)c.stringValue=value;}
-    else {NSTextField* f=self.numbers[@(i)];f.enabled=enabled;if(!f.currentEditor && ![(AMSettingsSlider*)c dragging]){c.doubleValue=[value doubleValue];f.stringValue=[NSString stringWithFormat:!strcmp(s.key,"slot")?@"%.0f":@"%.2f",[value doubleValue]];}}
+    else {NSTextField* f=self.numbers[@(i)];f.enabled=enabled;if(!f.currentEditor && ![(AMSettingsSlider*)c dragging]){c.doubleValue=[value doubleValue];f.stringValue=[NSString stringWithFormat:@"%.2f",[value doubleValue]];}}
   }
   int i=0;for(const auto& s:ameditor::actions){NSButton* b=self.actions[i++];b.enabled=!paused && (!s.macroOnly || !raw);
     if(!strcmp(s.op,"new") || !strcmp(s.op,"duplicate"))b.enabled=b.enabled && [state[@"presets"] count]<10;
     if(!strcmp(s.op,"confirm_delete") || !strcmp(s.op,"cancel_delete"))b.hidden=![state[@"deleting"] boolValue];}
   self.measurement.stringValue=state[@"measurement"];self.measurement.toolTip=self.measurement.stringValue;
   self.notice.stringValue=paused?@"Paused — return to the attached project to edit.":state[@"notice"];self.notice.toolTip=self.notice.stringValue;
-  if(!wasOpen || focus){if([state[@"page"] integerValue]>=0)[self.tabs selectTabViewItemAtIndex:[state[@"page"] integerValue]];
+  if(!wasOpen || focus){if([state[@"page"] integerValue]>=0)[self.tabs selectTabViewItemAtIndex:ameditor::current_page([state[@"page"] intValue])];
     if(anchor.window && self.window.parentWindow!=anchor.window)[anchor.window addChildWindow:self.window ordered:NSWindowAbove];
     [self.window makeKeyAndOrderFront:nil];[self.window makeFirstResponder:self.tabs];}
   self.updating=NO;

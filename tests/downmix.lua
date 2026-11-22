@@ -139,10 +139,9 @@ local analysis=setmetatable({definition=Model.defaults(),identity={path='/multi.
     assert(spec.basis==(requests<=2 and 'loudest_channel' or 'downmix_discrete'))
   end}},App)
 analysis.definition.raw.normalization.enabled=true
-analysis.definition.raw.source_peak_guard.enabled=true
 for _,enabled in ipairs{false,true}do
   analysis.definition.settings.preview_downmix=enabled
-  local gain,status=analysis:gain();assert(gain==9 and status=='source peak capped')
+  local gain,status=analysis:gain();assert(gain==22 and status=='ready')
   assert(analysis:measurement());analysis:request_analysis(true);analysis:analyse(true)
 end
 assert(requests==4 and reads==4)

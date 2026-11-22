@@ -14,52 +14,46 @@ struct PresetLayout {
  int height()const{return y+38;}
 };
 enum Kind { toggle,number,text,choice };
-struct Control { const char* key;const char* label;Kind kind;int page,y;double low,high;bool macroOnly; };
-inline constexpr const char* pages[]={"Sound","Normalize","Export options","Manage","Tools"};
+struct Control { const char* key;const char* label;Kind kind;int page,y;double low,high;bool macroOnly;int x=14,w=610; };
+inline constexpr const char* pages[]={"Sound","Normalize","Manage"};
+inline constexpr int page_count=sizeof(pages)/sizeof(pages[0]);
+// Previously saved page indices 3 and 4 both open Manage.
+inline constexpr int current_page(int page){return std::min(page,page_count-1);}
+inline constexpr int helpY[]={242,240,292};
+inline constexpr int measurementY=292;
 inline constexpr const char* meters[]={"LUFS MaxM","Zwicker Max","Zwicker P95"};
 inline constexpr const char* metrics[]={"lufs_m_max","zwicker_max","zwicker_p95"};
 inline constexpr Control controls[]={
- {"name","Preset name",text,0,12,0,0,true},
- {"reverse","Reverse",toggle,0,58,0,0,false},
- {"pitch","Pitch (semitones)",number,0,96,-24,24,true},
- {"rate","Rate",number,0,142,.1,4,true},
- {"preserve","Preserve Pitch",toggle,0,192,0,0,false},
- {"gain","Output gain (dB)",number,0,234,-60,12,true},
+ {"name","Preset name",text,2,12,0,0,true},
+ {"reverse","Reverse",toggle,0,12,0,0,false,14,300},
+ {"preserve","Preserve Pitch",toggle,0,12,0,0,false,330,300},
+ {"pitch","Pitch (semitones)",number,0,58,-24,24,true},
+ {"rate","Rate",number,0,104,.1,4,true},
+ {"gain","Output gain (dB)",number,0,150,-60,12,true},
+ {"tail","Export tail (seconds)",number,0,196,0,30,true},
  {"normalize","Normalize source",toggle,1,12,0,0,false},
  {"metric","Loudness meter",choice,1,50,0,0,false},
  {"lufs","Target (LUFS-M)",number,1,96,-60,0,false},
- {"sones","Target (sones)",number,1,142,.01,256,false},
- {"boost","Max boost (dB)",number,1,188,0,24,false},
- {"guard","Peak guard also when Normalize is off",toggle,1,234,0,0,false},
- {"ceiling","Source ceiling (dBTP)",number,1,272,-12,0,false},
- {"reference_dbfs","Calibration (dBFS)",number,1,318,-120,0,false},
- {"reference_spl","Calibration (dB SPL)",number,1,364,0,140,false},
- {"tail","Export tail (seconds)",number,2,12,0,30,true},
- {"slot","Action slot (0 = unassigned)",number,3,160,0,9,true},
- {"directory","Export directory",text,4,190,0,0,false}
+ {"sones","Target (sones)",number,1,142,.01,256,false}
 };
 inline constexpr int count=sizeof(controls)/sizeof(controls[0]);
 struct Action {const char* op;const char* title;int page,x,y,w;bool macroOnly;};
 inline constexpr Action actions[]={
- {"new","New preset",3,14,12,154,false},{"duplicate","Duplicate",3,184,12,154,true},
- {"up","Move up",3,14,58,154,true},{"down","Move down",3,184,58,154,true},
- {"import","Import FX chain…",3,14,104,154,true},{"delete","Delete preset…",3,184,104,154,true},
- {"confirm_delete","Confirm delete",3,14,258,154,true},{"cancel_delete","Keep preset",3,184,258,154,false},
- {"analyse","Analyse / refresh",4,14,126,168,false},{"render_drops","Render selected drops",4,198,126,190,false},
- {"directory_choose","Choose folder…",4,14,238,150,false},{"render","Render WAV",4,14,288,150,false},
- {"render_dialog","Native render settings…",4,180,288,204,false}
+ {"new","New preset",2,14,58,154,false},{"duplicate","Duplicate",2,184,58,154,true},
+ {"up","Move up",2,14,104,154,true},{"down","Move down",2,184,104,154,true},
+ {"import","Import FX chain…",2,14,150,154,true},{"delete","Delete preset…",2,184,150,154,true},
+ {"confirm_delete","Confirm delete",2,14,252,154,true},{"cancel_delete","Keep preset",2,184,252,154,false},
+ {"analyse","Analyse / refresh",1,14,188,168,false}
 };
 inline constexpr const char* help[]={
- "Changes audition live and stay when switching presets or closing this panel. Save preset stores the complete sound, including FX. Quit saves every preset.\n\nRaw saves normalization and peak guard. Its Reverse / Preserve Pitch switches are temporary.",
- "Source ceiling applies before pitch, rate and FX; use an FX limiter for output. Zwicker Max suits short effects; P95 includes silence. Calibration maps digital levels to SPL.",
- "The tail lets effects ring out after the source ends when rendering a drop with handles.",
- "New, duplicate, order and action slots are saved immediately. Imported FX remain a draft until Save preset. Slots 1–9 switch presets; 0 is reserved for Raw.",
- "Stereo WAV, 48 kHz. Monitor level is excluded. A project and preset snapshot are saved beside the audio. Use Native render settings for other formats."
+ "Changes audition live and stay when switching presets or closing this panel. Save preset stores the complete sound, including FX. Quit saves every preset. Export tail lets effects ring out after the source ends when rendering a drop with handles.\n\nRaw saves normalization. Its Reverse / Preserve Pitch switches are temporary.",
+ "Zwicker Max suits short effects; P95 includes silence. Use an FX limiter if you need to cap output peaks. Use Analyse / refresh to update the source measurement.",
+ "New, duplicate and order are saved immediately. Imported FX remain a draft until Save preset."
 };
 inline bool enabled(const Control& s,bool raw,bool zwicker){
  if(s.macroOnly && raw)return false;
  if(!strcmp(s.key,"lufs"))return !zwicker;
- if(!strcmp(s.key,"sones") || !strcmp(s.key,"reference_dbfs") || !strcmp(s.key,"reference_spl"))return zwicker;
+ if(!strcmp(s.key,"sones"))return zwicker;
  return true;
 }
 }

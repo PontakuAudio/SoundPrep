@@ -36,24 +36,23 @@
 }
 - (instancetype)initWithSender:(void(*)(NSString*))sender {
   if(!(self=[super init]))return nil;self.send=sender;self.actions=[NSMutableDictionary dictionary];
-  self.view=[[AMChannelContent alloc]initWithFrame:NSMakeRect(0,0,520,314)];
+  self.view=[[AMChannelContent alloc]initWithFrame:NSMakeRect(0,0,520,264)];
   self.file=[self label:NSMakeRect(12,10,496,18)];self.summary=[self label:NSMakeRect(12,32,496,18)];
   NSMutableArray* buttons=[NSMutableArray array];
   for(int i=0;i<8;++i) {
-    NSButton* b=[self button:@"" command:@"toggle" frame:NSMakeRect(12+(i%4)*125,58+(i/4)*54,121,48)];
+    NSButton* b=[self button:@"" command:@"toggle" frame:NSMakeRect(12+(i%4)*125,58+(i/4)*46,121,40)];
     b.bezelStyle=NSBezelStyleRegularSquare;b.cell.wraps=YES;b.buttonType=NSButtonTypePushOnPushOff;[buttons addObject:b];
   }
   self.microphones=buttons;
-  self.actions[@"previous"]=[self button:@"‹ Previous 8" command:@"previous" frame:NSMakeRect(12,172,112,26)];
-  self.page=[self label:NSMakeRect(132,177,252,18)];self.page.alignment=NSTextAlignmentCenter;
-  self.actions[@"next"]=[self button:@"Next 8 ›" command:@"next" frame:NSMakeRect(396,172,112,26)];
-  for(NSArray* item in @[@[@"all",@"All channels"],@[@"downmix",@"Downmix all"],@[@"swap",@"Swap L / R"],@[@"close",@"Done"]]) {
+  self.actions[@"previous"]=[self button:@"‹ Previous 8" command:@"previous" frame:NSMakeRect(12,156,112,26)];
+  self.page=[self label:NSMakeRect(132,161,252,18)];self.page.alignment=NSTextAlignmentCenter;
+  self.actions[@"next"]=[self button:@"Next 8 ›" command:@"next" frame:NSMakeRect(396,156,112,26)];
+  for(NSArray* item in @[@[@"all",@"All channels"],@[@"swap",@"Swap L / R"],@[@"play",@"Play"],@[@"close",@"Done"]]) {
     NSUInteger i=self.actions.count-2;
-    self.actions[item[0]]=[self button:item[1] command:item[0] frame:NSMakeRect(12+i*125,206,121,26)];
+    self.actions[item[0]]=[self button:item[1] command:item[0] frame:NSMakeRect(12+i*125,190,121,26)];
   }
-  self.actions[@"play"]=[self button:@"Play" command:@"play" frame:NSMakeRect(12,242,96,26)];
-  self.actions[@"replay"]=[self button:@"Replay" command:@"replay" frame:NSMakeRect(116,242,96,26)];
-  self.notice=[self label:NSMakeRect(12,280,496,20)];
+  self.actions[@"all"].buttonType=NSButtonTypePushOnPushOff;
+  self.notice=[self label:NSMakeRect(12,230,496,20)];
   self.popover=[NSPopover new];self.popover.contentViewController=self;self.popover.behavior=NSPopoverBehaviorTransient;
   self.popover.animates=NO;self.popover.delegate=self;return self;
 }
@@ -66,12 +65,23 @@
   self.send([@"channels@" stringByAppendingString:[[NSString alloc]initWithData:bytes encoding:NSUTF8StringEncoding]]);
 }
 - (void)popoverDidClose:(NSNotification*)note{(void)note;if(!self.suppressClose)self.send(@"channels:close");}
+- (void)layoutPaged:(BOOL)paged {
+  BOOL hidePager=!paged;
+  if(self.page.hidden==hidePager)return;
+  self.page.hidden=hidePager;self.actions[@"previous"].hidden=hidePager;self.actions[@"next"].hidden=hidePager;
+  for(NSView* row in @[self.actions[@"all"],self.actions[@"swap"],self.actions[@"play"],self.actions[@"close"],self.notice]) {
+    NSPoint origin=row.frame.origin;origin.y+=hidePager?-34:34;[row setFrameOrigin:origin];
+  }
+  self.popover.contentSize=NSMakeSize(520,paged?264:230);
+}
 - (void)update:(NSDictionary*)state anchor:(NSView*)anchor paused:(BOOL)paused {
   self.state=state;self.paused=paused;
   if(![state[@"open"] boolValue] || paused || !anchor.window || anchor.hiddenOrHasHiddenAncestor) {
     self.suppressClose=YES;[self.popover close];self.suppressClose=NO;return;
   }
   BOOL enabled=[state[@"enabled"] boolValue];
+  BOOL previous=[state[@"previous"] boolValue],next=[state[@"next"] boolValue];
+  [self layoutPaged:state[@"paged"]?[state[@"paged"] boolValue]:(previous || next)];
   self.file.stringValue=state[@"file"];self.file.toolTip=self.file.stringValue;
   self.summary.stringValue=state[@"summary"];self.summary.toolTip=self.summary.stringValue;
   self.page.stringValue=state[@"page"];self.notice.stringValue=[state[@"notice"] length]?state[@"notice"]:@"Click microphones to add or remove them. Changes apply immediately.";
@@ -86,9 +96,9 @@
     b.state=[item[@"selected"] boolValue]?NSControlStateValueOn:NSControlStateValueOff;b.enabled=enabled;
   }
   for(NSString* key in self.actions)self.actions[key].enabled=enabled || [key isEqual:@"close"];
-  self.actions[@"previous"].enabled=enabled && [state[@"previous"] boolValue];self.actions[@"next"].enabled=enabled && [state[@"next"] boolValue];
-  self.actions[@"swap"].enabled=enabled && [state[@"can_swap"] boolValue];self.actions[@"downmix"].enabled=enabled && [state[@"can_downmix"] boolValue];
-  for(NSString* key in @[@"all",@"downmix"]){NSButton* b=self.actions[key];b.buttonType=NSButtonTypePushOnPushOff;b.state=[state[key] boolValue]?NSControlStateValueOn:NSControlStateValueOff;}
+  self.actions[@"previous"].enabled=enabled && previous;self.actions[@"next"].enabled=enabled && next;
+  self.actions[@"swap"].enabled=enabled && [state[@"can_swap"] boolValue];
+  self.actions[@"all"].state=[state[@"all"] boolValue]?NSControlStateValueOn:NSControlStateValueOff;
   self.actions[@"play"].title=[state[@"playing"] boolValue]?@"Stop":@"Play";
   if(!self.popover.shown)[self.popover showRelativeToRect:anchor.bounds ofView:anchor preferredEdge:NSMaxYEdge];
 }

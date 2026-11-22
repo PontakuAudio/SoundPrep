@@ -30,7 +30,7 @@ function M.new(r,root,data)
   local recovered=require('am.recovery').reveal_orphans(r)
   if recovered>0 then r.ShowConsoleMsg(('SoundPrep: %d saved preview tracks recovered, muted and made visible.\n'):format(recovered))end
   local self=setmetatable({r=r,root=root,data=data,session=U.hash(r.genGuid()),message='',last_poll=0,
-    selected_id=nil,previous_id=nil,reverse_override=nil,closed=false,export_dir=data..'/exports',range=nil},M)
+    selected_id=nil,previous_id=nil,reverse_override=nil,closed=false,range=nil},M)
   local ok,err=xpcall(function()
     self.definition=assert(Model.load(data..'/bank.json'))
     self.project=r.EnumProjects(-1)
@@ -171,7 +171,7 @@ function M:select_source(path,reason,defer_analysis)
   self.message=reason or '';self.applied_gain=nil
   if self.identity then
     self:sync_range(false)
-    if not defer_analysis and (self:effective().normalization.enabled or self:effective().source_peak_guard.enabled)then self:request_analysis()end
+    if not defer_analysis and self:effective().normalization.enabled then self:request_analysis()end
   end
 end
 function M:gain()
@@ -209,7 +209,7 @@ function M:play(position,immediate)
   self.playback_identity=U.copy(identity)
   self.playback_analysis=U.copy(self:analysis_spec())
   self.applied_gain=gain;self.applied_status=status
-  if macro.normalization.enabled or macro.source_peak_guard.enabled then self:request_analysis()end
+  if macro.normalization.enabled then self:request_analysis()end
   self.message=processing_message(status)
   return true
 end
@@ -225,8 +225,7 @@ function M:refresh_processing()
       (before and before.basis or 'source')==(analysis and analysis.basis or 'source')and
       U.equal(before and before.selection,analysis and analysis.selection)and
       (before and before.source_channels or self.source_channels)==(analysis and analysis.source_channels or self.source_channels)then
-      -- A changed Zwicker target/calibration needs another solution. Keep the
-      -- audible level and stop the old target ramp until that solution arrives.
+      -- Hold the audible level while the solver processes the new Zwicker target.
       gain=self.preview.gain_db;self.preview:cancel_gain_fade()
     end
   end
@@ -251,8 +250,7 @@ function M:update_normalization(now)
   if preview.downmix_mode~=mode or not preview:playing(true)then return false end
   local measurement=self:measurement()
   if Loudness.matches_measurement(measurement,self.identity,self.loudness.analyzer_key,analysis)then
-    -- Zwicker results include their target and calibration in the descriptor;
-    -- only a result matching the current preset can become a live gain target.
+    -- The descriptor includes the Zwicker target selected in the current preset.
     local gain,status=Loudness.gain(self:effective(),measurement)
     local current_target=preview.gain_target or preview.gain_db
     if not U.finite(current_target)or math.abs(gain-current_target)>1e-9 then
@@ -293,7 +291,7 @@ function M:activate(id)
   self.preview:latency_track(self.bank.fx_bypassed and self.bank.input or self.bank.chosen)
   self:reflect_transform(after.source_transform)
   self:refresh_processing()
-  if self.identity and (after.normalization.enabled or after.source_peak_guard.enabled)then self:request_analysis()end
+  if self.identity and after.normalization.enabled then self:request_analysis()end
 end
 function M:reverse()
   self.reverse_override=not self:effective().source_transform.reverse
@@ -332,10 +330,7 @@ local function set_downmix_setting(self,key,value,selection_change)
   if not saved then settings[key]=previous;error(err)end
   clear_downmix_error(self)
   if not selection_change and (self.source_channels or 0)<=2 then return true end
-  if self.identity then
-    local macro=self:effective()
-    if macro.normalization.enabled or macro.source_peak_guard.enabled then self:request_analysis()end
-  end
+  if self.identity and self:effective().normalization.enabled then self:request_analysis()end
   if not selection_change and (Selection.get(settings,self.source_channels)or key=='preview_downmix_mode' and not enabled)then
     if self.identity then self:refresh_processing()end
     return true
@@ -505,18 +500,18 @@ function M:audition_edit(edit)
   self.preset_drafts=self.preset_drafts or {};self.preset_drafts[edit.id]=edit
   if (self.selected_id or 'raw')~=edit.id or U.equal(edit,self.edit_preview)then return end
   local candidate=U.copy(self.definition)
-  if edit.id=='raw'then candidate.raw={normalization=U.copy(edit.normalization),source_peak_guard=U.copy(edit.source_peak_guard)}
+  if edit.id=='raw'then candidate.raw={normalization=U.copy(edit.normalization)}
   else local _,index=Model.find(candidate,edit.id);assert(index);candidate.macros[index]=U.copy(edit)end
   Model.validate(candidate)
   self.edit_preview=U.copy(edit);self.effective_macro=nil
   if edit.id~='raw'then self.transform_override=nil;self.reverse_override=nil end
   self.bank:activate(self.selected_id,edit.output_gain_db)
   self:reflect_transform(self:effective().source_transform);self:refresh_processing()
-  if self.identity and (edit.normalization.enabled or edit.source_peak_guard.enabled)then self:request_analysis()end
+  if self.identity and edit.normalization.enabled then self:request_analysis()end
 end
 function M:apply_edit(edit,quiet)
   if edit.id=='raw'then
-    local candidate=U.copy(self.definition);candidate.raw={normalization=U.copy(edit.normalization),source_peak_guard=U.copy(edit.source_peak_guard)}
+    local candidate=U.copy(self.definition);candidate.raw={normalization=U.copy(edit.normalization)}
     assert(Model.save(self.data..'/bank.json',candidate));self.definition.raw=candidate.raw
     self.preset_drafts=self.preset_drafts or {};self.preset_drafts.raw=edit
     if not self.selected_id then self.edit_preview=nil end
@@ -558,7 +553,6 @@ function M:new_macro(duplicate)
   local chain=original and self.bank:chain(original.id) or 'SHOW -1\nLASTSEL 0\nDOCKED 0\n'
   assert(U.write(self.data..'/'..m.fx_chain,chain));self.bank:add_macro(m)
   self.definition.macros[#self.definition.macros+1]=m
-  for slot=1,9 do if not self.definition.slots[tostring(slot)]then self.definition.slots[tostring(slot)]=id;break end end
   self:save();self:activate(id);return m
 end
 function M:delete(id)
@@ -567,7 +561,6 @@ function M:delete(id)
   if self.previous_id==id then self.previous_id=nil end
   self.bank:remove(id);table.remove(self.definition.macros,index)
   if self.preset_drafts then self.preset_drafts[id]=nil end
-  for slot,value in pairs(self.definition.slots)do if value==id then self.definition.slots[slot]=nil end end
   self:save()
 end
 function M:move(id,direction)
@@ -575,10 +568,6 @@ function M:move(id,direction)
   if other>=1 and other<=#self.definition.macros then
     local t=self.definition.macros;t[index],t[other]=t[other],t[index];self:save()
   end
-end
-function M:slot(id,number)
-  for k,v in pairs(self.definition.slots)do if v==id then self.definition.slots[k]=nil end end
-  if number>0 then self.definition.slots[tostring(number)]=id end;self:save()
 end
 function M:import_chain(id,path)
   local m=assert(Model.find(self.definition,id));local text=assert(U.read(path))
@@ -607,8 +596,6 @@ function M:commands(paused)
     local ok,e=pcall(function()
       if paused then
         if command=='quit' then self.closed=true elseif command=='stop' then self.preview:stop()end
-      elseif command:match('^slot:%d$')then
-        local slot=command:sub(-1);if slot=='0'then self:activate(nil)elseif self.definition.slots[slot]then self:activate(self.definition.slots[slot])end
       elseif command=='reverse'then self:reverse()
       elseif command=='ab'then self:ab()
       elseif command=='play'then self:transport()

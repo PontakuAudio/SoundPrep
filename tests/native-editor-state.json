@@ -28,11 +28,7 @@
   ],
   "source": "Select a file in Media Explorer",
   "values": {
-    "boost": 18,
-    "ceiling": -1,
-    "directory": "/tmp/Export 素材",
     "gain": 0,
-    "guard": false,
     "lufs": -18,
     "metric": "lufs_m_max",
     "name": "Heavy",
@@ -40,10 +36,7 @@
     "pitch": -4,
     "preserve": false,
     "rate": 0.71999999999999997,
-    "reference_dbfs": -20,
-    "reference_spl": 79,
     "reverse": false,
-    "slot": 1,
     "sones": 36,
     "tail": 1
   }

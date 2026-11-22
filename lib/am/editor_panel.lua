@@ -1,4 +1,4 @@
--- Native Presets / Tools controller. Both hosts send the same typed events.
+-- Native preset editor controller. Both hosts send the same typed events.
 local J=require('am.json');local U=require('am.util');local Model=require('am.model');local Chunk=require('am.chunk')
 local M={}
 local fields={
@@ -6,11 +6,9 @@ local fields={
   rate={'source_transform','rate',.1,4},preserve={'source_transform','preserve_pitch','boolean'},
   normalize={'normalization','enabled','boolean'},metric={'normalization','metric','metric'},
   lufs={'normalization','target_lufs',-60,0},sones={'normalization','target_sones',.01,256},
-  reference_dbfs={'normalization','reference_dbfs',-120,0},reference_spl={'normalization','reference_spl_db',0,140},
-  boost={'normalization','max_boost_db',0,24},gain={'output_gain_db',-60,12},
-  guard={'source_peak_guard','enabled','boolean'},ceiling={'source_peak_guard','ceiling_dbtp',-12,0},
+  gain={'output_gain_db',-60,12},
   tail={'export','tail_seconds',0,30}}
-local raw_allowed={normalize=true,metric=true,lufs=true,sones=true,reference_dbfs=true,reference_spl=true,boost=true,guard=true,ceiling=true,preserve=true,reverse=true}
+local raw_allowed={normalize=true,metric=true,lufs=true,sones=true,preserve=true,reverse=true}
 local function location(m,spec)
   if type(m[spec[1]])=='table'then return m[spec[1]],spec[2],3 end
   return m,spec[1],2
@@ -24,8 +22,6 @@ function M.state(a)
   local id=a.selected_id or 'raw';local draft=a:preset_draft(id);local values={}
   for key,spec in pairs(fields)do local target,field=location(draft,spec);values[key]=target[field]end
   if id=='raw'then local t=a:effective().source_transform;values.preserve=t.preserve_pitch;values.reverse=t.reverse end
-  values.directory=a.export_dir or '';values.slot=0
-  for slot,assigned in pairs(a.definition.slots)do if assigned==id then values.slot=tonumber(slot)end end
   local now=a.r.time_precise()
   if a.editor_checked_id~=id or not a.editor_checked_at or now-a.editor_checked_at>.5 then
     a.editor_checked_id=id;a.editor_checked_at=now;a.editor_fx_changed=false
@@ -57,10 +53,6 @@ local function dispatch(a,command)
   assert(e.id==id,'Preset changed; edit was not applied')
   if e.op=='set'then
     local key,value=e.key,e.value
-    if key=='directory'then
-      assert(type(value)=='string' and #value<=4096 and not value:find('%z'),'Invalid export directory');a.export_dir=value;return
-    end
-    if key=='slot'then assert(id~='raw' and U.finite(value)and value%1==0 and value>=0 and value<=9,'Invalid action slot');a:slot(id,value);return end
     local spec=assert(fields[key],'Unknown preset setting')
     assert(id~='raw' or raw_allowed[key],'Raw does not save this setting')
     a:stash_preset();local draft=U.copy(a:preset_draft(id));local target,field,index=location(draft,spec)
@@ -74,7 +66,7 @@ local function dispatch(a,command)
     target[field]=value
     -- Validate before audition_edit stores the draft, so failures leave it intact.
     local candidate=U.copy(a.definition)
-    if id=='raw'then candidate.raw={normalization=U.copy(draft.normalization),source_peak_guard=U.copy(draft.source_peak_guard)}
+    if id=='raw'then candidate.raw={normalization=U.copy(draft.normalization)}
     else local _,i=Model.find(candidate,id);candidate.macros[i]=draft end
     Model.validate(candidate);a:audition_edit(draft)
   elseif e.op=='select'then
@@ -96,12 +88,6 @@ local function dispatch(a,command)
   elseif e.op=='ab'then a:ab()
   elseif e.op=='focus'then a.explorer:focus_list()
   elseif e.op=='analyse'then a:analyse(true)
-  elseif e.op=='render' or e.op=='render_dialog'then
-    a.message='SoundPrep renders through drops. To bake a Source + FX drop, use Render selected drops.'
-  elseif e.op=='render_drops'then a:render_drops()
-  elseif e.op=='directory_choose'then
-    local result,path=a.r.JS_Dialog_BrowseForFolder('SoundPrep — Export folder',a.export_dir or '')
-    if result==1 then a.export_dir=path end
   else error('Unknown editor action')end
 end
 function M.dispatch(a,command)

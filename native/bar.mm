@@ -1,6 +1,7 @@
 // macOS child view inside Media Explorer. REAPER keeps ownership of its browser.
 // Cocoa handles drawing, menus and accessibility; Lua owns all audition state.
 #import <Cocoa/Cocoa.h>
+namespace amoverlay { void registerPanel(NSWindow *window); }
 #include <algorithm>
 #include <deque>
 #include <string>
@@ -138,11 +139,34 @@ bool create(void* wave,void* cursor_bitmap,void*(*lookup)(const char*)) {
   return true;
 }
 
+static NSHashTable<NSWindow*> *panelWindows;
+void registerPanel(NSWindow *window) {
+  if(!window)return;
+  if(!panelWindows)panelWindows=[NSHashTable weakObjectsHashTable];
+  [panelWindows addObject:window];
+}
+
 static void show() {
-  if(panel.parentWindow!=host)[panel.parentWindow removeChildWindow:panel];
+  bool reattach=panel.parentWindow!=host;
+  if(reattach)[panel.parentWindow removeChildWindow:panel];
   if(panel.level!=host.level)panel.level=host.level;
-  if(panel.parentWindow!=host)[host addChildWindow:panel ordered:NSWindowAbove];
-  if(!panel.visible)[panel orderWindow:NSWindowAbove relativeTo:host.windowNumber];
+  if(reattach)[host addChildWindow:panel ordered:NSWindowAbove];
+  if(reattach || !panel.visible){
+    [panel orderWindow:NSWindowAbove relativeTo:host.windowNumber];
+    // Ordering the overlay in promotes it to the front of the host's child
+    // windows, and AppKit does not honour orderWindow between sibling child
+    // windows — so put any open SoundPrep panels back above the overlay by
+    // re-adding them as children of the host, backmost first.
+    if(panelWindows){
+      NSMutableArray<NSWindow*> *open=[NSMutableArray array];
+      for(NSWindow *window in NSApp.windows)
+        if(window.visible && window.parentWindow==host && [panelWindows containsObject:window])[open addObject:window];
+      for(NSWindow *window in [open reverseObjectEnumerator]){
+        [host removeChildWindow:window];
+        [host addChildWindow:window ordered:NSWindowAbove];
+      }
+    }
+  }
 }
 
 bool track(void* wave,int width,int waveform_height) {
@@ -357,25 +381,18 @@ static void enqueue(NSString *value) {
   NSUInteger count=1+macros.count;
   CGFloat available=base.size.width-(minimal ? 84 : 6);
   CGFloat width=std::floor(MIN(156,(available-(count-1)*3)/count));
-  self.raw.title=width<50 ? @"0" : @"0 Raw";
   self.raw.hidden=NO; self.raw.frame=NSMakeRect(3,2,width,24);
   for (NSUInteger i=0;i<self.presets.count;i++) {
     NSButton *b=self.presets[i]; b.hidden=i>=macros.count;
     if (b.hidden) continue;
     NSString *label=macros[i][@"label"];
     if (width<64) {
-      NSRange separator=[label rangeOfString:@"  "];
-      NSString *slot=separator.location==NSNotFound ? nil : [label substringToIndex:separator.location];
-      if (slot && ![slot isEqual:@"–"]) label=slot;
-      else {
-        NSString *name=slot ? [label substringFromIndex:NSMaxRange(separator)] : label;
-        __block NSUInteger end=0,characters=0;
-        [name enumerateSubstringsInRange:NSMakeRange(0,name.length) options:NSStringEnumerationByComposedCharacterSequences
-          usingBlock:^(NSString *text,NSRange range,NSRange enclosing,BOOL *stop) {
-            (void)text; (void)enclosing; end=NSMaxRange(range); *stop=++characters==3;
-          }];
-        label=[name substringToIndex:end];
-      }
+      __block NSUInteger end=0,characters=0;
+      [label enumerateSubstringsInRange:NSMakeRange(0,label.length) options:NSStringEnumerationByComposedCharacterSequences
+        usingBlock:^(NSString *text,NSRange range,NSRange enclosing,BOOL *stop) {
+          (void)text; (void)enclosing; end=NSMaxRange(range); *stop=++characters==3;
+        }];
+      label=[label substringToIndex:end];
     }
     b.title=label; b.frame=NSMakeRect(3+(i+1)*(width+3),2,width,24);
   }

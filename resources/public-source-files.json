@@ -32,16 +32,6 @@
     "actions/SoundPrep - Quit.lua",
     "actions/SoundPrep - Replay.lua",
     "actions/SoundPrep - Reverse.lua",
-    "actions/SoundPrep - Slot 0.lua",
-    "actions/SoundPrep - Slot 1.lua",
-    "actions/SoundPrep - Slot 2.lua",
-    "actions/SoundPrep - Slot 3.lua",
-    "actions/SoundPrep - Slot 4.lua",
-    "actions/SoundPrep - Slot 5.lua",
-    "actions/SoundPrep - Slot 6.lua",
-    "actions/SoundPrep - Slot 7.lua",
-    "actions/SoundPrep - Slot 8.lua",
-    "actions/SoundPrep - Slot 9.lua",
     "actions/SoundPrep - Stop.lua",
     "docs/install.md",
     "docs/loudness-defaults.md",
@@ -290,6 +280,6 @@
     "docs/license.md",
     "lib/am/setup.lua",
     "tests/setup.lua",
-    "docs/releases/0.11.18.md"
+    "docs/releases/0.11.19.md"
   ]
 }

@@ -20,7 +20,7 @@ local original=r.EnumProjects(-1);r.Main_OnCommand(41929,0);local project=r.Enum
 local master=r.GetMasterTrack(project);r.SetMediaTrackInfo_Value(master,'D_VOL',0)
 assert(r.TrackFX_AddByName(master,'JS: am_response_probe',false,1)>=0)
 r.gmem_attach('AuditionMacro.ResponseTest');r.gmem_write(0,0)
-local definition=M.defaults();definition.macros=J.array{M.macro('delay','Delay')};definition.slots={['1']='delay'}
+local definition=M.defaults();definition.macros=J.array{M.macro('delay','Delay')}
 definition.settings.monitor_gain_db=0
 local bank=B.new(r,project,dir,definition,'fx-timing');local preview=P.new(r,project,bank.input)
 local phase,due,gap,done=0,r.time_precise()+.3,false,false

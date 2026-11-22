@@ -33,7 +33,7 @@ local r={
 }
 local function state(path,enabled,mode)
   local bank=Model.defaults();bank.raw.normalization.enabled=true;bank.raw.normalization.target_lufs=-18
-  bank.raw.source_peak_guard.enabled=true;bank.settings.preview_downmix=enabled or false;bank.settings.preview_downmix_mode=mode or 'auto'
+  bank.settings.preview_downmix=enabled or false;bank.settings.preview_downmix_mode=mode or 'auto'
   return {project=tostring(project),session='session',path=path,identity=U.copy(identities[path]),macro=Model.effective(bank,nil),
     settings=bank.settings,data='/multi-drop',analyzer_key='analyzer',input='input',defer_items=true}
 end
@@ -83,7 +83,7 @@ local ok,err=xpcall(function()
     local mix=value.channel_mix
     assert(mix.revision==1 and mix.source_channels==count and mix.output_channels==count and mix.mode==0)
     assert(mix.fx_channels==math.ceil(count/2)*2 and mix.preference=='ambix')
-    assert(value.source_gain_db==6 and value.macro.normalization.enabled and value.macro.source_peak_guard.enabled)
+    assert(value.source_gain_db==6 and value.macro.normalization.enabled)
     assert(value.source_processing.fx_bypassed and value.source_processing.bypass_reason=='multichannel_downmix_off')
     assert(Analysis.same(value.analysis,spec(path,s)) and value.chain=='')
     assert(J.encode(s)==before and reads==0,'Multichannel preflight changed settings or reread a valid measurement')
@@ -102,7 +102,7 @@ local ok,err=xpcall(function()
     assert(value.channel_mix.fx_channels==2 and value.channel_mix.preference==preference)
     assert(value.analysis.basis==(mode==2 and'downmix_ambix'or'downmix_discrete') and value.source_gain_db==6)
     assert(not value.source_processing.fx_bypassed)
-    assert(captured.state.macro.normalization.enabled and captured.state.macro.source_peak_guard.enabled,
+    assert(captured.state.macro.normalization.enabled,
       'The original normalization settings changed')
     s.settings.preview_downmix=false;s.settings.preview_downmix_mode='discrete'
     assert(value.channel_mix.mode==mode,'Captured channel mapping was not frozen')
@@ -123,7 +123,7 @@ local ok,err=xpcall(function()
   for _,path in ipairs{mono,stereo}do
     files={};s=state(path,true,'ambix');s.measurement=measurement(path)
     local prepared=assert(invoke(s));value=prepared.entries[1].snapshot
-    assert(value.source_gain_db==6 and value.macro.normalization.enabled and value.macro.source_peak_guard.enabled)
+    assert(value.source_gain_db==6 and value.macro.normalization.enabled)
     assert(not value.channel_mix and not value.source_processing,'Legacy channel recipes were changed')
     assert(not value.analysis)
     s.settings.preview_downmix_mode='auto'
@@ -160,7 +160,7 @@ local ok,err=xpcall(function()
   prepared=assert(invoke(s));assert(prepared.entries[1].snapshot.source_gain_db==6 and prepared.entries[1].snapshot.analysis.basis=='ambix_w')
   files={};s=state(multi,false)
   prepared,message=invoke(s);assert(not prepared and message:find('Analysis required:',1,true))
-  s.macro.normalization.enabled=false;s.macro.source_peak_guard.enabled=false
+  s.macro.normalization.enabled=false
   prepared=assert(invoke(s));assert(prepared.entries[1].snapshot.source_gain_db==0)
 
   -- An explicit AmbiX preference is a clear refusal for incompatible files;

@@ -9,6 +9,12 @@ local app={project=project,definition=definition,identity=identity,message='',lo
   gain=function()return 0,measurement and measurement.status or 'unmeasured'end,
   measurement=function()return measurement end}
 local bar=Bar.new({EnumProjects=function()return project end},app)
+local labels=bar:state().macros
+assert(labels[1].label=='Heavy' and labels[2].label=='Dark')
+definition.macros[1].name='Heavy  FX'
+definition.macros[1],definition.macros[2]=definition.macros[2],definition.macros[1]
+labels=bar:state().macros
+assert(labels[1].id=='dark' and labels[1].label=='Dark' and labels[2].id=='heavy' and labels[2].label=='Heavy  FX')
 assert(bar:state().target==-18 and bar:state().target_label==nil)
 local function status()return bar:state().status end
 local pending='Drop cancelled: Analysis pending: source.wav. Wait for completion, then drag again.'
@@ -41,9 +47,9 @@ assert(bar:state().target_label=='Norm 12.50 sones')
 bar:dispatch('target:-18')
 assert(app.editor_panel_open and app.editor_page==1 and definition.raw.normalization.target_lufs==-18)
 app.editor_panel_open=false
-definition.raw.normalization.enabled=false;definition.raw.source_peak_guard.enabled=true
+definition.raw.normalization.enabled=false
 measurement={status='ready',max_momentary_lufs=-18,true_peak_dbtp=-4}
-assert(status():find('LUFS-M',1,true)and not status():find('Zwicker',1,true),'Peak-only measurement was formatted as a missing Zwicker result')
+assert(status():find('LUFS-M',1,true)and not status():find('Zwicker',1,true),'A basic measurement with Normalize off must display LUFS')
 definition.raw.normalization.metric='lufs_m_max'
 assert(bar:state().target_label==nil and bar:state().target==-18)
 

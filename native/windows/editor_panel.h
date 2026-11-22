@@ -48,7 +48,7 @@ struct EditorPanel {
     MONITORINFO monitor{sizeof(monitor)};GetMonitorInfoW(MonitorFromWindow(anchor,MONITOR_DEFAULTTONEAREST),&monitor);
     int width=frame.right-frame.left+GetSystemMetrics(SM_CXVSCROLL),height=std::min(frame.bottom-frame.top,monitor.rcWork.bottom-monitor.rcWork.top);
     int x=std::max(monitor.rcWork.left,std::min(a.left,monitor.rcWork.right-width)),y=std::max(monitor.rcWork.top,std::min(a.bottom,monitor.rcWork.bottom-height));
-    window=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_CONTROLPARENT,wc.lpszClassName,L"SoundPrep — Presets & Tools",style,x,y,width,height,GetAncestor(anchor,GA_ROOT),nullptr,wc.hInstance,this);
+    window=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_CONTROLPARENT,wc.lpszClassName,L"SoundPrep — Presets",style,x,y,width,height,GetAncestor(anchor,GA_ROOT),nullptr,wc.hInstance,this);
     if(!window)throw std::runtime_error("Cannot create preset editor");
     presetTips=CreateWindowExW(WS_EX_TOPMOST,TOOLTIPS_CLASSW,nullptr,WS_POPUP|TTS_ALWAYSTIP|TTS_NOPREFIX,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,window,nullptr,wc.hInstance,nullptr);
     SendMessageW(presetTips,TTM_SETMAXTIPWIDTH,0,400);
@@ -62,23 +62,22 @@ struct EditorPanel {
     child(L"BUTTON","Focus ME",WS_TABSTOP,4007,-1,368,108,100,28);
     tabs=child(WC_TABCONTROLW,"",WS_TABSTOP|WS_CLIPSIBLINGS,4008,-1,14,148,672,486);
     SetWindowTheme(tabs,L"",L""); // Classic tabs paint the strip and page with COLOR_BTNFACE.
-    for(int i=0;i<5;++i){auto text=amwin::wide(ameditor::pages[i]);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=text.data();TabCtrl_InsertItem(tabs,i,&item);}
+    for(int i=0;i<ameditor::page_count;++i){auto text=amwin::wide(ameditor::pages[i]);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=text.data();TabCtrl_InsertItem(tabs,i,&item);}
     for(int i=0;i<ameditor::count;++i){const auto& s=ameditor::controls[i];int y0=182+s.y;
-      if(s.kind==ameditor::toggle)controls[i]=child(L"BUTTON",s.label,WS_TABSTOP|BS_AUTOCHECKBOX,4100+i,s.page,30,y0,610,26);
+      if(s.kind==ameditor::toggle)controls[i]=child(L"BUTTON",s.label,WS_TABSTOP|BS_AUTOCHECKBOX,4100+i,s.page,16+s.x,y0,s.w,26);
       else {
         child(L"STATIC",s.label,SS_NOPREFIX,0,s.page,30,y0+4,204,28);
         if(s.kind==ameditor::number){controls[i]=child(TRACKBAR_CLASSW,"",WS_TABSTOP|TBS_HORZ|TBS_NOTICKS,4100+i,s.page,238,y0,282,26);
-          int scale=!strcmp(s.key,"slot")?1:100;
-          SendMessageW(controls[i],TBM_SETRANGEMIN,FALSE,static_cast<LPARAM>(s.low*scale));SendMessageW(controls[i],TBM_SETRANGEMAX,TRUE,static_cast<LPARAM>(s.high*scale));SendMessageW(controls[i],TBM_SETPAGESIZE,0,scale);
+          SendMessageW(controls[i],TBM_SETRANGEMIN,FALSE,static_cast<LPARAM>(s.low*100));SendMessageW(controls[i],TBM_SETRANGEMAX,TRUE,static_cast<LPARAM>(s.high*100));SendMessageW(controls[i],TBM_SETPAGESIZE,0,100);
           numbers[i]=child(L"EDIT","",WS_TABSTOP|ES_AUTOHSCROLL,4200+i,s.page,530,y0,108,26);SendMessageW(numbers[i],EM_SETLIMITTEXT,32,0);
         }else if(s.kind==ameditor::choice){controls[i]=child(WC_COMBOBOXW,"",WS_TABSTOP|CBS_DROPDOWNLIST,4100+i,s.page,238,y0,400,160);
           for(const char* meter:ameditor::meters)SendMessageW(controls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(amwin::wide(meter).c_str()));
-        }else {controls[i]=child(L"EDIT","",WS_TABSTOP|ES_AUTOHSCROLL,4100+i,s.page,238,y0,400,26);SendMessageW(controls[i],EM_SETLIMITTEXT,!strcmp(s.key,"name")?128:4096,0);}
+        }else {controls[i]=child(L"EDIT","",WS_TABSTOP|ES_AUTOHSCROLL,4100+i,s.page,238,y0,400,26);SendMessageW(controls[i],EM_SETLIMITTEXT,128,0);}
       }
     }
     int i=0;for(const auto& s:ameditor::actions)actions.push_back(child(L"BUTTON",s.title,WS_TABSTOP,4300+i++,s.page,16+s.x,182+s.y,s.w,30));
-    measurement=child(L"EDIT","",WS_TABSTOP|ES_MULTILINE|ES_READONLY|WS_VSCROLL,0,4,30,194,608,100);
-    const int helpY[]={294,404,62,312,340};for(int p=0;p<5;++p)child(L"STATIC",ameditor::help[p],SS_NOPREFIX,0,p,30,182+helpY[p],608,p==1?42:104);
+    measurement=child(L"EDIT","",WS_TABSTOP|ES_MULTILINE|ES_READONLY|WS_VSCROLL,0,1,30,182+ameditor::measurementY,608,70);
+    for(int p=0;p<ameditor::page_count;++p)child(L"STATIC",ameditor::help[p],SS_NOPREFIX,0,p,30,182+ameditor::helpY[p],608,p==1?42:104);
     notice=child(L"STATIC","",SS_NOPREFIX,0,-1,20,644,554,46);child(L"BUTTON","Done",WS_TABSTOP|BS_DEFPUSHBUTTON,4009,-1,590,650,90,28);
     layout();
   }
@@ -86,8 +85,8 @@ struct EditorPanel {
   void fieldChanged(int i){
     if(updating || closing || paused)return;const auto& s=ameditor::controls[i];HWND w=s.kind==ameditor::number?numbers[i]:controls[i];Json value;
     if(s.kind==ameditor::number){auto text=amwin::text(w);wchar_t* end=nullptr;double n=std::wcstod(text.c_str(),&end);bool parsed=end && end!=text.c_str();while(end && std::iswspace(*end))++end;
-      if(!parsed || *end || !std::isfinite(n) || n<s.low || n>s.high || (!strcmp(s.key,"slot") && std::floor(n)!=n)){
-        amwin::text(notice,"Enter a valid number within this control's range.");char textValue[64];std::snprintf(textValue,sizeof(textValue),!strcmp(s.key,"slot")?"%.0f":"%.2f",state.at("values").at(s.key).get<double>());amwin::text(w,textValue);return;
+      if(!parsed || *end || !std::isfinite(n) || n<s.low || n>s.high){
+        amwin::text(notice,"Enter a valid number within this control's range.");char textValue[64];std::snprintf(textValue,sizeof(textValue),"%.2f",state.at("values").at(s.key).get<double>());amwin::text(w,textValue);return;
       }value=n;
     }else value=amwin::utf8(amwin::text(w));
     if(value!=state.at("values").at(s.key))event({{"op","set"},{"key",s.key},{"value",value}});
@@ -111,12 +110,12 @@ struct EditorPanel {
       if(s.kind==ameditor::toggle)SendMessageW(controls[i],BM_SETCHECK,value.get<bool>()?BST_CHECKED:BST_UNCHECKED,0);
       else if(s.kind==ameditor::choice){for(int k=0;k<3;++k)if(value==ameditor::metrics[k])SendMessageW(controls[i],CB_SETCURSEL,k,0);}
       else if(s.kind==ameditor::text){if(GetFocus()!=controls[i])amwin::text(controls[i],value);}
-      else {EnableWindow(numbers[i],enabled);if(GetFocus()!=numbers[i] && GetCapture()!=controls[i]){double n=value;int scale=!strcmp(s.key,"slot")?1:100;SendMessageW(controls[i],TBM_SETPOS,TRUE,static_cast<int>(std::round(n*scale)));char text[64];std::snprintf(text,sizeof(text),!strcmp(s.key,"slot")?"%.0f":"%.2f",n);amwin::text(numbers[i],text);}}
+      else {EnableWindow(numbers[i],enabled);if(GetFocus()!=numbers[i] && GetCapture()!=controls[i]){double n=value;SendMessageW(controls[i],TBM_SETPOS,TRUE,static_cast<int>(std::round(n*100)));char text[64];std::snprintf(text,sizeof(text),"%.2f",n);amwin::text(numbers[i],text);}}
     }
     index=0;for(const auto& s:ameditor::actions){bool enabled=!paused && (!s.macroOnly || !raw);if(!strcmp(s.op,"new") || !strcmp(s.op,"duplicate"))enabled=enabled && next.at("presets").size()<10;EnableWindow(actions[index++],enabled);}
     if(amwin::text(measurement)!=amwin::wide(next.at("measurement")))amwin::text(measurement,next.at("measurement"));
     amwin::text(notice,paused?"Paused — return to the attached project to edit.":next.at("notice").get<std::string>());
-    if(!wasOpen || focus){if(next.at("page").get<int>()>=0)selected=next.at("page").get<int>();TabCtrl_SetCurSel(tabs,selected);layout();ShowWindow(window,SW_SHOW);SetForegroundWindow(window);SetFocus(tabs);}
+    if(!wasOpen || focus){if(next.at("page").get<int>()>=0)selected=ameditor::current_page(next.at("page").get<int>());TabCtrl_SetCurSel(tabs,selected);layout();ShowWindow(window,SW_SHOW);SetForegroundWindow(window);SetFocus(tabs);}
     else if(presetsChanged || previous.value("deleting",false)!=next.at("deleting").get<bool>())layout();
     updating=false;
   }
@@ -146,7 +145,7 @@ struct EditorPanel {
     if(m==WM_DPICHANGED){auto r=reinterpret_cast<RECT*>(l);SetWindowPos(w,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER|SWP_NOACTIVATE);self->layout();return 0;}
     if(m==WM_NOTIFY && reinterpret_cast<NMHDR*>(l)->hwndFrom==self->tabs && reinterpret_cast<NMHDR*>(l)->code==TCN_SELCHANGE){self->selected=TabCtrl_GetCurSel(self->tabs);self->layout();return 0;}
     try{
-      if(m==WM_HSCROLL){for(int i=0;i<ameditor::count;++i)if(reinterpret_cast<HWND>(l)==self->controls[i]){const auto& s=ameditor::controls[i];double n=SendMessageW(self->controls[i],TBM_GETPOS,0,0)/(!strcmp(s.key,"slot")?1.0:100.0);char text[64];std::snprintf(text,sizeof(text),!strcmp(s.key,"slot")?"%.0f":"%.2f",n);amwin::text(self->numbers[i],text);self->event({{"op","set"},{"key",s.key},{"value",n}});return 0;}}
+      if(m==WM_HSCROLL){for(int i=0;i<ameditor::count;++i)if(reinterpret_cast<HWND>(l)==self->controls[i]){const auto& s=ameditor::controls[i];double n=SendMessageW(self->controls[i],TBM_GETPOS,0,0)/100.0;char text[64];std::snprintf(text,sizeof(text),"%.2f",n);amwin::text(self->numbers[i],text);self->event({{"op","set"},{"key",s.key},{"value",n}});return 0;}}
       if(m==WM_COMMAND){int id=LOWORD(p),code=HIWORD(p);if(self->updating)return 0;
         if(id>=4400 && id<4400+static_cast<int>(self->presets.size()) && code==BN_CLICKED){int index=id-4400;
           if(!self->paused && index<static_cast<int>(self->state.at("presets").size())){SetFocus(self->presets[index]);self->event({{"op","select"},{"value",self->state.at("presets").at(index).at("id")}});}}

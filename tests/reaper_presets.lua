@@ -89,12 +89,12 @@ local function tick()
     if phase==0 then run()
     elseif phase==1 then
       frames=frames+1
-      if frames<=21 and frames%5==1 then Editor.open(app,math.floor((frames-1)/5))end
+      if frames<=16 and frames%5==1 then Editor.open(app,math.floor((frames-1)/5)%3)end
       app.bar:tick()
       local geometry=J.decode(r.AM_BarGeometry())
       assert(geometry.editor_open and geometry.settings_open,'Native panels did not stay open')
-      if frames==26 then Editor.open(app,0);check('Native Presets, Tools and App settings remain open across page changes')end
-      if frames>=26 and r.time_precise()>=untilTime then finish(true)end
+      if frames==16 then check('Native Presets and App settings remain open across page changes')end
+      if frames>=16 and r.time_precise()>=untilTime then finish(true)end
     end
   end,debug.traceback)
   if not ok then finish(false,err)elseif not done then r.defer(tick)end

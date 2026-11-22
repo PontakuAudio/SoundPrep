@@ -4,19 +4,19 @@ local M={VERSION=1,DEFAULT_TARGET_LUFS=-18,DEFAULT_TARGET_SONES=36,DEFAULT_NORMA
 function M.macro(id,name)
   return {id=id,name=name,fx_chain='chains/'..id..'.RfxChain',
     source_transform={reverse=false,pitch_semitones=0,rate=1,preserve_pitch=false},
-    normalization={enabled=false,metric='lufs_m_max',target_lufs=M.DEFAULT_TARGET_LUFS,target_sones=M.DEFAULT_TARGET_SONES,reference_dbfs=-20,reference_spl_db=79,basis='source_raw',max_boost_db=18},
-    output_gain_db=0,source_peak_guard={enabled=false,ceiling_dbtp=-1},
+    normalization={enabled=false,metric='lufs_m_max',target_lufs=M.DEFAULT_TARGET_LUFS,target_sones=M.DEFAULT_TARGET_SONES,basis='source_raw'},
+    output_gain_db=0,
     export={tail_seconds=1}}
 end
 function M.raw_settings()
   local raw=M.macro('raw','Raw')
-  return {normalization=raw.normalization,source_peak_guard=raw.source_peak_guard}
+  return {normalization=raw.normalization}
 end
 function M.defaults()
   local heavy=M.macro('heavy','Heavy');heavy.source_transform.pitch_semitones=-4;heavy.source_transform.rate=.72
   local dark=M.macro('dark','Dark');dark.source_transform.pitch_semitones=-2
   local rev=M.macro('reverse','Reverse');rev.source_transform.reverse=true
-  return {schema_version=1,defaults_migrated_0113=true,raw=M.raw_settings(),macros=J.array{heavy,dark,rev},slots={['1']='heavy',['2']='dark',['3']='reverse'},
+  return {schema_version=1,defaults_migrated_0113=true,raw=M.raw_settings(),macros=J.array{heavy,dark,rev},
     settings={autoplay=true,loop=false,keep_fx_running=false,monitor_gain_db=-6,fade_ms=5,preview_fade_ms=0,
       normalize_fade_ms=M.DEFAULT_NORMALIZE_FADE_MS,preview_downmix=false,preview_downmix_mode='auto',
       python='',ffmpeg='',cache_directory='',poll_ms=20,analysis_timeout_seconds=180,insert_handles=false,prepare_drops=false,auto_render_drops=true}}
@@ -28,19 +28,15 @@ local function boolean(v,name) assert(type(v)=='boolean',name..' must be boolean
 local function normalization(n)
   assert(type(n)=='table' and (n.metric=='lufs_m_max' or n.metric=='zwicker_max' or n.metric=='zwicker_p95')and n.basis=='source_raw','Unsupported normalization mode')
   if n.target_sones==nil then n.target_sones=M.DEFAULT_TARGET_SONES end
-  if n.reference_dbfs==nil then n.reference_dbfs=-20 end
-  if n.reference_spl_db==nil then n.reference_spl_db=79 end
-  boolean(n.enabled,'normalize');number(n.target_lufs,-60,0,'LUFS target');number(n.max_boost_db,0,24,'Max boost')
-  number(n.target_sones,.01,256,'Sones target');number(n.reference_dbfs,-120,0,'Reference dBFS');number(n.reference_spl_db,0,140,'Reference SPL')
+  boolean(n.enabled,'normalize');number(n.target_lufs,-60,0,'LUFS target')
+  number(n.target_sones,.01,256,'Sones target')
 end
 function M.validate(bank)
   assert(type(bank)=='table' and bank.schema_version==M.VERSION,'Unsupported bank schema')
   assert(type(bank.macros)=='table' and #bank.macros<=require('am.native_contract').bar.max_macros,'A bank supports up to nine macros')
   if bank.raw==nil then bank.raw=M.raw_settings()end
   local raw=bank.raw;assert(type(raw)=='table','Invalid Raw settings')
-  local n=raw.normalization;local p=raw.source_peak_guard
-  normalization(n)
-  assert(type(p)=='table','Invalid Raw peak guard');boolean(p.enabled,'Raw peak guard');number(p.ceiling_dbtp,-12,0,'Raw peak ceiling')
+  normalization(raw.normalization)
   local ids={}
   for _,m in ipairs(bank.macros)do
     assert(type(m.id)=='string' and m.id~='raw' and m.id:match('^[a-z0-9_-]+$') and not ids[m.id],'Invalid/duplicate macro ID')
@@ -52,11 +48,8 @@ function M.validate(bank)
     number(t.pitch_semitones,-24,24,'Pitch');number(t.rate,.1,4,'Rate')
     normalization(m.normalization)
     number(m.output_gain_db,-60,12,'Output gain')
-    local p=m.source_peak_guard;boolean(p.enabled,'source peak guard');number(p.ceiling_dbtp,-12,0,'Source peak ceiling')
     number(m.export.tail_seconds,0,30,'Tail')
   end
-  assert(type(bank.slots)=='table','Missing slot mapping')
-  for k,id in pairs(bank.slots)do assert(k:match('^[1-9]$') and ids[id],'Invalid shortcut mapping')end
   local s=bank.settings;assert(type(s)=='table','Missing settings')
   if s.cache_directory==nil then s.cache_directory='' end
   assert(type(s.cache_directory)=='string' and not s.cache_directory:find('[%z\r\n]') and
@@ -98,18 +91,29 @@ function M.effective(bank,id,reverse_override)
   if not m then
     out.fx_chain=nil;out.export.tail_seconds=0
     local raw=bank.raw or M.raw_settings()
-    out.normalization=U.copy(raw.normalization);out.source_peak_guard=U.copy(raw.source_peak_guard)
+    out.normalization=U.copy(raw.normalization)
   end
   if reverse_override~=nil then out.source_transform.reverse=reverse_override end
   return out
 end
 function M.editable(bank,id)return id=='raw' and M.effective(bank,nil) or M.find(bank,id)end
+-- Remove only the retired settings when an older bank is read.
+local function migrate_preset(preset)
+  preset.source_peak_guard=nil
+  local n=preset.normalization
+  n.max_boost_db=nil
+  n.reference_dbfs=nil
+  n.reference_spl_db=nil
+end
 function M.load(path)
   local text,e=U.read(path);if not text then return nil,e end
   local ok,bank=pcall(function()
     local decoded=J.decode(text)
     local migrate=type(decoded)=='table' and decoded.defaults_migrated_0113==nil
     local validated=M.validate(decoded)
+    validated.slots=nil
+    migrate_preset(validated.raw)
+    for _,macro in ipairs(validated.macros)do migrate_preset(macro)end
     if migrate then assert(M.save(path,validated))end
     return validated
   end)

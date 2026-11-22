@@ -114,16 +114,16 @@ local ok,err=xpcall(function()
   -- Nine real JSFX instances expose the cost of resetting unused presets.
   local chain=assert(U.read(root..'/resources/chains/dark.RfxChain'))
   if not custom then
-    bank.macros=J.array{};bank.slots={}
+    bank.macros=J.array{}
     for i=1,9 do
       local m=Model.macro('bench'..i,'Benchmark '..i)
       bank.macros[#bank.macros+1]=m;assert(U.write(data..'/'..m.fx_chain,chain))
     end
   end
-  for _,m in ipairs(bank.macros)do m.normalization.enabled=false;m.source_peak_guard.enabled=false end
+  for _,m in ipairs(bank.macros)do m.normalization.enabled=false end
   macro_id=assert(bank.macros[1]).id
   report.fixture=custom and 'copied_user_bank' or 'nine_jsfx';report.macros=#bank.macros
-  bank.raw.normalization.enabled=false;bank.raw.source_peak_guard.enabled=false
+  bank.raw.normalization.enabled=false
   assert(Model.save(data..'/bank.json',bank));progress('start_app');app=App.new(r,root,data)
   if options.interval_only==true then app.explorer.selection_changed=function()return false end end
   report.fx_count=0

@@ -2,19 +2,19 @@ local A=require('am.analysis_policy');local L=require('am.loudness');local M=req
 local U=require('am.util');local J=require('am.json')
 local bank=M.defaults();assert(bank.raw.normalization.metric=='lufs_m_max')
 for _,normalization in ipairs{bank.raw.normalization,bank.macros[1].normalization}do
-  normalization.target_sones=nil;normalization.reference_dbfs=nil;normalization.reference_spl_db=nil
+  normalization.target_sones=nil
 end
 M.validate(bank)
-assert(bank.raw.normalization.target_sones==36 and bank.raw.normalization.reference_dbfs==-20 and bank.raw.normalization.reference_spl_db==79)
+assert(bank.raw.normalization.target_sones==36)
 assert(bank.macros[1].normalization.metric=='lufs_m_max'and bank.macros[1].normalization.target_sones==36)
-assert(A.meter{metric='zwicker_max'}.target_sones==36,'Descriptor fallback differs from the new preset target')
+assert(U.equal(A.meter{metric='zwicker_max'},{metric='zwicker_max',target_sones=36}),'Unexpected Zwicker meter settings')
 for _,metric in ipairs{'lufs_m_max','zwicker_max','zwicker_p95'}do
   bank.raw.normalization.metric=metric
   assert(M.validate(J.decode(J.encode(bank))).raw.normalization.metric==metric)
 end
 for _,change in ipairs{
   function(n)n.metric='zwicker'end,function(n)n.target_sones=0 end,function(n)n.target_sones=257 end,
-  function(n)n.reference_dbfs=-121 end,function(n)n.reference_spl_db=141 end,function(n)n.target_sones=0/0 end,
+  function(n)n.target_sones=0/0 end,
 }do local invalid=U.copy(bank);change(invalid.raw.normalization);assert(not pcall(M.validate,invalid))end
 
 local macro=M.macro('test','Test');local n=macro.normalization;n.enabled=true;n.metric='zwicker_max'
@@ -31,8 +31,7 @@ for _,count in ipairs{1,2,4,6,128}do
 end
 local spec=A.resolve(identity.path,4,{},n)
 for _,change in ipairs{
-  function(m)m.target_sones=16 end,function(m)m.reference_dbfs=-18 end,
-  function(m)m.reference_spl_db=83 end,function(m)m.metric='zwicker_p95'end,
+  function(m)m.target_sones=16 end,function(m)m.metric='zwicker_p95'end,
 }do
   local different=U.copy(spec);change(different.meter)
   assert(A.valid(different)and not A.same(spec,different))
@@ -49,10 +48,8 @@ local measurement={identity=U.copy(identity),profile=L.profile(spec),analyzer_ke
   zwicker_sones=2.7,normalization_gain_db=9.25,gain_status='ready'}
 assert(L.matches_measurement(measurement,identity,'test',spec))
 assert(L.gain(macro,measurement)==9.25,'Zwicker gain must use the solver result, not a LUFS or log-sones shortcut')
-macro.normalization.max_boost_db=6
-local gain,status=L.gain(macro,measurement);assert(gain==6 and status=='boost capped')
-macro.source_peak_guard.enabled=true;measurement.true_peak_dbtp=-2
-gain,status=L.gain(macro,measurement);assert(gain==1 and status=='source peak capped')
+measurement.normalization_gain_db=32;measurement.true_peak_dbtp=-2
+local gain,status=L.gain(macro,measurement);assert(gain==32 and status=='ready')
 macro.normalization.target_sones=16;gain,status=L.gain(macro,measurement)
 assert(gain==0 and status=='unmeasured','A previous target solution leaked into a changed target')
 macro.normalization.target_sones=spec.meter.target_sones
@@ -63,10 +60,10 @@ for _,change in ipairs{
 measurement.status='silence';measurement.max_momentary_lufs=J.null;measurement.zwicker_sones=J.null
 measurement.normalization_gain_db=J.null;measurement.true_peak_dbtp=3
 assert(L.matches_measurement(measurement,identity,'test',spec))
-gain,status=L.gain(macro,measurement);assert(gain==-4 and status=='source peak capped')
+gain,status=L.gain(macro,measurement);assert(gain==0 and status=='silence')
 
--- Native construction never discovers tools or launches a process. The target,
--- meter and calibration are copied into the job and its atomic file result.
+-- Native construction never discovers tools or launches a process. The target and
+-- meter are copied into the job and its atomic file result.
 local read,write,remove=U.read,U.write,os.remove
 local files,started,cancelled,now={},{},{},0
 local ok,err=xpcall(function()

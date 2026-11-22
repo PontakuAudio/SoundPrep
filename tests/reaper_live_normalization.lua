@@ -168,9 +168,8 @@ frames+=1;i=0;loop(6,peaks[i]=max(peaks[i],abs(spl(i)));i+=1;);
     {name='cut',fixture=fixture('loud6',3000),direction=-1},
     {name='stop during boost',fixture=fixture('quiet_stop6',100),direction=1,stop=true}}
   local definition=Model.defaults();local macro=Model.macro('live','Live normalization')
-  macro.normalization.enabled=true;macro.normalization.target_lufs=-24;macro.normalization.max_boost_db=18
-  macro.source_peak_guard.enabled=true;macro.source_peak_guard.ceiling_dbtp=-3
-  macro.output_gain_db=0;definition.macros=J.array{macro};definition.slots={}
+  macro.normalization.enabled=true;macro.normalization.target_lufs=-24
+  macro.output_gain_db=0;definition.macros=J.array{macro}
   definition.settings.monitor_gain_db=0;definition.settings.loop=true;definition.settings.preview_downmix=false
   definition.settings.preview_fade_ms=0;definition.settings.fade_ms=0;definition.settings.analysis_timeout_seconds=45
   local project=r.EnumProjects(-1)
@@ -222,7 +221,7 @@ local function tick()
       local actual=20*math.log(select(2,app.preview:get('D_VOLUME')),10)
       local change=actual-last_gain
       assert(math.abs(change)<=1.500001,'Normalization exceeded the per-update 1.5 dB limit')
-      local rate=math.abs(target or 0)*1000/definition.settings.normalize_fade_ms
+      local rate=math.abs(target or 0)*1000/app.definition.settings.normalize_fade_ms
       assert(math.abs(change)<=rate*(now-last_tick)+.001,'Normalization exceeded the configured fade rate')
       if target then assert(change*cases[index].direction>=-1e-8,'API gain ramp reversed direction')end
       record.max_api_step_db=math.max(record.max_api_step_db,math.abs(change))

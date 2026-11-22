@@ -133,7 +133,7 @@ end
 do
   local app=fixture(false,true);app.source_channels=6
   assert(app:set_downmix_mode('ambix')==false)
-  local notice='Multichannel preview: source normalization and peak guard are unavailable.'
+  local notice='Preset saved.'
   app.message=notice
   assert(app:set_downmix_mode('discrete'))
   assert(app.message==notice and app.downmix_error==nil)
@@ -165,7 +165,7 @@ end
 -- another notice replaces its normal status text.
 do
   local app=fixture(false,true);local bar=Bar.new(app.r,app)
-  app.message='Multichannel preview: source normalization and peak guard are unavailable.'
+  app.message='Preset saved.'
   local status=bar:state().status
   assert(status:find(app.message,1,true)and status:find('4ch → 2ch',1,true)and status:find('Auto: AmbiX (W/Y M/S)',1,true))
   app.path='/field.wav';status=bar:state().status

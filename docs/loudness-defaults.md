@@ -1,6 +1,6 @@
 # Normalize初期値の検証（2026-10-22）
 
-新規Raw／Macroの初期目標を **−18 LUFS-M Max／36 sones** にする。Zwickerの既定SummaryはMax、校正は従来のRMS −20 dBFS = 79 dB SPLを維持する。Source ceilingは−1 dBTPで、Normalize中は目標ラウドネスより優先する。既存Presetに保存されている目標値・校正値は変更しない。欠けているZwicker目標には36 sonesを補完する。
+新規Raw／Macroの初期目標を **−18 LUFS-M Max／36 sones** にする。Zwickerの既定SummaryはMax、解析ではRMS −20 dBFSを79 dB SPLとして扱う。既存Presetに保存されている目標値は変更しない。欠けているZwicker目標には36 sonesを補完する。
 
 36 sonesは今回の効果音群から選んだ開始点であり、−18 LUFSへの固定換算値ではない。数値解析と実REAPERの一致を確認した検証で、試聴パネルによる聴感評価や実スピーカー音圧の校正ではない。
 
@@ -26,7 +26,7 @@
 
 開発用FFmpegでPCMを読み、製品と同じC++のLUFS／True Peak／Zwickerカーネルへ入力した。全素材が48 kHzなのでリサンプルは不要。ステレオZwickerは製品と同じ左右の `sqrt(NL² + NR²)` 合成を使う。
 
-比較基準のゲインは `min(−18 − source LUFS-M Max, +18, −1 − source dBTP)`。31本中4本はピーク上限のため−18 LUFSまで上がらない。Zwickerも同じ最大ブーストとピーク上限を適用し、8／28／32／36／40 sonesへ合わせるゲインを再評価して求めた。
+以下は2026-10-22の初期値選定に使った実験条件である。当時の比較基準のゲインは `min(−18 − source LUFS-M Max, +18, −1 − source dBTP)`。31本中4本はピーク上限のため−18 LUFSまで上がらない。Zwickerも同じ比較条件で、8／28／32／36／40 sonesへ合わせるゲインを再評価して求めた。
 
 バリエーション数の偏りを抑えるため、ゲイン差の絶対値を種類内で平均し、その後13種類を等しい重みで平均する。Max／P95の双方を同じ重みで扱い、共通の初期値を選ぶ。
 
@@ -62,4 +62,4 @@ python3 tools/calibrate_loudness_defaults.py \
 
 Manifestは `[{"path":"/absolute/effect.wav","id":"effect-01","family":"door"}]` の配列。mono／stereoに対応し、familyを明示する。原音を変更せず、PCM一時ファイルは終了時に削除する。今回の初期値選定はステレオ31本の範囲であり、他ライブラリ・mono／多ch・他の校正条件にも最適と主張しない。
 
-実ホストとの比較には `tools/run_macos_quality.py --suite native_analysis --corpus-manifest /absolute/path/to/expectations.json --directory /tmp/fresh-loudness-host --timeout 360` を使う。素材と期待値はローカルに用意する。
+実ホストとの比較には `tools/run_macos_quality.py --suite native_analysis --corpus-manifest /absolute/path/to/expectations.json --directory /tmp/fresh-loudness-host --timeout 360` を使う。素材と期待値はローカルに用意する。現在のゲインを検証する場合は、目標sonesに必要な補正量を期待値に使う。上記の2026-10-22の表は当時の比較条件による結果である。

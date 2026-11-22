@@ -19,13 +19,13 @@ inline constexpr int min_list_height=24;
 enum ControlIndex { raw=0,normalize=1,target=2,monitor=3,channels=4,downmix=5,edit=6,settings=7,quit=8 };
 inline constexpr int control_count=9;
 inline constexpr std::array<Control,9> controls{{
-  {"raw","0 Raw","0 Raw",ControlKind::toggle,0,0,true,"Bypass Macro FX and transforms; keep Raw normalization and monitor gain"},
+  {"raw","Raw","Raw",ControlKind::toggle,0,0,true,"Bypass Macro FX and transforms; keep Raw normalization and monitor gain"},
   {"normalize","Normalize","Norm",ControlKind::toggle,78,62,false,"Match source loudness to the Norm target for the selected Macro or Raw; applies to preview and inserted audio"},
   {"target","Normalize target","Normalize target",ControlKind::popup,156,156,false,"Source loudness target: LUFS or Zwicker sones. Applies to preview and inserted audio; Zwicker targets open the preset editor."},
   {"monitor","Monitor volume","Monitor volume",ControlKind::popup,138,0,false,"Preview volume only (dB), shared by all presets and Raw. Does not change inserted or exported audio."},
   {"channels","Mic Select…","Mics",ControlKind::button,86,44,false,"Choose microphones in a native Media Explorer panel. Names come from WAV metadata; three or more inputs stay independent."},
-  {"downmix","Downmix","DM",ControlKind::toggle,80,36,false,"Preview: ON converts to stereo using the mode in Edit (Auto detects AmbiX filenames); OFF preserves original channels. Output follows project routing."},
-  {"edit","Edit…","Edit",ControlKind::button,66,48,true,"Preset / FX editing and export"},
+  {"downmix","Downmix","DM",ControlKind::toggle,80,36,false,"Preview: ON converts to stereo using the mode in Preset (Auto detects AmbiX filenames); OFF preserves original channels. Output follows project routing."},
+  {"edit","Preset…","Preset",ControlKind::button,76,48,true,"Preset / FX editing and export"},
   {"settings","Settings…","Settings",ControlKind::button,86,62,false,"App settings: playback, drops, cache and diagnostics. Stays open until closed."},
   {"quit","×","×",ControlKind::button,26,24,true,"Stop SoundPrep and restore native preview"},
 }};
@@ -126,30 +126,23 @@ inline constexpr std::array<Field,12> editor_fields{{
   {"presets",Kind::array,true},
   {"values",Kind::object,true},
 }};
-inline constexpr std::array<Field,18> editor_value_fields{{
+inline constexpr std::array<Field,11> editor_value_fields{{
   {"name",Kind::string,true},
   {"metric",Kind::string,true},
-  {"directory",Kind::string,true},
   {"reverse",Kind::boolean,true},
   {"preserve",Kind::boolean,true},
   {"normalize",Kind::boolean,true},
-  {"guard",Kind::boolean,true},
   {"pitch",Kind::number,true},
   {"rate",Kind::number,true},
   {"lufs",Kind::number,true},
   {"sones",Kind::number,true},
-  {"reference_dbfs",Kind::number,true},
-  {"reference_spl",Kind::number,true},
-  {"boost",Kind::number,true},
   {"gain",Kind::number,true},
-  {"ceiling",Kind::number,true},
   {"tail",Kind::number,true},
-  {"slot",Kind::number,true},
 }};
 inline constexpr std::array<double,4> target_options{{-18,-16,-14,-12}};
 inline constexpr std::array<double,5> monitor_options{{-24,-18,-12,-6,0}};
-inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.18","platform":"windows","features":{"bar":11,"preview":5,"waveform":10,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
-inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.18","platform":"macos","features":{"bar":11,"preview":5,"waveform":10,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.19","platform":"windows","features":{"bar":14,"preview":5,"waveform":10,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.19","platform":"macos","features":{"bar":14,"preview":5,"waveform":10,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
 inline const char* helper_info() {
 #ifdef _WIN32
   return windows_info;

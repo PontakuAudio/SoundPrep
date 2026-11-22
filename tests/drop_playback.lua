@@ -98,7 +98,7 @@ local ok,err=xpcall(function()
     local files=options.paths or {paths[2]};local path=files[1]
     local state={project=tostring(project),session='session',path=path,identity=identity(path),macro=macro,
       settings=bank.settings,data='/raw-drop',input='input',defer_items=options.defer_items~=false,analyzer_key='analyzer'}
-    if macro.normalization.enabled or macro.source_peak_guard.enabled then
+    if macro.normalization.enabled then
       for i,file in ipairs(files)do
         local analysis=Analysis.resolve(file,channels[file],bank.settings,macro.normalization)
         local value={status='ready',identity=identity(file),profile=L.profile(analysis),analyzer_key='analyzer',analysis=analysis,
@@ -141,7 +141,7 @@ local ok,err=xpcall(function()
   end
   local before=run{capture=true,list=true,paths=paths,transport=1}
   assert(J.encode(items)==before and calls.prepare==0 and ext.queue==nil,'Captured mixed-channel Raw list was rendered')
-  -- Gain-only drops apply the frozen normalization/guard/output gain to the
+  -- Gain-only drops apply the frozen normalization and output gain to the
   -- native item, even while recording or when automatic rendering is disabled.
   for _,state in ipairs{0,1,2,3,4,5,6,7}do for _,automatic in ipairs{false,true}do
     for _,handles in ipairs{false,true}do
@@ -158,8 +158,6 @@ local ok,err=xpcall(function()
   for _,change in ipairs{
     function(m)m.normalization.enabled=true;m.normalization.target_lufs=-17 end,
     function(m)m.normalization.enabled=true;m.normalization.target_lufs=-24 end,
-    function(m)m.source_peak_guard.enabled=true;m.source_peak_guard.ceiling_dbtp=-15 end,
-    function(m)m.source_peak_guard.enabled=true end,
     function(m)m.source_transform.preserve_pitch=true end,
     function(m)m.output_gain_db=-3 end,function(m)m.id='macro'end,
   }do

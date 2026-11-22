@@ -14,19 +14,18 @@ end
 function M.new(r,app)return setmetatable({r=r,app=app},M)end
 local function macro_labels(self,definition)
   local cached=self.macro_labels
-  if cached and #cached.labels==#definition.macros and U.equal(cached.slots,definition.slots)then
+  if cached and #cached==#definition.macros then
     local unchanged=true
     for i,item in ipairs(definition.macros)do
-      if item.id~=cached.labels[i].id or item.name~=cached.names[i]then unchanged=false;break end
+      if item.id~=cached[i].id or item.name~=cached[i].label then unchanged=false;break end
     end
-    if unchanged then return cached.labels end
+    if unchanged then return cached end
   end
-  local slots,names,labels={},{},J.array{}
-  for slot,id in pairs(definition.slots)do slots[id]=slot end
+  local labels=J.array{}
   for i,item in ipairs(definition.macros)do
-    names[i]=item.name;labels[i]={id=item.id,label=(slots[item.id] or '–')..'  '..item.name}
+    labels[i]={id=item.id,label=item.name}
   end
-  self.macro_labels={slots=U.copy(definition.slots),names=names,labels=labels}
+  self.macro_labels=labels
   return labels
 end
 function M:state()

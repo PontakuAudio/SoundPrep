@@ -39,7 +39,7 @@ local ok,err=xpcall(function()
     local selection=list and {channels=list}or {left=left,right=right}
     local expected=list or {left,right};local output=Selection.output(selection)
     local def=Model.defaults();local macro=Model.effective(def,nil)
-    macro.normalization.enabled=false;macro.source_peak_guard.enabled=false
+    macro.normalization.enabled=false
     def.settings.channel_selections={[tostring(n)]=selection};def.settings.auto_render_drops=seq%2==0
     local state={project=tostring(project),session='selected-test',path=path,identity=assert(L.identity(r,path)),
       macro=macro,settings=def.settings,data=data,input=r.GetTrackGUID(input),defer_items=false}

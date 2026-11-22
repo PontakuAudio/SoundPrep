@@ -4,7 +4,6 @@ local actions={
   {'Reverse','reverse'},{'AB','ab'},{'Play Stop','play'},{'Replay','replay'},{'Stop','stop'},
   {'Analyse','analyse'},{'Edit','edit'},{'Quit','quit'},
 }
-for i=0,9 do actions[#actions+1]={'Slot '..i,'slot:'..i}end
 
 -- Only SoundPrep entrypoints ship; obsolete forwarding files are removed.
 local function check_entrypoint(directory,suffix)
@@ -58,12 +57,13 @@ local ok,err=xpcall(function()
       assert(title=='SoundPrep' and message:find('Launch SoundPrep.lua',1,true))
     end}
   dofile('./SoundPrep - Install actions.lua')
-  assert(calls==24 and new_id==124,'Expected 6 Main and 18 Media Explorer registrations')
+  assert(calls==14 and new_id==114,'Expected 6 Main and 8 Media Explorer registrations')
+  for _,action in ipairs(actions)do assert(registered['32063:./actions/SoundPrep - '..action[1]..'.lua'])end
   local main_id=registered['0:./SoundPrep.lua']
   local play_id=registered['32063:./actions/SoundPrep - Play Stop.lua']
   local shortcuts={[main_id]='Ctrl+Alt+A',[play_id]='Space',[41]='Alt+A',[42]='Alt+Space'}
   dofile('./SoundPrep - Install actions.lua')
-  assert(calls==48 and new_id==124,'Reinstall changed action identities')
+  assert(calls==28 and new_id==114,'Reinstall changed action identities')
   assert(registered['0:./Audition Macro.lua']==41 and registered['32063:./actions/Audition Macro - Play Stop.lua']==42,
     'Installer changed an existing legacy action registration')
   assert(shortcuts[41]=='Alt+A' and shortcuts[42]=='Alt+Space','Installer changed legacy shortcuts')

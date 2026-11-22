@@ -1,4 +1,4 @@
-// Offline development probe using the production loudness kernels.
+// Reproduces the October 2026 target-selection study with the loudness kernels.
 // Input: interleaved little-endian float64 PCM at 48 kHz, 1 or 2 channels.
 // Audio stays local. Build without fast-math and with -ffp-contract=off.
 #include "../native/zwicker.h"
@@ -62,8 +62,7 @@ int main(int argc,char** argv) try {
     Json entry={{"target_sones",target}};
     for(bool p95:{false,true}) {
       const auto value=[&](double db){const auto v=evaluate(db);return p95?v.second:v.first;};
-      // Solve only inside the applied source gain range. The cap is identical
-      // to Loudness.gain; a capped result explicitly need not reach the target.
+      // Use the gain bounds from the original study so its results are reproducible.
       double low=-120,high=std::min(18.0,-1-tp);
       double gain=high;const bool capped=value(high)<target;
       if(!capped) {

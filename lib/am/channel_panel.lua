@@ -36,7 +36,7 @@ function M.state(app)
   local downmix=not selected and count>2 and app.definition.settings.preview_downmix==true
   return {open=app.channel_panel_open==true,source=key,file=app.path and U.basename(app.path)or 'Select an audio file in Media Explorer.',
     summary=selected and Selection.label(selected)or downmix and 'Downmix all channels'or 'All source channels',
-    items=items,previous=page>0,next=(page+1)*8<count,all=not selected and not downmix,downmix=downmix,
+    items=items,paged=count>8,previous=page>0,next=(page+1)*8<count,all=not selected and not downmix,downmix=downmix,
     can_downmix=count>2,can_swap=#list==2,enabled=count>0,playing=app.preview:playing(true)==true,
     page=count>0 and ('%d–%d / %d'):format(page*8+1,math.min(count,(page+1)*8),count)or '',notice=app.channel_panel_notice or ''}
 end
@@ -60,14 +60,12 @@ function M.dispatch(app,text)
   local op=event.op;local ok,reason=true
   if op=='toggle'then ok,reason=M.toggle(app,event.channel)
   elseif op=='all'then ok,reason=app:set_downmix(false)
-  elseif op=='downmix'then ok,reason=app:set_downmix(true)
   elseif op=='swap'then
     local s=Selection.get(app.definition.settings,app.source_channels);local list=s and Selection.list(s)or {}
     if #list==2 then ok,reason=app:set_channel_selection({list[2],list[1]})end
   elseif op=='previous'then app.channel_panel_page=math.max(0,(app.channel_panel_page or 0)-1)
   elseif op=='next'then app.channel_panel_page=(app.channel_panel_page or 0)+1
   elseif op=='play'then app:transport()
-  elseif op=='replay'then app:play()
   else error('Unknown microphone command')end
   app.channel_panel_notice=ok==false and reason or nil
 end

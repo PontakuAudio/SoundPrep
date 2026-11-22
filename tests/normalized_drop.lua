@@ -131,26 +131,24 @@ local ok,err=xpcall(function()
   s=state();s.measurement=measurement();files={}
   refused(s,'Analysis required:',{a.path,b.path})
   assert(snapshots==1,'The test must reach the missing second batch measurement')
-  s.macro.normalization.enabled=false;s.macro.source_peak_guard.enabled=true;s.measurement=nil
-  refused(s,'Analysis required:')
-  s.macro.source_peak_guard.enabled=false;assert(invoke(s),'Unnormalized drop unnecessarily required analysis')
+  s.macro.normalization.enabled=false;s.measurement=nil
+  assert(invoke(s),'Unnormalized drop unnecessarily required analysis')
   channels=4
   assert(invoke(s),'Multichannel drop was rejected')
   local multi=J.decode(r.GetExtState(Drop.EXT,'prepared')).entries[1].snapshot
   assert(multi.channel_mix.mode==0 and multi.channel_mix.source_channels==4 and multi.channel_mix.output_channels==4)
-  assert(multi.source_gain_db==0 and not multi.macro.normalization.enabled and not multi.macro.source_peak_guard.enabled)
+  assert(multi.source_gain_db==0 and not multi.macro.normalization.enabled)
   assert(multi.source_processing.fx_bypassed and multi.analysis.basis=='loudest_channel')
-  -- Multichannel normalization now requires its own completed measurement,
-  -- including the common peak-guard limit applied to every original channel.
+  -- All original channels receive the same normalization gain.
   s=state();files={};s.measurement=measurement();refused(s,'Analysis required:')
   local analysis=assert(Analysis.resolve(a.path,channels,s.settings))
   s.analysis_job=job(nil,analysis);refused(s,'Analysis pending:')
   local multi_measurement=measurement(nil,analysis);multi_measurement.true_peak_dbtp=-3
-  files[s.analysis_job.result]=J.encode(multi_measurement);s.macro.source_peak_guard.enabled=true
+  files[s.analysis_job.result]=J.encode(multi_measurement)
   assert(invoke(s))
   multi=J.decode(r.GetExtState(Drop.EXT,'prepared')).entries[1].snapshot
-  assert(multi.source_gain_db==2 and Analysis.same(multi.analysis,analysis))
-  assert(multi.macro.normalization.enabled and multi.macro.source_peak_guard.enabled)
+  assert(multi.source_gain_db==6 and Analysis.same(multi.analysis,analysis))
+  assert(multi.macro.normalization.enabled)
   s.settings.preview_downmix=true
   refused(s,'Analysis required:') -- The completed OFF result cannot normalize ON.
   channels=2
@@ -163,7 +161,7 @@ local ok,err=xpcall(function()
   assert(not L.same('invalid',a) and not L.same({},{}))
 
   -- Zwicker modal pickup applies the same solved gain as live Preview, with
-  -- the exact target/calibration frozen into the recipe. No LUFS substitute.
+  -- the exact target frozen into the recipe. No LUFS substitute.
   for _,count in ipairs{2,4}do
     channels=count;files={};s=state();s.macro.normalization.metric='zwicker_max'
     local spec=assert(Analysis.resolve(a.path,channels,s.settings,s.macro.normalization))
@@ -173,23 +171,14 @@ local ok,err=xpcall(function()
     assert(frozen.source_gain_db==L.gain(s.macro,solved)and frozen.source_gain_db==-5.25)
     assert(Analysis.same(frozen.analysis,spec)and frozen.macro.normalization.metric=='zwicker_max')
     solved.normalization_gain_db=24;solved.true_peak_dbtp=-.25
-    assert(not s.macro.source_peak_guard.enabled)
     files[s.analysis_job.result]=J.encode(solved)
-    assert(invoke(s));local limited=J.decode(r.GetExtState(Drop.EXT,'prepared')).entries[1].snapshot
-    assert(limited.source_gain_db==-.75,'D&D bypassed the automatic Normalize peak ceiling')
+    assert(invoke(s));local boosted=J.decode(r.GetExtState(Drop.EXT,'prepared')).entries[1].snapshot
+    assert(boosted.source_gain_db==24,'D&D did not apply the full requested gain')
     s.macro.normalization.target_sones=16
     refused(s,'Analysis required:')
     assert(frozen.analysis.meter.target_sones==36 and frozen.macro.normalization.target_sones==36)
-    -- With Normalize off only the mapped source peak is needed. A completed
-    -- Zwicker result remains sufficient even after changing its unused target.
-    s.macro.normalization.enabled=false;s.macro.source_peak_guard.enabled=true
-    assert(invoke(s));assert(J.decode(r.GetExtState(Drop.EXT,'prepared')).entries[1].snapshot.source_gain_db==-.75)
-    files={};s.analysis_job=nil;s.measurement=solved
-    assert(invoke(s),'A published full measurement could not supply peak-only drop gain')
-    assert(J.decode(r.GetExtState(Drop.EXT,'prepared')).entries[1].snapshot.source_gain_db==-.75)
-    s.measurement=nil;s.macro.normalization.target_sones=36
-    files['/normalized-drop/cache/'..L.key(a,'analyzer',spec)..'.json']=J.encode(solved)
-    assert(invoke(s),'An existing full disk cache did not satisfy a peak-only drop')
+    s.macro.normalization.enabled=false;files={};s.analysis_job=nil;s.measurement=nil
+    assert(invoke(s));assert(J.decode(r.GetExtState(Drop.EXT,'prepared')).entries[1].snapshot.source_gain_db==0)
     s.macro.normalization.enabled=true;s.macro.normalization.target_sones=16
     refused(s,'Analysis required:')
   end

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Measure local mono/stereo effects with the production LUFS/Zwicker kernels.
+"""Reproduce the October 2026 LUFS/Zwicker target-selection study.
 
 Input JSON: [{"path": "/absolute/audio.wav", "id": "door-1", "family": "door"}].
 Uses FFmpeg for development-only decoding to 48 kHz; the application uses
 REAPER. No audio/path names are copied into the report, and sources are read
 only. Run again with --targets to evaluate candidate sones against -18 LUFS-M
-Max, +18 dB max boost, -1 dBTP ceiling and the existing -20 dBFS = 79 dB SPL
+Max, +18 dB max boost, -1 dBTP ceiling and the fixed -20 dBFS = 79 dB SPL
 model calibration. Include the same complete-source + 400 ms tail as Preview.
 """
 import argparse

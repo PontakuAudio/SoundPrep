@@ -10,7 +10,7 @@ end
 function M.unprocessed_raw(snapshot)
   local m=snapshot.macro;local t=m.source_transform
   local mix=Channels.validate(snapshot)
-  return m.id=='raw' and not m.normalization.enabled and not m.source_peak_guard.enabled and
+  return m.id=='raw' and not m.normalization.enabled and
     not t.reverse and t.pitch_semitones==0 and t.rate==1 and not t.preserve_pitch and
     m.output_gain_db==0 and snapshot.source_gain_db==0 and not has_fx(snapshot.chain) and
     (not mix or mix.mode==0)

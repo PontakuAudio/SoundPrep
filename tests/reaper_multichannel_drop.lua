@@ -116,7 +116,7 @@ local ok,err=xpcall(function()
     local macro=Model.macro('channels','Channel preservation');macro.export.tail_seconds=0
     macro.output_gain_db=case.gain or 0
     macro.source_transform.rate=case.rate or 1;macro.source_transform.reverse=case.reverse or false
-    macro.normalization.enabled=true;macro.source_peak_guard.enabled=true
+    macro.normalization.enabled=true
     macro.normalization.target_lufs=-24+(case.normalization_gain or 0)
     settings.preview_downmix=case.mode~=0;settings.preview_downmix_mode=case.preference or 'auto'
     settings.channel_selections=case.selection and {[tostring(case.n)]=U.copy(case.selection)}or {}
@@ -154,12 +154,12 @@ local ok,err=xpcall(function()
     local captured=J.decode(r.GetExtState(EXT,'captured'));local snapshot=captured.entries[1].snapshot
     assert(snapshot.channel_mix.source_channels==case.n and snapshot.channel_mix.mode==case.mode)
     assert(snapshot.channel_mix.output_channels==#wanted)
-    assert(snapshot.macro.normalization.enabled and snapshot.macro.source_peak_guard.enabled)
+    assert(snapshot.macro.normalization.enabled)
     assert(snapshot.source_gain_db==(case.normalization_gain or 0) and Analysis.same(snapshot.analysis,analysis))
     assert(snapshot.source_processing.fx_bypassed==(case.mode==0))
     if case.mode==0 then assert(snapshot.chain=='','OFF retained Macro FX')
     elseif case.macro_gain then assert(snapshot.chain:find('utility/volume_pan',1,true),'ON lost Macro FX')end
-    assert(state.macro.normalization.enabled and state.macro.source_peak_guard.enabled,'Capture changed the live Macro')
+    assert(state.macro.normalization.enabled,'Capture changed the live Macro')
     local fx_width=case.mode==0 and 2*math.ceil(case.n/2) or case.fx_channels or 2
     assert(snapshot.channel_mix.fx_channels==fx_width,'Capture used the wrong effective Macro width')
     -- The actual native drag may remain modal while the live state changes.

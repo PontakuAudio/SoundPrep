@@ -1,5 +1,5 @@
 -- App settings share one controller across Cocoa and Win32.
-local J=require('am.json');local U=require('am.util');local Loudness=require('am.loudness');local Model=require('am.model')
+local J=require('am.json');local U=require('am.util');local Loudness=require('am.loudness');local Model=require('am.model');local Contract=require('am.native_contract')
 local M={}
 local booleans={autoplay=true,loop=true,auto_render_drops=true,insert_handles=true,keep_fx_running=true}
 local numbers={monitor_gain_db={-60,0},preview_fade_ms={0,50},fade_ms={0,50},normalize_fade_ms={0,2000}}
@@ -14,6 +14,7 @@ function M.state(a)
     cache_available=type(a.choose_cache_directory)=='function' and type(a.set_cache_directory)=='function',
     cache_default=not s.cache_directory or s.cache_directory=='',
     cache_path=Loudness.cache_directory and Loudness.cache_directory(a.data or '',s)or (a.data or '')..'/cache',
+    version='SoundPrep '..Contract.version,
     diagnostics=('Chain loads: %d   Switches: %d   Source starts: %d'):format((a.bank or {}).loads or 0,(a.bank or {}).switches or 0,(a.preview or {}).starts or 0),
     notice=a.settings_notice or 'Changes are saved automatically and shared across every preset.'}
 end

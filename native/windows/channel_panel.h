@@ -1,10 +1,10 @@
 // Owned native popup, anchored to Media Explorer. No global keyboard hooks.
 struct ChannelPanel {
   HWND window=nullptr,anchor=nullptr,file=nullptr,summary=nullptr,page=nullptr,notice=nullptr,tips=nullptr;
-  HFONT font=nullptr;bool paused=false,closing=false;
+  HFONT font=nullptr;bool paused=false,closing=false,paged=false;
   Json state=Json::object();std::array<HWND,8> microphones{};std::array<std::wstring,8> labels{};
-  std::array<int,8> indices{};std::array<HWND,8> actions{};
-  static constexpr const char* commands[]={"previous","next","all","downmix","swap","close","play","replay"};
+  std::array<int,8> indices{};std::array<HWND,6> actions{};
+  static constexpr const char* commands[]={"previous","next","all","swap","play","close"};
   ~ChannelPanel(){close(false);}
   HWND child(const wchar_t* cls,const wchar_t* text,DWORD style,int id,int x,int y,int w,int h){
     HWND c=CreateWindowExW(0,cls,text,WS_CHILD|WS_VISIBLE|style,amwin::scale(anchor,x),amwin::scale(anchor,y),amwin::scale(anchor,w),amwin::scale(anchor,h),window,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),amwin::module(),nullptr);
@@ -12,7 +12,7 @@ struct ChannelPanel {
   }
   void position(){
     if(!window || !IsWindow(anchor))return;
-    RECT a{};GetWindowRect(anchor,&a);int width=amwin::scale(anchor,536),height=amwin::scale(anchor,352);
+    RECT a{};GetWindowRect(anchor,&a);int width=amwin::scale(anchor,536),height=amwin::scale(anchor,paged?302:268);
     MONITORINFO monitor{sizeof(monitor)};GetMonitorInfoW(MonitorFromWindow(anchor,MONITOR_DEFAULTTONEAREST),&monitor);
     int x=std::max(monitor.rcWork.left,std::min(a.left,monitor.rcWork.right-width));
     int y=a.bottom+height<=monitor.rcWork.bottom?a.bottom:std::max(monitor.rcWork.top,a.top-height);
@@ -27,13 +27,15 @@ struct ChannelPanel {
     tips=CreateWindowExW(WS_EX_TOPMOST,TOOLTIPS_CLASSW,nullptr,WS_POPUP|TTS_ALWAYSTIP|TTS_NOPREFIX,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,window,nullptr,wc.hInstance,nullptr);
     SendMessageW(tips,TTM_SETMAXTIPWIDTH,0,500);
     for(int i=0;i<8;++i){
-      microphones[i]=child(L"BUTTON",L"",WS_TABSTOP|BS_AUTOCHECKBOX|BS_PUSHLIKE|BS_MULTILINE,2100+i,12+(i%4)*125,58+(i/4)*54,121,48);
+      microphones[i]=child(L"BUTTON",L"",WS_TABSTOP|BS_AUTOCHECKBOX|BS_PUSHLIKE|BS_MULTILINE,2100+i,12+(i%4)*125,58+(i/4)*46,121,40);
       TOOLINFOW tip{sizeof(tip)};tip.uFlags=TTF_IDISHWND|TTF_SUBCLASS;tip.hwnd=window;tip.uId=reinterpret_cast<UINT_PTR>(microphones[i]);tip.lpszText=const_cast<wchar_t*>(L"");SendMessageW(tips,TTM_ADDTOOLW,0,reinterpret_cast<LPARAM>(&tip));
     }
-    const wchar_t* titles[]={L"< Previous 8",L"Next 8 >",L"All channels",L"Downmix all",L"Swap L / R",L"Done",L"Play",L"Replay"};
-    const int rects[][4]={{12,172,112,26},{396,172,112,26},{12,206,121,26},{137,206,121,26},{262,206,121,26},{387,206,121,26},{12,242,96,26},{116,242,96,26}};
-    for(int i=0;i<8;++i)actions[i]=child(L"BUTTON",titles[i],WS_TABSTOP|((i==2 || i==3)?BS_AUTOCHECKBOX|BS_PUSHLIKE:BS_PUSHBUTTON),2200+i,rects[i][0],rects[i][1],rects[i][2],rects[i][3]);
-    page=child(L"STATIC",L"",SS_CENTER,0,132,177,252,18);notice=child(L"STATIC",L"",SS_ENDELLIPSIS|SS_NOPREFIX,0,12,280,496,20);
+    const wchar_t* titles[]={L"< Previous 8",L"Next 8 >",L"All channels",L"Swap L / R",L"Play",L"Done"};
+    const int shift=paged?0:34;
+    const int rects[][4]={{12,156,112,26},{396,156,112,26},{12,190-shift,121,26},{137,190-shift,121,26},{262,190-shift,121,26},{387,190-shift,121,26}};
+    for(int i=0;i<6;++i)actions[i]=child(L"BUTTON",titles[i],WS_TABSTOP|(i==2?BS_AUTOCHECKBOX|BS_PUSHLIKE:BS_PUSHBUTTON),2200+i,rects[i][0],rects[i][1],rects[i][2],rects[i][3]);
+    page=child(L"STATIC",L"",SS_CENTER,0,132,161,252,18);notice=child(L"STATIC",L"",SS_ENDELLIPSIS|SS_NOPREFIX,0,12,230-shift,496,20);
+    if(!paged){ShowWindow(actions[0],SW_HIDE);ShowWindow(actions[1],SW_HIDE);ShowWindow(page,SW_HIDE);}
   }
   std::wstring fit(std::wstring text,int width){
     HDC dc=GetDC(window);auto old=SelectObject(dc,font);SIZE size{};
@@ -48,6 +50,9 @@ struct ChannelPanel {
   void update(const Json& next,bool disabled,HWND a,HFONT f){
     state=next;paused=disabled;
     if(!next.value("open",false) || paused || !IsWindowVisible(a)){close(false);return;}
+    const bool previous=next.at("previous").get<bool>(),hasNext=next.at("next").get<bool>();
+    const bool newPaged=next.value("paged",previous || hasNext);
+    if(newPaged!=paged){close(false);paged=newPaged;}
     const bool fresh=!window;if(fresh)create(a,f);bool enabled=next.at("enabled");
     amwin::text(file,next.at("file"));amwin::text(summary,next.at("summary"));amwin::text(page,next.at("page"));
     amwin::text(notice,next.at("notice").get<std::string>().empty()?"Click microphones to add or remove them. Changes apply immediately.":next.at("notice").get<std::string>());
@@ -61,11 +66,11 @@ struct ChannelPanel {
       SetWindowTextW(b,title.c_str());EnableWindow(b,enabled);SendMessageW(b,BM_SETCHECK,item.at("selected").get<bool>()?BST_CHECKED:BST_UNCHECKED,0);
       TOOLINFOW tip{sizeof(tip)};tip.hwnd=window;tip.uId=reinterpret_cast<UINT_PTR>(b);tip.lpszText=labels[i].data();SendMessageW(tips,TTM_UPDATETIPTEXTW,0,reinterpret_cast<LPARAM>(&tip));
     }
-    for(int i=0;i<8;++i)EnableWindow(actions[i],enabled || i==5);
-    EnableWindow(actions[0],enabled && next.at("previous").get<bool>());EnableWindow(actions[1],enabled && next.at("next").get<bool>());
-    EnableWindow(actions[3],enabled && next.at("can_downmix").get<bool>());EnableWindow(actions[4],enabled && next.at("can_swap").get<bool>());
-    SendMessageW(actions[2],BM_SETCHECK,next.at("all").get<bool>()?BST_CHECKED:BST_UNCHECKED,0);SendMessageW(actions[3],BM_SETCHECK,next.at("downmix").get<bool>()?BST_CHECKED:BST_UNCHECKED,0);
-    amwin::text(actions[6],next.at("playing").get<bool>()?"Stop":"Play");
+    for(int i=0;i<6;++i)EnableWindow(actions[i],enabled || i==5);
+    EnableWindow(actions[0],enabled && previous);EnableWindow(actions[1],enabled && hasNext);
+    EnableWindow(actions[3],enabled && next.at("can_swap").get<bool>());
+    SendMessageW(actions[2],BM_SETCHECK,next.at("all").get<bool>()?BST_CHECKED:BST_UNCHECKED,0);
+    amwin::text(actions[4],next.at("playing").get<bool>()?"Stop":"Play");
     if(fresh){ShowWindow(window,SW_SHOW);SetFocus(items.empty()?actions[5]:microphones[0]);}
   }
   void send(const char* op,int channel=0){
@@ -92,7 +97,7 @@ struct ChannelPanel {
     if(self && (m==WM_CLOSE || (m==WM_ACTIVATE && LOWORD(p)==WA_INACTIVE))){self->close(true);return 0;}
     if(self && m==WM_COMMAND && HIWORD(p)==BN_CLICKED){
       try{int id=LOWORD(p);if(id>=2100 && id<2108){if(self->indices[id-2100])self->send("toggle",self->indices[id-2100]);}
-        else if(id>=2200 && id<2208){if(id==2205)self->close(true);else self->send(commands[id-2200]);}
+        else if(id>=2200 && id<2206){if(id==2205)self->close(true);else self->send(commands[id-2200]);}
       }catch(...){}return 0;
     }
     return DefWindowProcW(w,m,p,l);

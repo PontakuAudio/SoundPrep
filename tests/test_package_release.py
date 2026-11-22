@@ -373,6 +373,11 @@ class PackageReleaseTests(unittest.TestCase):
         self.assertEqual(manifest["package_name"], "SoundPrep.lua")
         self.assertEqual(manifest["main_actions"], ["SoundPrep.lua"])
         self.assertEqual(manifest["media_explorer_actions"], [])
+        public_files = json.loads((ROOT / "resources/public-source-files.json").read_text())["files"]
+        shortcuts = {f"actions/SoundPrep - {name}.lua" for name in
+                     ("AB", "Analyse", "Edit", "Play Stop", "Quit", "Replay", "Reverse", "Stop")}
+        for files in (listed, public_files):
+            self.assertEqual({path for path in files if path.startswith("actions/")}, shortcuts)
         # Only the launcher is registered automatically. Optional SoundPrep
         # actions keep their paths; obsolete forwarding scripts no longer ship.
         self.assertIn("SoundPrep - Install actions.lua", manifest["support_files"])

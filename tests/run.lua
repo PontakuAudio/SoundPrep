@@ -9,7 +9,7 @@ test('Selected microphones preserve routing, analysis identities, transport and 
 test('Native microphone panel preserves names, source identity and independent selections',function()dofile('tests/channel_panel.lua')end)
 test('WAV microphone names preserve iXML track positions, Unicode, fallbacks and file identity',function()dofile('tests/channel_names.lua')end)
 test('Native app settings persist shared values and preserve modeless panel state',function()dofile('tests/settings_panel.lua')end)
-test('Native Presets and Tools preserve drafts, validate edits and guard stale events',function()dofile('tests/editor_panel.lua')end)
+test('Native preset editor preserves drafts, validates edits and guards stale events',function()dofile('tests/editor_panel.lua')end)
 local J=require('am.json');local M=require('am.model');local U=require('am.util')
 test('Cache folder selection persists, validates writes and preserves running analysis',function()dofile('tests/cache_directory.lua')end)
 test('SoundPrep entrypoints preserve commands, heartbeat and shortcuts without legacy aliases',function()dofile('tests/entrypoints.lua')end)
@@ -18,9 +18,9 @@ test('Withdrawn dictionary assistance leaves startup and native search untouched
 test('Media Explorer display preferences survive selection, failures, close and legacy recovery',function()dofile('tests/media_explorer.lua')end)
 test('Native selection handoff preserves tracks, sound state and preview ownership across reorder/deletion',function()dofile('tests/selection_handoff.lua')end)
 test('AmbiX filename detection and selectable stereo preview preserve explicit channel choices',function()dofile('tests/ambix.lua')end)
-test('Multichannel analysis policies separate loudness references and preserve silent-source peak protection',function()dofile('tests/analysis_policy.lua')end)
-test('Analysis dependencies reuse source meters and avoid Zwicker work for peak protection alone',function()dofile('tests/analysis_dependencies.lua')end)
-test('Native Zwicker jobs freeze calibrated targets and apply validated solver gain with shared caps',function()dofile('tests/zwicker.lua')end)
+test('Multichannel analysis policies separate loudness references and preserve unity gain for silent references',function()dofile('tests/analysis_policy.lua')end)
+test('Analysis dependencies reuse source meters and avoid Zwicker work with normalization disabled',function()dofile('tests/analysis_dependencies.lua')end)
+test('Native Zwicker jobs freeze target settings and apply the full solver gain',function()dofile('tests/zwicker.lua')end)
 test('Analysis progress and failures remain visible after a rejected normalized drop',function()dofile('tests/analysis_status.lua')end)
 test('Fast drops await frozen analysis, survive selection changes and protect edits, Undo and failures',function()dofile('tests/drop_analysis.lua')end)
 test('Normalized drops consume completed analysis without a companion poll and reject incomplete batches',function()dofile('tests/normalized_drop.lua')end)
@@ -62,15 +62,14 @@ test('Bank schema keeps Raw FX-free with independent normalization',function()
   local x=M.effective(b,'heavy',true);assert(x.source_transform.reverse and not b.macros[1].source_transform.reverse)
   b.macros[1].fx_chain='../danger.RfxChain';assert(not pcall(M.validate,b))
 end)
-test('Unsupported schema and stale shortcut are rejected',function()
+test('Unsupported bank schema is rejected',function()
   local b=M.defaults();b.schema_version=2;assert(not pcall(M.validate,b))
-  b=M.defaults();b.slots['1']='missing';assert(not pcall(M.validate,b))
 end)
 test('Macro export defaults to a tail and loads legacy settings without a rewrite',function()
   local b=M.defaults();local export=b.macros[1].export
   assert(U.equal(export,{tail_seconds=1}))
   export.tail_seconds=31;assert(not pcall(M.validate,b))
-  export.tail_seconds=2.5;export.normalize_final=true;export.true_peak_limit=true;export.ceiling_dbtp=-3
+  export.tail_seconds=2.5;export.normalize_final=true;export.true_peak_limit=true
   local path=os.tmpname();local saved=J.encode(b)
   local ok,err=xpcall(function()
     assert(U.write(path,saved))
@@ -79,12 +78,28 @@ test('Macro export defaults to a tail and loads legacy settings without a rewrit
   end,debug.traceback)
   os.remove(path);assert(ok,err)
 end)
-test('Calibrated factory loudness targets retain explicitly saved presets and old targets',function()
+test('Loading and re-saving older presets removes retired settings',function()
+  local expected=M.validate(M.defaults())
+  expected.raw.normalization.target_lufs=-12;expected.macros[1].normalization.target_sones=42
+  local old=U.copy(expected)
+  old.slots={['1']='heavy',['9']='missing'}
+  for _,preset in ipairs{old.raw,table.unpack(old.macros)}do
+    preset.source_peak_guard={enabled=true,ceiling_dbtp=-3}
+    local n=preset.normalization;n.max_boost_db=2;n.reference_dbfs=-18;n.reference_spl_db=83
+  end
+  local path=os.tmpname()
+  local ok,err=xpcall(function()
+    assert(U.write(path,J.encode(old)))
+    local loaded=assert(M.load(path));assert(loaded.slots==nil and U.equal(loaded,expected))
+    assert(M.save(path,loaded));assert(U.equal(J.decode(assert(U.read(path))),expected))
+  end,debug.traceback)
+  os.remove(path);assert(ok,err)
+end)
+test('Factory loudness targets retain explicitly saved presets and old targets',function()
   local b=M.defaults()
   for _,m in ipairs{M.effective(b,nil),M.effective(b,'heavy'),M.macro('new','New')}do
     assert(m.normalization.target_lufs==-18 and m.normalization.target_sones==36)
-    assert(m.normalization.reference_dbfs==-20 and m.normalization.reference_spl_db==79)
-    assert(m.source_peak_guard.ceiling_dbtp==-1 and not m.normalization.enabled)
+    assert(not m.normalization.enabled)
   end
   b.raw.normalization.target_lufs=-16;b.raw.normalization.target_sones=8
   b.macros[1].normalization.target_lufs=-15;b.macros[1].normalization.target_sones=12
@@ -109,45 +124,24 @@ test('Nested FX chain round trip preserves plugin state',function()
   local replaced=Chunk.replace(inserted,'SHOW -1\n');assert(not replaced:find('<JS',1,true))
   assert(Chunk.fresh('BYPASS 0 0 0\n<JS test\n0\n>\n',function()return '{new}'end):match('^SHOW %-1\n'),'Minimal FX chains must load without opening an editor')
 end)
-test('Normalize constraints and silent/unmeasured fallback',function()
-  local m=M.macro('x','x');m.normalization.enabled=true;m.normalization.target_lufs=-12
-  assert(L.gain(m,nil)==0)
-  local measurement={status='ready',max_momentary_lufs=-40,true_peak_dbtp=-10}
-  assert(L.gain(m,measurement)==9,'Normalize must respect source peaks without an optional guard')
-  m.source_peak_guard.enabled=true;assert(L.gain(m,measurement)==9)
-  assert(L.gain(m,{status='silence'})==0)
-end)
-test('Default and saved Raw/Macro Normalize cannot boost past the source ceiling',function()
+test('Raw and Macro apply the full requested gain for each meter',function()
   local Policy=require('am.analysis_policy')
-  -- Round-trip the old schema: guard=false must not restore unsafe boosts.
   local bank=M.validate(J.decode(J.encode(M.defaults())))
   for _,id in ipairs{'raw','heavy'}do
-    local m=M.effective(bank,id~='raw' and id or nil)
+    local m=M.editable(bank,id)
     m.normalization.enabled=true
-    assert(not m.source_peak_guard.enabled)
     for _,metric in ipairs{'lufs_m_max','zwicker_max','zwicker_p95'}do
       m.normalization.metric=metric
-      local measurement={status='ready',max_momentary_lufs=-40,true_peak_dbtp=-.25,
-        normalization_gain_db=24,gain_status='ready',analysis=Policy.resolve('/impulse.wav',2,{},m.normalization)}
+      local measurement={status='ready',max_momentary_lufs=-50,true_peak_dbtp=2.5,
+        normalization_gain_db=29,gain_status='ready',analysis=Policy.resolve('/impulse.wav',2,{},m.normalization)}
       local gain,reason=L.gain(m,measurement)
-      assert(gain==-.75 and reason=='source peak capped',id..' / '..metric..' exceeded its source ceiling')
-      measurement.true_peak_dbtp=-40
-      gain,reason=L.gain(m,measurement);assert(gain==18 and reason=='boost capped')
-      measurement.true_peak_dbtp=2.5
-      assert(L.gain(m,measurement)==-3.5,'Float sources above full scale need attenuation')
-      m.source_peak_guard.ceiling_dbtp=-3
-      assert(L.gain(m,measurement)==-5.5,'Normalize ignored the saved ceiling')
-      m.source_peak_guard.ceiling_dbtp=-1
-      for _,peak in ipairs{J.null,0/0,math.huge,-math.huge}do
-        measurement.true_peak_dbtp=peak;gain,reason=L.gain(m,measurement)
-        assert(gain==0 and reason=='invalid','An invalid peak allowed normalization gain')
-      end
-      measurement.true_peak_dbtp=nil;gain,reason=L.gain(m,measurement)
-      assert(gain==0 and reason=='invalid','A missing peak allowed normalization gain')
+      assert(gain==(metric=='lufs_m_max' and 32 or 29) and reason=='ready')
+      measurement.status='silence';gain,reason=L.gain(m,measurement)
+      assert(gain==0 and reason=='silence')
+      gain,reason=L.gain(m,nil);assert(gain==0 and reason=='unmeasured')
     end
     m.normalization.enabled=false
-    local gain,reason=L.gain(m,{status='ready',max_momentary_lufs=-40,true_peak_dbtp=3})
-    assert(gain==0 and reason=='off','Disabled normalization and guard must retain unity gain')
+    local gain,reason=L.gain(m,nil);assert(gain==0 and reason=='off')
   end
 end)
 test('Cache identities include modification and analyzer profile',function()
@@ -181,7 +175,7 @@ test('Prepared recipes reuse full handles and invalidate crop, FX, transform and
     range={1,3},source_gain_db=0,fade_ms=5,chain='SHOW -1\n',created_at='first'}
   local function key(snapshot,handles)return select(3,Insert.recipe(snapshot,10,handles))end
   local full,crop=key(s,true),key(s,false)
-  local legacy=U.copy(s);legacy.macro.export.normalize_final=true;legacy.macro.export.true_peak_limit=true;legacy.macro.export.ceiling_dbtp=-3
+  local legacy=U.copy(s);legacy.macro.export.normalize_final=true;legacy.macro.export.true_peak_limit=true
   assert(key(legacy,true)==full and key(legacy,false)==crop)
   s.created_at='second';assert(key(s,true)==full)
   s.range={2,5};assert(key(s,true)==full and key(s,false)~=crop)

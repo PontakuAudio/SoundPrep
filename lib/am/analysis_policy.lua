@@ -7,19 +7,16 @@ local bases={downmix_discrete=true,downmix_ambix=true,loudest_channel=true,ambix
 function M.valid_meter(meter)
   if type(meter)~='table' or (meter.metric~='zwicker_max' and meter.metric~='zwicker_p95')then return false end
   for key in pairs(meter)do
-    if key~='metric' and key~='target_sones' and key~='reference_dbfs' and key~='reference_spl_db'then return false end
+    if key~='metric' and key~='target_sones'then return false end
   end
-  return U.finite(meter.target_sones)and meter.target_sones>=.01 and meter.target_sones<=256 and
-    U.finite(meter.reference_dbfs)and meter.reference_dbfs>=-120 and meter.reference_dbfs<=0 and
-    U.finite(meter.reference_spl_db)and meter.reference_spl_db>=0 and meter.reference_spl_db<=140
+  return U.finite(meter.target_sones)and meter.target_sones>=.01 and meter.target_sones<=256
 end
 function M.meter(normalization,include_disabled)
   if not normalization or normalization.metric=='lufs_m_max' or normalization.enabled==false and not include_disabled then return end
-  return {metric=normalization.metric,target_sones=normalization.target_sones or require('am.model').DEFAULT_TARGET_SONES,
-    reference_dbfs=normalization.reference_dbfs or -20,reference_spl_db=normalization.reference_spl_db or 79}
+  return {metric=normalization.metric,target_sones=normalization.target_sones or require('am.model').DEFAULT_TARGET_SONES}
 end
 -- Every Zwicker job also measures LUFS and true peak before solving its target.
--- Those measurements depend on the channel mapping, not the target/calibration.
+-- Those measurements depend only on the channel mapping.
 function M.without_meter(spec)
   assert(spec==nil or M.valid(spec),'Invalid source analysis policy')
   if not spec or not spec.meter then return U.copy(spec)end
@@ -63,7 +60,7 @@ function M.resolve(path,channels,settings,normalization,include_disabled)
     return nil,'Analysis requires an audio source with 1–128 channels.'
   end
   local meter=M.meter(normalization,include_disabled)
-  if meter and not M.valid_meter(meter)then return nil,'Invalid Zwicker target or calibration.'end
+  if meter and not M.valid_meter(meter)then return nil,'Invalid Zwicker target.'end
   local selection=Selection.get(settings,channels)
   if selection then
     if not Selection.valid(channels,selection)then return nil,'Invalid input channel selection.'end

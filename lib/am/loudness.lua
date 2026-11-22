@@ -87,27 +87,19 @@ function M.completed_result(job,identity,analyzer,analysis)
   return result,result.status
 end
 function M.gain(macro,measurement)
-  local n=macro.normalization;local guard=macro.source_peak_guard
-  if not n.enabled and not guard.enabled then return 0,'off' end
+  local n=macro.normalization
+  if not n.enabled then return 0,'off' end
   if not measurement or measurement.status~='ready' and measurement.status~='silence' then return 0,measurement and measurement.status or 'unmeasured' end
-  local silent=measurement.status=='silence'
-  if not silent and (not U.finite(measurement.max_momentary_lufs) or not U.finite(measurement.true_peak_dbtp))then return 0,'invalid' end
   local meter=Policy.meter(n)
   if meter and (not measurement.analysis or not Policy.valid(measurement.analysis)or not U.equal(meter,measurement.analysis.meter))then return 0,'unmeasured' end
-  if n.enabled and not meter and measurement.analysis and measurement.analysis.meter~=nil then return 0,'unmeasured' end
-  if meter and not silent and not U.finite(measurement.normalization_gain_db)then return 0,'invalid' end
-  local requested=not silent and n.enabled and (meter and measurement.normalization_gain_db or n.target_lufs-measurement.max_momentary_lufs)or 0
-  local gain=math.min(requested,n.max_boost_db)
-  local reason=gain<requested and 'boost capped' or silent and 'silence' or meter and n.enabled and measurement.gain_status or 'ready'
-  -- Normalization always honors the source ceiling, including older banks
-  -- with guard=false. A loudness target/max boost alone cannot bound peaks on
-  -- transient material; Monitor gain is downstream of the preview input.
-  -- The optional guard also applies this cap with normalization switched off.
-  if U.finite(measurement.true_peak_dbtp)then
-    local cap=guard.ceiling_dbtp-measurement.true_peak_dbtp
-    if cap<gain then gain=cap;reason='source peak capped' end
+  if not meter and measurement.analysis and measurement.analysis.meter~=nil then return 0,'unmeasured' end
+  if measurement.status=='silence'then return 0,'silence' end
+  if meter then
+    if not U.finite(measurement.normalization_gain_db)then return 0,'invalid' end
+    return measurement.normalization_gain_db,measurement.gain_status or 'ready'
   end
-  return math.max(-120,gain),reason
+  if not U.finite(measurement.max_momentary_lufs)then return 0,'invalid' end
+  return n.target_lufs-measurement.max_momentary_lufs,'ready'
 end
 function M.cache_directory(data,settings)
   local directory=settings and settings.cache_directory

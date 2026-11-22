@@ -2,7 +2,7 @@
 // at file scope so standard-library declarations stay in the global namespace.
 // Modeless, owned by Media Explorer. Losing activation never dismisses settings.
 struct SettingsPanel {
-  HWND window=nullptr,tabs=nullptr,cache=nullptr,diagnostics=nullptr,notice=nullptr,choose=nullptr,defaults=nullptr,render=nullptr,resetDefaults=nullptr;
+  HWND window=nullptr,tabs=nullptr,cache=nullptr,diagnostics=nullptr,notice=nullptr,choose=nullptr,defaults=nullptr,render=nullptr,resetDefaults=nullptr,version=nullptr;
   HFONT font=nullptr;Json state=Json::object();bool paused=false,closing=false,updating=false;int selected=0;
   struct Child { HWND window;int page,x,y,w,h; };
   std::vector<Child> children;
@@ -24,7 +24,7 @@ struct SettingsPanel {
   }
   void create(HWND anchor){
     WNDCLASSW wc{};wc.lpfnWndProc=proc;wc.hInstance=amwin::module();wc.lpszClassName=L"SoundPrepAppSettings";wc.hbrBackground=GetSysColorBrush(COLOR_BTNFACE);wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&wc);
-    RECT a{};GetWindowRect(anchor,&a);RECT frame{0,0,amwin::scale(anchor,640),amwin::scale(anchor,476)};
+    RECT a{};GetWindowRect(anchor,&a);RECT frame{0,0,amwin::scale(anchor,640),amwin::scale(anchor,586)};
     DWORD style=WS_POPUP|WS_CAPTION|WS_SYSMENU|WS_CLIPCHILDREN;
     AdjustWindowRectExForDpi(&frame,style,FALSE,WS_EX_TOOLWINDOW|WS_EX_CONTROLPARENT,GetDpiForWindow(anchor));
     MONITORINFO monitor{sizeof(monitor)};GetMonitorInfoW(MonitorFromWindow(anchor,MONITOR_DEFAULTTONEAREST),&monitor);
@@ -33,23 +33,25 @@ struct SettingsPanel {
     window=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_CONTROLPARENT,wc.lpszClassName,L"SoundPrep — App settings",style,x,y,width,height,GetAncestor(anchor,GA_ROOT),nullptr,wc.hInstance,this);
     if(!window)throw std::runtime_error("Cannot create app settings");
     child(L"STATIC","App settings",SS_NOPREFIX,0,-1,20,12,600,24);
-    tabs=child(WC_TABCONTROLW,"",WS_TABSTOP|WS_CLIPSIBLINGS,3000,-1,14,46,612,366);
+    tabs=child(WC_TABCONTROLW,"",WS_TABSTOP|WS_CLIPSIBLINGS,3000,-1,14,46,612,476);
     SetWindowTheme(tabs,L"",L""); // Classic tabs paint the strip and page with COLOR_BTNFACE.
     for(int i=0;i<amsettings::page_count;++i){auto text=amwin::wide(amsettings::pages[i]);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=text.data();TabCtrl_InsertItem(tabs,i,&item);}
     TabCtrl_SetCurSel(tabs,selected);
     for(int i=0;i<amsettings::count;++i){
       const auto& s=amsettings::controls[i];int y0=80+s.y;
+      const bool inlineNumber=s.page==0 && s.kind==amsettings::number;
       if(s.kind==amsettings::toggle)controls[i]=child(L"BUTTON",s.label,WS_TABSTOP|BS_AUTOCHECKBOX,3100+i,s.page,30,y0,574,24);
       else if(s.kind==amsettings::link)controls[i]=child(L"BUTTON",s.label,WS_TABSTOP|BS_PUSHBUTTON,3100+i,s.page,30,y0,154,28);
       else {
-        child(L"STATIC",s.label,SS_NOPREFIX,0,s.page,30,y0,450,20);
-        controls[i]=child(TRACKBAR_CLASSW,"",WS_TABSTOP|TBS_HORZ|TBS_NOTICKS,3100+i,s.page,30,y0+24,456,24);
+        const int sliderX=inlineNumber?208:30,sliderY=y0+(inlineNumber?0:24);
+        child(L"STATIC",s.label,SS_NOPREFIX,0,s.page,30,y0,inlineNumber?174:450,20);
+        controls[i]=child(TRACKBAR_CLASSW,"",WS_TABSTOP|TBS_HORZ|TBS_NOTICKS,3100+i,s.page,sliderX,sliderY,486-sliderX,24);
         SendMessageW(controls[i],TBM_SETRANGE,TRUE,MAKELPARAM(static_cast<int>(s.low*10),static_cast<int>(s.high*10)));
         SendMessageW(controls[i],TBM_SETPAGESIZE,0,10);
-        numbers[i]=child(L"EDIT","",WS_TABSTOP|ES_AUTOHSCROLL,3200+i,s.page,498,y0+24,80,24);
+        numbers[i]=child(L"EDIT","",WS_TABSTOP|ES_AUTOHSCROLL,3200+i,s.page,498,sliderY,80,24);
         SendMessageW(numbers[i],EM_SETLIMITTEXT,32,0);
       }
-      child(L"STATIC",s.help,SS_NOPREFIX,0,s.page,34,y0+(s.kind==amsettings::number?52:28),554,38);
+      child(L"STATIC",s.help,SS_NOPREFIX,0,s.page,34,y0+(s.kind==amsettings::number && !inlineNumber?52:28),554,inlineNumber?36:38);
     }
     render=child(L"BUTTON","Render selected drops",WS_TABSTOP,3300,1,30,346,190,28);
     child(L"STATIC","Analysis cache folder",SS_NOPREFIX,0,2,30,92,548,24);
@@ -57,11 +59,11 @@ struct SettingsPanel {
     choose=child(L"BUTTON","Choose folder…",WS_TABSTOP,3301,2,30,218,154,28);
     defaults=child(L"BUTTON","Use default",WS_TABSTOP,3302,2,196,218,138,28);
     child(L"STATIC","New analysis jobs use this folder. Running jobs finish in their original folder; existing files stay where they are. Rendered project media uses its own location.",SS_NOPREFIX,0,2,30,264,548,90);
-    diagnostics=child(L"STATIC","",SS_NOPREFIX,0,3,30,258,548,20);
-    child(L"STATIC","Source analysis runs in the native helper. No Python or FFmpeg setup is required.\r\n\r\nAssign the supplied 0–9 actions in Media Explorer for keyboard preset switching.",SS_NOPREFIX,0,3,30,284,548,56);
-    resetDefaults=child(L"BUTTON","Reset to defaults",WS_TABSTOP,3304,3,30,346,190,28);
-    notice=child(L"STATIC","",SS_NOPREFIX,0,-1,20,422,492,44);
-    child(L"BUTTON","Done",WS_TABSTOP|BS_DEFPUSHBUTTON,3303,-1,530,426,90,28);
+    version=child(L"STATIC","",SS_NOPREFIX,0,3,30,172,548,20);
+    diagnostics=child(L"STATIC","",SS_NOPREFIX,0,3,30,206,548,20);
+    resetDefaults=child(L"BUTTON","Reset to defaults",WS_TABSTOP,3304,3,30,240,190,28);
+    notice=child(L"STATIC","",SS_NOPREFIX,0,-1,20,532,492,44);
+    child(L"BUTTON","Done",WS_TABSTOP|BS_DEFPUSHBUTTON,3303,-1,530,536,90,28);
     layout();
   }
   void event(Json event){if(!paused)enqueue("settings@"+event.dump());}
@@ -99,7 +101,7 @@ struct SettingsPanel {
     }
     if(amwin::text(cache)!=amwin::wide(next.at("cache_path")))amwin::text(cache,next.at("cache_path"));
     EnableWindow(choose,!paused && next.at("cache_available").get<bool>());EnableWindow(defaults,!paused && next.at("cache_available").get<bool>() && !next.at("cache_default").get<bool>());
-    EnableWindow(render,!paused);EnableWindow(resetDefaults,!paused);amwin::text(diagnostics,next.at("diagnostics"));
+    EnableWindow(render,!paused);EnableWindow(resetDefaults,!paused);amwin::text(version,next.value("version",""));amwin::text(diagnostics,next.at("diagnostics"));
     amwin::text(notice,paused?"Paused — return to the attached project to change settings.":next.at("notice").get<std::string>());updating=false;
     if(!wasOpen || focus){ShowWindow(window,SW_SHOW);SetForegroundWindow(window);SetFocus(tabs);}
   }

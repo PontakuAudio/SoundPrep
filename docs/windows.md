@@ -12,7 +12,7 @@ Windows CIにはMSVCビルドと自動試験がある。2026-09-30にWindows実R
 
 Main Action Listの **`SoundPrep.lua`** を実行すると起動する。キー操作・診断用Actionsが必要な場合だけ、[追加Actionsの手順](install.md#追加actions任意)で登録する。既存のキー割当は自動で変更しない。
 
-Normalizeは追加の実行環境なしで利用できる。Editの `Loudness meter` で既定のLUFS MaxMまたはZwickerを選ぶ。ZwickerはMaxが既定、P95も選択可能。目標sones・校正値・原音Peak guardも同じNormalizeタブで設定する。
+Normalizeは追加の実行環境なしで利用できる。Editの `Loudness meter` で既定のLUFS MaxMまたはZwickerを選ぶ。ZwickerはMaxが既定、P95も選択可能。NormalizeタブでON／OFFとLUFS・sonesの目標値を設定する。
 
 v0.10.7以降のWindows D&Dは同じREAPER内で直接レンダーする。別REAPER・レンダーworker・Pythonは不要。v0.11.0ではラウドネス解析にもPython / FFmpegは不要。新規設定では未キャッシュ素材の自動レンダーはOFF。Source + FXで挿入し、必要に応じてトランスポート停止中に **Render selected drops** で焼き込める。キャッシュ済みなら再生を続けて配置できる。自動レンダーをONにすると、未キャッシュ素材はタイムラインを停止してD&D内でRenderedまで作成し、完了後も停止状態を維持する。自動レンダーONで録音中にドロップした場合は、Source + FXで挿入し、停止後にRenderedを追加する。このD&D変更はLua更新とcompanion再起動で反映される。
 
@@ -35,7 +35,7 @@ Portable版でも同じReaPackの手順を使える。拡張が見つからな�
 | 確認 | 合格条件 |
 |---|---|
 | 起動と復元 | 一覧上にバーが表示される。終了すると一覧寸法・標準Previewの設定が戻る。閉じる／再表示、ドック、幅変更でも波形を維持する |
-| 一覧と試聴 | 上下キーで素材変更、0〜9でMacro、Raw/A/B、RでReverse。フォーカスが一覧に戻り、通常操作を続けられる |
+| 一覧と試聴 | 上下キーで素材を変更し、バーの名前ボタンでRawと各Macroを選ぶ。A/BとReverseは割り当てたキーで操作する。フォーカスが一覧に戻り、通常操作を続けられる |
 | 波形 | クリック位置へシーク、カーソルが連続追従。範囲選択・ズーム・Play/Pause/Stop/Repeatを維持する |
 | Pitch / Rate | 再生中の標準欄変更が反映され、操作から不自然に長く遅れない。音声デバイスのbuffer設定も記録する |
 | Normalize | Python／FFmpegなしでLUFS MaxM・Zwicker Max/P95をRaw・Macro両方で確認する。初回解析後は再生を止めず徐々に反映し、同じファイル・解析方式はキャッシュを再利用する。停止／Pause中は自動再生しない |
@@ -93,4 +93,4 @@ Visual Studio 2022 C++ Build Tools、Windows SDK、CMakeを導入する。PowerS
 
 MSVC x64のDLLが `build` に作られる。REAPERの[公開C++ SDK](https://github.com/justinfrankel/reaper-sdk/blob/main/sdk/reaper_plugin.h)のABIに合わせ、MinGW DLL、x86、ARM64は対象にしない。ReaPackパッケージには実行用スクリプトとビルド済みDLL・ライセンス通知を含め、個人の設定・FX・解析キャッシュ・REAPERのライセンスファイルは含めない。
 
-Preset／ToolsもWin32の常設パネルを使います。詳細は[ネイティブ編集パネル](preset-tools.md)を参照してください。
+プリセット編集にもWin32の常設パネルを使います。詳細は[ネイティブ編集パネル](preset-tools.md)を参照してください。

@@ -18,7 +18,7 @@
 @property(strong) NSTabView* tabs;
 @property(strong) NSMutableArray<NSControl*>* controls;
 @property(strong) NSMutableDictionary<NSNumber*,NSTextField*>* numbers;
-@property(strong) NSTextField *cache,*diagnostics,*notice;
+@property(strong) NSTextField *cache,*diagnostics,*notice,*version;
 @property(strong) NSButton *choose,*defaults,*render,*resetDefaults;
 @property(strong) NSDictionary* state;
 @property BOOL paused;
@@ -42,7 +42,7 @@
   button.identifier=op;button.bezelStyle=NSBezelStyleRounded;button.frame=frame;[parent addSubview:button];return button;
 }
 - (void)create:(NSView*)anchor {
-  self.window=[[NSPanel alloc]initWithContentRect:NSMakeRect(0,0,640,476)
+  self.window=[[NSPanel alloc]initWithContentRect:NSMakeRect(0,0,640,586)
     styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable backing:NSBackingStoreBuffered defer:NO];
   self.window.title=@"SoundPrep — App settings";self.window.releasedWhenClosed=NO;
   self.window.hidesOnDeactivate=NO;self.window.floatingPanel=NO;self.window.level=NSNormalWindowLevel;self.window.delegate=self;
@@ -52,18 +52,19 @@
     if(owner.window.isKeyWindow && (!event.window || event.window==owner.window) && [owner editShortcut:event])return nil;
     return event;
   }];
-  self.window.contentView=[[AMSettingsPage alloc]initWithFrame:NSMakeRect(0,0,640,476)];
+  self.window.contentView=[[AMSettingsPage alloc]initWithFrame:NSMakeRect(0,0,640,586)];
   NSView* root=self.window.contentView;
   [self label:@"App settings" parent:root frame:NSMakeRect(20,12,600,24)].font=[NSFont boldSystemFontOfSize:16];
-  self.tabs=[[NSTabView alloc]initWithFrame:NSMakeRect(14,46,612,366)];[root addSubview:self.tabs];
+  self.tabs=[[NSTabView alloc]initWithFrame:NSMakeRect(14,46,612,476)];[root addSubview:self.tabs];
   for(const char* title:amsettings::pages) {
     NSTabViewItem* tab=[[NSTabViewItem alloc]initWithIdentifier:[NSString stringWithUTF8String:title]];
-    tab.label=tab.identifier;tab.view=[[AMSettingsPage alloc]initWithFrame:NSMakeRect(0,0,584,326)];[self.tabs addTabViewItem:tab];
+    tab.label=tab.identifier;tab.view=[[AMSettingsPage alloc]initWithFrame:NSMakeRect(0,0,584,436)];[self.tabs addTabViewItem:tab];
   }
   self.controls=[NSMutableArray array];self.numbers=[NSMutableDictionary dictionary];
   for(int i=0;i<amsettings::count;++i) {
     const auto& spec=amsettings::controls[i];NSView* page=self.tabs.tabViewItems[spec.page].view;
     NSString* label=[NSString stringWithUTF8String:spec.label];NSControl* control;
+    const bool inlineNumber=spec.page==0 && spec.kind==amsettings::number;
     if(spec.kind==amsettings::toggle) {
       NSButton* button=[NSButton checkboxWithTitle:label target:self action:@selector(changed:)];
       button.frame=NSMakeRect(14,spec.y,554,24);control=button;
@@ -71,16 +72,17 @@
       NSButton* button=[NSButton buttonWithTitle:label target:self action:@selector(openLink:)];
       button.bezelStyle=NSBezelStyleRounded;button.frame=NSMakeRect(14,spec.y,154,28);control=button;
     }else {
-      [self label:label parent:page frame:NSMakeRect(14,spec.y,450,20)];
-      AMSettingsSlider* slider=[[AMSettingsSlider alloc]initWithFrame:NSMakeRect(14,spec.y+24,456,24)];
+      const int sliderX=inlineNumber?192:14,sliderY=spec.y+(inlineNumber?0:24);
+      [self label:label parent:page frame:NSMakeRect(14,spec.y,inlineNumber?174:450,20)];
+      AMSettingsSlider* slider=[[AMSettingsSlider alloc]initWithFrame:NSMakeRect(sliderX,sliderY,470-sliderX,24)];
       slider.minValue=spec.low;slider.maxValue=spec.high;slider.continuous=YES;slider.target=self;slider.action=@selector(changed:);control=slider;
-      NSTextField* value=[[NSTextField alloc]initWithFrame:NSMakeRect(482,spec.y+24,80,24)];
+      NSTextField* value=[[NSTextField alloc]initWithFrame:NSMakeRect(482,sliderY,80,24)];
       value.tag=i;value.target=self;value.action=@selector(numberChanged:);value.delegate=self;
       value.accessibilityLabel=label;self.numbers[@(i)]=value;[page addSubview:value];
     }
     control.tag=i;control.accessibilityLabel=label;[page addSubview:control];[self.controls addObject:control];
     NSTextField* help=[self label:[NSString stringWithUTF8String:spec.help] parent:page
-      frame:NSMakeRect(18,spec.y+(spec.kind==amsettings::number?52:28),548,38)];
+      frame:NSMakeRect(18,spec.y+(spec.kind==amsettings::number && !inlineNumber?52:28),548,inlineNumber?36:38)];
     help.textColor=NSColor.secondaryLabelColor;help.font=[NSFont systemFontOfSize:11];
   }
   self.render=[self button:@"Render selected drops" op:@"render_drops" parent:self.tabs.tabViewItems[1].view frame:NSMakeRect(14,266,190,28)];
@@ -91,13 +93,13 @@
   self.defaults=[self button:@"Use default" op:@"cache_default" parent:cachePage frame:NSMakeRect(180,138,138,28)];
   [self label:@"New analysis jobs use this folder. Running jobs finish in their original folder; existing files stay where they are. Rendered project media uses its own location."
     parent:cachePage frame:NSMakeRect(14,184,548,90)].textColor=NSColor.secondaryLabelColor;
-  NSView* advanced=self.tabs.tabViewItems[3].view;
-  self.diagnostics=[self label:@"" parent:advanced frame:NSMakeRect(14,178,548,20)];
-  [self label:@"Source analysis runs in the native helper. No Python or FFmpeg setup is required.\n\nAssign the supplied 0–9 actions in Media Explorer for keyboard preset switching."
-    parent:advanced frame:NSMakeRect(14,204,548,56)].textColor=NSColor.secondaryLabelColor;
-  self.resetDefaults=[self button:@"Reset to defaults" op:@"reset_defaults" parent:advanced frame:NSMakeRect(14,266,190,28)];
-  self.notice=[self label:@"" parent:root frame:NSMakeRect(20,422,492,44)];self.notice.font=[NSFont systemFontOfSize:11];
-  [self button:@"Done" op:@"close" parent:root frame:NSMakeRect(530,426,90,28)].keyEquivalent=@"\033";
+  NSView* about=self.tabs.tabViewItems[3].view;
+  self.version=[self label:@"" parent:about frame:NSMakeRect(14,92,548,20)];
+  self.diagnostics=[self label:@"" parent:about frame:NSMakeRect(14,126,548,20)];
+  self.resetDefaults=[self button:@"Reset to defaults" op:@"reset_defaults" parent:about frame:NSMakeRect(14,160,190,28)];
+  self.notice=[self label:@"" parent:root frame:NSMakeRect(20,532,492,44)];self.notice.font=[NSFont systemFontOfSize:11];
+  [self button:@"Done" op:@"close" parent:root frame:NSMakeRect(530,536,90,28)].keyEquivalent=@"\033";
+  amoverlay::registerPanel(self.window);
   [self.window setFrameAutosaveName:@"SoundPrepAppSettings"];
   NSRect frame=self.window.frame,screen=(anchor.window.screen?:NSScreen.mainScreen).visibleFrame;
   frame.origin.x=MAX(NSMinX(screen),MIN(NSMaxX(screen)-NSWidth(frame),NSMidX(anchor.window.frame)-NSWidth(frame)/2));
@@ -157,7 +159,7 @@
   }
   self.cache.stringValue=state[@"cache_path"];self.cache.toolTip=self.cache.stringValue;
   self.choose.enabled=!paused && [state[@"cache_available"] boolValue];self.defaults.enabled=self.choose.enabled && ![state[@"cache_default"] boolValue];
-  self.render.enabled=!paused;self.resetDefaults.enabled=!paused;self.diagnostics.stringValue=state[@"diagnostics"];
+  self.render.enabled=!paused;self.resetDefaults.enabled=!paused;self.version.stringValue=state[@"version"]?:@"";self.diagnostics.stringValue=state[@"diagnostics"];
   self.notice.stringValue=paused?@"Paused — return to the attached project to change settings.":state[@"notice"];
   self.notice.toolTip=self.notice.stringValue;
   if(!wasOpen || focus){

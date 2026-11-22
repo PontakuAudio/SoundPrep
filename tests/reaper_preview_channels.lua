@@ -71,7 +71,7 @@ local ok,err=xpcall(function()
   check('Real decoders: 1/2/3/4/6/8ch, Downmix ON/OFF, Raw and Reverse/Pitch/Rate/range')
   local data=host..'/channel-app';App.initialize(r,root,data)
   local definition=Model.defaults();definition.settings.autoplay=true;definition.settings.loop=true;definition.settings.monitor_gain_db=0
-  for _,m in ipairs(definition.macros)do m.normalization.enabled=false;m.source_peak_guard.enabled=false end
+  for _,m in ipairs(definition.macros)do m.normalization.enabled=false end
   assert(Model.save(data..'/bank.json',definition))
   r.OpenMediaExplorer(paths[1],false)
 end,debug.traceback)

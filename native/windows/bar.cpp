@@ -126,11 +126,17 @@ struct Bar {
     applied=base;applied.top+=height;SetWindowPos(list,nullptr,applied.left,applied.top,width,bh-height,SWP_NOZORDER|SWP_NOACTIVATE);
     int count=1+static_cast<int>(macroIds.size());int available=width-px(minimal?84:6),gap=px(3);
     int cw=std::min(px(156),(available-(count-1)*gap)/count);
-    amwin::text(controls[amcontract::raw],cw<px(50)?"0":"0 Raw");ShowWindow(controls[amcontract::raw],SW_SHOWNOACTIVATE);
+    ShowWindow(controls[amcontract::raw],SW_SHOWNOACTIVATE);
     SetWindowPos(controls[amcontract::raw],nullptr,px(3),px(2),cw,px(24),SWP_NOZORDER|SWP_NOACTIVATE);
     for(std::size_t i=0;i<amcontract::max_macros;++i){bool visible=i<macroIds.size();ShowWindow(presets[i],visible?SW_SHOWNOACTIVATE:SW_HIDE);if(!visible)continue;
       auto label=presetLabels[i];
-      if(cw<px(64)){auto end=label.find(L"  ");label=end==std::wstring::npos?label.substr(0,3):label.substr(0,end);if(label==L"–")label=presetLabels[i].substr(end+2,3);}
+      if(cw<px(64)){
+        std::size_t end=0;
+        for(int chars=0;chars<3 && end<label.size();++chars){
+          end+=IS_SURROGATE_PAIR(label[end],label[end+1])?2:1;
+        }
+        label.resize(end);
+      }
       SetWindowTextW(presets[i],label.c_str());
       SetWindowPos(presets[i],nullptr,px(3)+static_cast<int>(i+1)*(cw+gap),px(2),cw,px(24),SWP_NOZORDER|SWP_NOACTIVATE);
     }

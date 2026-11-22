@@ -22,7 +22,7 @@ static NSMutableDictionary *state(NSUInteger count) {
   NSMutableArray *macros=[NSMutableArray array];
   for (NSUInteger i=0;i<count;i++)
     [macros addObject:@{@"id":[NSString stringWithFormat:@"macro_%lu",(unsigned long)i],
-      @"label":[NSString stringWithFormat:@"%lu  長い日本語のMacro名 🎧",(unsigned long)i+1]}];
+      @"label":[NSString stringWithFormat:@"長い日本語のMacro名 %lu 🎧",(unsigned long)i+1]}];
   return [@{@"macros":macros,@"active":@"raw",@"status":@"Ready",@"reverse":@NO,@"preserve_pitch":@NO,
     @"normalize":@NO,@"target":@(-16),@"monitor":@(-6),@"paused":@NO,@"search":@{@"open":@NO}} mutableCopy];
 }
@@ -142,9 +142,9 @@ int main(){@autoreleasepool {
   [bar.downmix performClick:nil];assert(std::string(AMBarPoll()).empty());
   assert(bar.controls[amcontract::quit].enabled);[bar.controls[amcontract::quit] performClick:nil];assert(std::string(AMBarPoll())=="quit");
   value=state(9);NSMutableArray *macros=[value[@"macros"] mutableCopy];
-  macros[0]=@{@"id":@"emoji",@"label":@"–  🎧音声素材"};value[@"macros"]=macros;update(value);resize(300,400);
-  assert([bar.presets[0].title isEqual:@"🎧音声"] && [bar.presets[1].title isEqual:@"2"]);
-  assert([bar.presets[0].toolTip isEqual:@"–  🎧音声素材"] && [bar.presets[0].accessibilityLabel isEqual:bar.presets[0].toolTip]);
+  macros[0]=@{@"id":@"emoji",@"label":@"🎧音声  素材"};value[@"macros"]=macros;update(value);resize(300,400);
+  assert([bar.presets[0].title isEqual:@"🎧音声"] && [bar.presets[1].title isEqual:@"長い日"] && [bar.raw.title isEqual:@"Raw"]);
+  assert([bar.presets[0].toolTip isEqual:@"🎧音声  素材"] && [bar.presets[0].accessibilityLabel isEqual:bar.presets[0].toolTip]);
   value=state(3);update(value);resize(980,400);
   assert(bar.downmix.hidden && bar.downmix.state==NSControlStateValueOff);
   NSTextField *search=[[NSTextField alloc]initWithFrame:NSMakeRect(12,20,300,24)];[host addSubview:search];
@@ -184,32 +184,35 @@ int main(){@autoreleasepool {
   assert(prefs.window.visible && !prefs.window.hidesOnDeactivate && prefs.window.parentWindow==window);
   assert(prefs.controls[2].doubleValue==-6 && [prefs.notice.stringValue isEqual:settings[@"notice"]]);
   assert([prefs.cache.stringValue containsString:@"解析 🎤"] && prefs.choose.enabled && prefs.defaults.enabled);
-  assert(prefs.tabs.numberOfTabViewItems==5 && [prefs.tabs.tabViewItems[4].label isEqual:@"About"]);
+  assert(prefs.tabs.numberOfTabViewItems==4);
   NSButton* support=(NSButton*)prefs.controls.lastObject;
   assert([support isKindOfClass:NSButton.class] && [support.title isEqual:@"Support on Ko-fi"]);
-  assert(support.superview==prefs.tabs.tabViewItems[4].view && support.target==prefs && support.action==@selector(openLink:));
+  assert(support.superview==prefs.tabs.tabViewItems[3].view && support.target==prefs && support.action==@selector(openLink:));
   NSButton* resetDefaults=prefs.resetDefaults;
   assert([resetDefaults.title isEqual:@"Reset to defaults"] && resetDefaults.enabled);
-  assert(resetDefaults.superview==prefs.tabs.tabViewItems[3].view && [prefs.tabs.tabViewItems[3].label isEqual:@"Advanced"]);
-  assert(NSEqualRects(resetDefaults.frame,prefs.render.frame));
-  [prefs.tabs selectTabViewItemAtIndex:3];
+  assert(resetDefaults.superview==prefs.tabs.tabViewItems[3].view && [prefs.tabs.tabViewItems[3].label isEqual:@"About"]);
+  assert(resetDefaults.superview.subviews.count==5); // Ko-fi button and description, version, diagnostics, reset.
+  assert(prefs.diagnostics.superview==resetDefaults.superview && [prefs.diagnostics.stringValue isEqual:settings[@"diagnostics"]]);
+  assert([prefs.version.stringValue isEqual:settings[@"version"]] && NSMinY(prefs.version.frame)==92);
+  assert(NSMinY(prefs.diagnostics.frame)==126 && NSMinY(resetDefaults.frame)==160);
+  NSView* playback=prefs.tabs.tabViewItems[0].view;
   NSSlider* fadeSlider=(NSSlider*)prefs.controls[normalization_fade_index];
   NSTextField* fadeField=prefs.numbers[@(normalization_fade_index)];
-  assert(fadeSlider.superview==resetDefaults.superview && fadeField.superview==resetDefaults.superview);
+  assert(fadeSlider.superview==playback && fadeField.superview==playback);
   assert(fadeSlider.doubleValue==500 && fadeSlider.minValue==0 && fadeSlider.maxValue==2000);
   assert([fadeField.stringValue isEqual:@"500.0"]);
-  NSTextField *fadeHelp=nil,*advancedInfo=nil;
+  NSTextField *fadeHelp=nil;
   NSString* fadeHelpText=[NSString stringWithUTF8String:amsettings::controls[normalization_fade_index].help];
-  for(NSView* child in resetDefaults.superview.subviews)if([child isKindOfClass:NSTextField.class]) {
+  for(NSView* child in playback.subviews)if([child isKindOfClass:NSTextField.class]) {
     NSTextField* field=(NSTextField*)child;
     if([field.stringValue isEqual:fadeHelpText])fadeHelp=field;
-    if([field.stringValue hasPrefix:@"Source analysis runs in the native helper."])advancedInfo=field;
   }
-  assert(fadeHelp && advancedInfo && NSMaxY(fadeHelp.frame)<NSMinY(prefs.diagnostics.frame));
-  assert(NSMaxY(prefs.diagnostics.frame)<NSMinY(advancedInfo.frame) && NSMaxY(advancedInfo.frame)<NSMinY(resetDefaults.frame));
+  NSControl* keepFX=prefs.controls[7];
+  assert(fadeHelp && keepFX.superview==playback && NSMaxY(fadeHelp.frame)<=NSMinY(keepFX.frame));
   fadeField.stringValue=@"1250";[prefs numberChanged:fadeField];
   auto fadeEvent=nlohmann::json::parse(std::string(AMBarPoll()).substr(9));
   assert(fadeEvent["op"]=="set" && fadeEvent["key"]=="normalize_fade_ms" && fadeEvent["value"]==1250);
+  [prefs.tabs selectTabViewItemAtIndex:3];
   [resetDefaults performClick:nil];
   auto resetEvent=std::string(AMBarPoll());
   assert(resetEvent.rfind("settings@",0)==0 && nlohmann::json::parse(resetEvent.substr(9))["op"]=="reset_defaults");
@@ -236,36 +239,48 @@ int main(){@autoreleasepool {
   NSEvent* selectAll=[NSEvent keyEventWithType:NSEventTypeKeyDown location:NSZeroPoint modifierFlags:NSEventModifierFlagCommand timestamp:0 windowNumber:prefs.window.windowNumber context:nil characters:@"a" charactersIgnoringModifiers:@"a" isARepeat:NO keyCode:0];
   assert([prefs editShortcut:selectAll] && NSEqualRanges(numberEditor.selectedRange,NSMakeRange(0,5)));
   [window makeKeyAndOrderFront:nil];assert(prefs.window.visible && prefs.keyboardMonitor);
-  // Same typed controller state drives the persistent native Presets / Tools UI.
+  // Same typed controller state drives the persistent native preset editor.
   NSMutableDictionary* editorState=[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:@"tests/native-editor-state.json"] options:NSJSONReadingMutableContainers error:nil];
   editorState[@"presets"][2][@"label"]=@"Heavy"; // Names are editable; duplicate titles must retain distinct IDs.
   value[@"editor"]=editorState;update(value);AMEditorPanel* edit=bar.editorPanel;
   assert(edit.presets.count==4 && edit.presets[1].state==NSControlStateValueOn && edit.presets[2].state==NSControlStateValueOff);
   assert(edit.presets[0].frame.origin.y==edit.presets[3].frame.origin.y);
-  assert(edit.window.visible && edit.window.parentWindow==window && edit.tabs.numberOfTabViewItems==5);
-  assert([edit.controls[0].stringValue isEqual:@"Heavy"] && edit.controls[3].doubleValue==.72);
+  assert(edit.window.visible && edit.window.parentWindow==window && edit.tabs.numberOfTabViewItems==3);
+  assert([edit.controls[0].stringValue isEqual:@"Heavy"] && edit.controls[4].doubleValue==.72);
+  NSView* sound=edit.tabs.tabViewItems[0].view;
+  assert(edit.controls[1].superview==sound && edit.controls[2].superview==sound && edit.controls[6].superview==sound);
+  assert(NSEqualRects(edit.controls[1].frame,NSMakeRect(14,12,300,26)) && NSEqualRects(edit.controls[2].frame,NSMakeRect(330,12,300,26)));
+  assert(edit.measurement.superview==edit.tabs.tabViewItems[1].view && edit.actions.lastObject.superview==edit.measurement.superview);
+  for(int page : {1,3,4,0}){
+    editorState[@"page"]=@(page);editorState[@"focus"]=@([editorState[@"focus"] integerValue]+1);update(value);
+    assert([edit.tabs indexOfTabViewItem:edit.tabs.selectedTabViewItem]==(page>=3?2:page));
+    if(page==1){[edit.actions.lastObject performClick:nil];assert(nlohmann::json::parse(std::string(AMBarPoll()).substr(7))["op"]=="analyse");}
+  }
   for(NSTabViewItem* tab in edit.tabs.tabViewItems)for(NSView* child in tab.view.subviews)assert(NSContainsRect(tab.view.bounds,child.frame));
   [window makeKeyAndOrderFront:nil];update(value);assert(edit.window.visible);
-  edit.numbers[@3].stringValue=@"0.63";[edit fieldChanged:edit.numbers[@3]];
+  edit.numbers[@4].stringValue=@"0.63";[edit fieldChanged:edit.numbers[@4]];
   auto editEvent=nlohmann::json::parse(std::string(AMBarPoll()).substr(7));assert(editEvent["id"]=="heavy" && editEvent["key"]=="rate" && editEvent["value"]==.63);
-  edit.numbers[@3].stringValue=@"0.6bad";[edit fieldChanged:edit.numbers[@3]];assert(std::string(AMBarPoll()).empty());
+  edit.numbers[@4].stringValue=@"0.6bad";[edit fieldChanged:edit.numbers[@4]];assert(std::string(AMBarPoll()).empty());
+  [edit.tabs selectTabViewItemAtIndex:2];
+  assert(edit.controls[0].superview==edit.tabs.selectedTabViewItem.view);
   [edit.controls[0] setStringValue:@"マイク 🎤"];[edit fieldChanged:(NSTextField*)edit.controls[0]];
   assert(nlohmann::json::parse(std::string(AMBarPoll()).substr(7))["value"]=="マイク 🎤");
+  [edit.tabs selectTabViewItemAtIndex:0];
   [edit.presets[2] performClick:nil];assert(nlohmann::json::parse(std::string(AMBarPoll()).substr(7))["value"]=="dark");
   // A direct preset click commits the old preset's field before selecting the new ID.
-  [edit.window makeFirstResponder:edit.numbers[@3]];[(NSTextView*)edit.window.firstResponder setString:@"0.81"];
+  [edit.window makeFirstResponder:edit.numbers[@4]];[(NSTextView*)edit.window.firstResponder setString:@"0.81"];
   [edit.presets[0] performClick:nil];editEvent=nlohmann::json::parse(std::string(AMBarPoll()).substr(7));
   assert(editEvent["id"]=="heavy" && editEvent["key"]=="rate" && editEvent["value"]==.81);
   assert(nlohmann::json::parse(std::string(AMBarPoll()).substr(7))["value"]=="raw");
-  editorState[@"id"]=@"raw";update(value);assert(!edit.controls[0].enabled && !edit.fx.enabled && edit.controls[5].enabled==NO && edit.controls[6].enabled);
+  editorState[@"id"]=@"raw";update(value);assert(!edit.controls[0].enabled && !edit.fx.enabled && !edit.controls[5].enabled && !edit.controls[6].enabled && edit.controls[7].enabled);
   assert(edit.presets[0].state==NSControlStateValueOn && edit.presets[1].state==NSControlStateValueOff);
-  editorState[@"values"][@"metric"]=@"zwicker_p95";update(value);assert(!edit.numbers[@8].enabled && edit.numbers[@9].enabled);
-  value[@"paused"]=@YES;update(value);assert(edit.window.visible && !edit.controls[6].enabled);
+  editorState[@"values"][@"metric"]=@"zwicker_p95";update(value);assert(!edit.numbers[@9].enabled && edit.numbers[@10].enabled);
+  value[@"paused"]=@YES;update(value);assert(edit.window.visible && !edit.controls[7].enabled);
   for(NSButton* b in edit.presets)assert(!b.enabled);
   [edit.window performClose:nil];assert(!edit.window.visible && std::string(AMBarPoll())=="editor:close");
   update(value);assert(!edit.window.visible);editorState[@"open"]=@NO;update(value);
   value[@"paused"]=@NO;editorState[@"open"]=@YES;editorState[@"focus"]=@2;editorState[@"id"]=@"heavy";update(value);
-  [edit.window makeFirstResponder:edit.numbers[@3]];NSTextView* rateEditor=(NSTextView*)edit.window.firstResponder;rateEditor.string=@"0.83";
+  [edit.window makeFirstResponder:edit.numbers[@4]];NSTextView* rateEditor=(NSTextView*)edit.window.firstResponder;rateEditor.string=@"0.83";
   editorState[@"values"][@"rate"]=@1.2;update(value);assert([rateEditor.string isEqual:@"0.83"]);
   [edit.window makeFirstResponder:edit.tabs];assert(nlohmann::json::parse(std::string(AMBarPoll()).substr(7))["value"]==.83);
   NSArray* originalPresets=[editorState[@"presets"] copy];

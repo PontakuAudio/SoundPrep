@@ -16,7 +16,7 @@ end
 local ok,e=xpcall(function()
   r.SetMediaTrackInfo_Value(r.GetMasterTrack(0),'D_VOL',0)
   local b=Model.defaults();local m=Model.macro('saturation','Saturation test')
-  b.macros=J.array{m};b.slots={['1']=m.id};b.settings.loop=true
+  b.macros=J.array{m};b.settings.loop=true
   assert(U.write(data..'/'..m.fx_chain,'SHOW -1\nBYPASS 0 0 0\n<JS loser/Saturation ""\n100\n>\nWAK 0 0\n'))
   bank=Bank.new(r,r.EnumProjects(-1),data,b,'audio-test')
   bank:activate('saturation',0)

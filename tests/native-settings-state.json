@@ -15,6 +15,7 @@
   "cache_available": true,
   "cache_default": false,
   "cache_path": "/fixtures/解析 🎤/cache",
+  "version": "SoundPrep 0.11.18",
   "diagnostics": "Chain loads: 3   Switches: 7   Source starts: 2",
   "notice": "Changes are saved automatically and shared across every preset."
 }

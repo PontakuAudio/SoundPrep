@@ -102,12 +102,9 @@ local ok,err=xpcall(function()
         -- audition does. Source transforms and the Macro output gain remain.
         if bypass then entry_chain=''end
       end
-      measurement=L.for_analysis(state.measurement,identity,state.analyzer_key,analysis)
-      if not measurement and state.analyzer_key then
-        local fallback=not macro.normalization.enabled and Analysis.resolve(path,channels,state.settings,macro.normalization,true)or nil
-        measurement=cache:get(identity,analysis,fallback)
-      end
-      if entry_macro.normalization.enabled or entry_macro.source_peak_guard.enabled then
+      if entry_macro.normalization.enabled then
+        measurement=L.for_analysis(state.measurement,identity,state.analyzer_key,analysis)
+        if not measurement and state.analyzer_key then measurement=cache:get(identity,analysis)end
         if not measurement then
           local status,detail
           measurement,status,detail=L.completed_result(state.analysis_job,identity,state.analyzer_key,analysis)

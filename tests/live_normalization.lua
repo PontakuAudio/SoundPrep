@@ -47,7 +47,7 @@ local function volume_writes(state)
   local count=0;for _,entry in ipairs(state.writes)do if entry.key=='D_VOLUME'then count=count+1 end end;return count
 end
 
--- Zwicker completion uses its calibrated solver target, and target edits hold
+-- Zwicker completion uses its solved gain, and target edits hold
 -- the current audible level while invalidating an obsolete ongoing ramp.
 do
   local app,state,result,advance=fixture(4,false,'/field_ambix.wav')
@@ -69,22 +69,21 @@ do
   state.measurement=old;advance();assert(app.preview.gain_db==-3 and not app.preview.gain_target)
 end
 
--- High-crest sources must never ramp toward an unsafe loudness target, even
--- with the original default guard=false, a saved bank, or a cached restart.
+-- Live and cached playback use the full correction even for high-crest sources.
 for _,metric in ipairs{'lufs_m_max','zwicker_max','zwicker_p95'}do
   local app,state,result,advance=fixture()
   app.definition.raw.normalization.metric=metric;app.effective_macro=nil
   app.playback_analysis=U.copy(app:analysis_spec())
-  assert(not app:effective().source_peak_guard.enabled)
   state.measurement=result(nil,-2)
   state.measurement.max_momentary_lufs=-40
   state.measurement.zwicker_sones=.1;state.measurement.normalization_gain_db=24;state.measurement.gain_status='ready'
-  advance();assert(app.preview.gain_target==1 and app.applied_status=='source peak capped')
+  local requested=metric=='lufs_m_max' and 22 or 24
+  advance();assert(app.preview.gain_target==requested and app.applied_status=='ready')
   for _=1,80 do
-    advance();assert(app.preview.gain_db<=1,'Live normalization ramp exceeded the source ceiling')
+    advance();assert(app.preview.gain_db<=requested,'Live normalization overshot its target')
   end
-  assert(app.preview.gain_db==1 and not app.preview.gain_target)
-  assert(app:gain()==1,'Cached normalization returned an unsafe restart gain')
+  assert(app.preview.gain_db==requested and not app.preview.gain_target)
+  assert(app:gain()==requested,'Cached normalization lost the requested gain')
   assert(state.starts==0 and state.stops==0)
 end
 -- A delayed completion changes only gain on the existing source handle.
@@ -128,9 +127,8 @@ end
 -- Silent AmbiX W still carries finite peaks from the other original channels.
 do
   local app,state,result,advance=fixture(4,false,'/field_ambix.wav')
-  app.definition.raw.source_peak_guard.enabled=true;app.effective_macro=nil
   state.measurement=result('silence',3);advance();advance()
-  assert(app.preview.gain_target==-4 and app.preview.gain_db<0 and app.applied_status=='source peak capped')
+  assert(not app.preview.gain_target and app.preview.gain_db==0 and app.applied_status=='silence')
 end
 
 -- The current playback identity, actual decoder mode, source count and project

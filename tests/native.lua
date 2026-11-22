@@ -22,6 +22,10 @@ for _,os in ipairs{'Win64','macOS-arm64'}do
   assert(not N.inspect(r),'Helper without the normalization fade setting was accepted')
   info.version='0.11.17';info.features.bar=10
   assert(not N.inspect(r),'Helper requiring the removed Export settings was accepted')
+  info.features.bar=11
+  assert(not N.inspect(r),'Helper requiring the previous Normalize editor fields was accepted')
+  info.features.bar=13
+  assert(not N.inspect(r),'Helper requiring the previous preset editor fields was accepted')
   info.version='999.0.0'
   info.features.bar=C.features.bar.revision
   info.features.preview=1;assert(not N.inspect(r),'Old helper silently accepted multichannel preview')

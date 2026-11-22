@@ -188,7 +188,7 @@ function M.dispatch(r)
     app:select_source(path,reason,true)
     if app.identity then
       if autoplay then app.advance_path=nil;app:play()
-      elseif app:effective().normalization.enabled or app:effective().source_peak_guard.enabled then app.selection_needs_analysis=true end
+      elseif app:effective().normalization.enabled then app.selection_needs_analysis=true end
     end
     assert(r.AM_SelectionComplete(J.encode(M.snapshot(app)),app.preview.handle),'Cannot return selection state')
   end,debug.traceback)

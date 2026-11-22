@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "version": "0.11.18",
+  "version": "0.11.19",
   "features": {
     "bar": {
-      "revision": 11,
+      "revision": 14,
       "apis": [
         "AM_BarAttach",
         "AM_BarSetState",
@@ -105,8 +105,8 @@
     "controls": [
       {
         "command": "raw",
-        "title": "0 Raw",
-        "compact_title": "0 Raw",
+        "title": "Raw",
+        "compact_title": "Raw",
         "kind": "toggle",
         "width": 0,
         "compact_width": 0,
@@ -161,14 +161,14 @@
         "width": 80,
         "compact_width": 36,
         "minimal": false,
-        "tooltip": "Preview: ON converts to stereo using the mode in Edit (Auto detects AmbiX filenames); OFF preserves original channels. Output follows project routing."
+        "tooltip": "Preview: ON converts to stereo using the mode in Preset (Auto detects AmbiX filenames); OFF preserves original channels. Output follows project routing."
       },
       {
         "command": "edit",
-        "title": "Edit…",
-        "compact_title": "Edit",
+        "title": "Preset…",
+        "compact_title": "Preset",
         "kind": "button",
-        "width": 66,
+        "width": 76,
         "compact_width": 48,
         "minimal": true,
         "tooltip": "Preset / FX editing and export"
@@ -635,11 +635,6 @@
         "required": true
       },
       {
-        "name": "directory",
-        "type": "string",
-        "required": true
-      },
-      {
         "name": "reverse",
         "type": "boolean",
         "required": true
@@ -651,11 +646,6 @@
       },
       {
         "name": "normalize",
-        "type": "boolean",
-        "required": true
-      },
-      {
-        "name": "guard",
         "type": "boolean",
         "required": true
       },
@@ -680,37 +670,12 @@
         "required": true
       },
       {
-        "name": "reference_dbfs",
-        "type": "number",
-        "required": true
-      },
-      {
-        "name": "reference_spl",
-        "type": "number",
-        "required": true
-      },
-      {
-        "name": "boost",
-        "type": "number",
-        "required": true
-      },
-      {
         "name": "gain",
         "type": "number",
         "required": true
       },
       {
-        "name": "ceiling",
-        "type": "number",
-        "required": true
-      },
-      {
         "name": "tail",
-        "type": "number",
-        "required": true
-      },
-      {
-        "name": "slot",
         "type": "number",
         "required": true
       }
