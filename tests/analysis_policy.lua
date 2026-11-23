@@ -27,7 +27,7 @@ for _,path in ipairs{'/ambix/field.wav','fieldambix.wav','field_Ambisonics.wav',
 end
 for _,channels in ipairs{3,6,128}do
   local spec,reason=A.resolve('/field_ambix.wav',channels,{preview_downmix=true,preview_downmix_mode='ambix'})
-  assert(spec==nil and reason:find('full 3D',1,true))
+  assert(reason==nil and spec.basis=='downmix_discrete')
   assert(A.resolve('/field_ambix.wav',channels,{preview_downmix=false,preview_downmix_mode='ambix'}).basis=='loudest_channel',
     'Original-channel analysis must not require an AmbiX decoder')
 end

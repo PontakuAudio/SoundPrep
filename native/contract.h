@@ -16,20 +16,21 @@ inline constexpr int compact_height=130;
 inline constexpr int minimal_height=80;
 inline constexpr int min_width=300;
 inline constexpr int min_list_height=24;
-enum ControlIndex { raw=0,normalize=1,target=2,monitor=3,channels=4,downmix=5,edit=6,settings=7,quit=8 };
-inline constexpr int control_count=9;
-inline constexpr std::array<Control,9> controls{{
+enum ControlIndex { raw=0,normalize=1,target=2,monitor=3,channels=4,downmix=5,ambisonics=6,edit=7,settings=8,quit=9 };
+inline constexpr int control_count=10;
+inline constexpr std::array<Control,10> controls{{
   {"raw","Raw","Raw",ControlKind::toggle,0,0,true,"Bypass Macro FX and transforms; keep Raw normalization and monitor gain"},
   {"normalize","Normalize","Norm",ControlKind::toggle,78,62,false,"Match source loudness to the Norm target for the selected Macro or Raw; applies to preview and inserted audio"},
-  {"target","Normalize target","Normalize target",ControlKind::popup,156,156,false,"Source loudness target: LUFS or Zwicker sones. Applies to preview and inserted audio; Zwicker targets open the preset editor."},
-  {"monitor","Monitor volume","Monitor volume",ControlKind::popup,138,0,false,"Preview volume only (dB), shared by all presets and Raw. Does not change inserted or exported audio."},
-  {"channels","Mic Select…","Mics",ControlKind::button,86,44,false,"Choose microphones in a native Media Explorer panel. Names come from WAV metadata; three or more inputs stay independent."},
+  {"target","Normalize target","Normalize target",ControlKind::popup,138,138,false,"Source loudness target: LUFS or Zwicker sones. Applies to preview and inserted audio; Zwicker targets open the preset editor."},
+  {"monitor","Monitor volume","Monitor volume",ControlKind::popup,120,0,false,"Preview volume only (dB), shared by all presets and Raw. Does not change inserted or exported audio."},
+  {"channels","Select Mics…","Mics",ControlKind::button,92,44,false,"Choose microphones in a native Media Explorer panel. Names come from WAV metadata; three or more inputs stay independent."},
   {"downmix","Downmix","DM",ControlKind::toggle,80,36,false,"Preview: ON converts to stereo using the mode in Preset (Auto detects AmbiX filenames); OFF preserves original channels. Output follows project routing."},
+  {"ambisonics","AmbiX","Amb",ControlKind::toggle,54,40,false,"Mark this file as Ambisonics (AmbiX): it previews in stereo with the W/Y decode whatever its name says. The mark is remembered for this file."},
   {"edit","Preset…","Preset",ControlKind::button,76,48,true,"Preset / FX editing and export"},
   {"settings","Settings…","Settings",ControlKind::button,86,62,false,"App settings: playback, drops, cache and diagnostics. Stays open until closed."},
   {"quit","×","×",ControlKind::button,26,24,true,"Stop SoundPrep and restore native preview"},
 }};
-inline constexpr std::array<Field,16> fields{{
+inline constexpr std::array<Field,18> fields{{
   {"macros",Kind::array,true},
   {"active",Kind::string,true},
   {"status",Kind::string,true},
@@ -43,6 +44,8 @@ inline constexpr std::array<Field,16> fields{{
   {"search",Kind::object,false},
   {"downmix",Kind::boolean,false},
   {"multichannel",Kind::boolean,false},
+  {"ambisonics",Kind::boolean,false},
+  {"ambisonics_available",Kind::boolean,false},
   {"channels",Kind::object,false},
   {"settings",Kind::object,false},
   {"editor",Kind::object,false},
@@ -141,8 +144,8 @@ inline constexpr std::array<Field,11> editor_value_fields{{
 }};
 inline constexpr std::array<double,4> target_options{{-18,-16,-14,-12}};
 inline constexpr std::array<double,5> monitor_options{{-24,-18,-12,-6,0}};
-inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.19","platform":"windows","features":{"bar":14,"preview":5,"waveform":10,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
-inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.19","platform":"macos","features":{"bar":14,"preview":5,"waveform":10,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* windows_info=R"AM({"schema":1,"version":"0.11.20","platform":"windows","features":{"bar":15,"preview":5,"waveform":10,"drop":1,"search":1,"windows_files":1,"quiet_render":1,"transport":1,"analysis":3}})AM";
+inline constexpr const char* macos_info=R"AM({"schema":1,"version":"0.11.20","platform":"macos","features":{"bar":15,"preview":5,"waveform":10,"drop":1,"search":1,"transport":1,"analysis":3}})AM";
 inline const char* helper_info() {
 #ifdef _WIN32
   return windows_info;

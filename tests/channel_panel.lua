@@ -6,6 +6,8 @@ local app={definition={settings=settings},path='/recording.wav',source_channels=
   preview={playing=function()return false end}}
 function app:set_channel_selection(list)assert(Selection.valid(self.source_channels,{channels=list}));settings.channel_selections=settings.channel_selections or {};settings.channel_selections[tostring(self.source_channels)]={channels=list};writes=writes+1;return true end
 function app:set_downmix(value)settings.channel_selections[tostring(self.source_channels)]=nil;settings.preview_downmix=value;return true end
+local modes={}
+function app:set_downmix_mode(mode)modes[#modes+1]=mode;settings.preview_downmix_mode=mode;return true end
 local read=Names.read;Names.read=function()return {[1]='Boom & A',[3]='Boom & A',[5]='風鈴 🎤'}end
 local r={EnumProjects=function()return project end};local bar=setmetatable({r=r,app=app},Bar)
 bar:dispatch('channels');local state=Panel.state(app);assert(state.open and state.items[1].name=='Boom & A'and state.items[2].name==''and #state.items==6)
@@ -16,11 +18,16 @@ command('toggle',1);command('toggle',3);command('toggle',5)
 assert(U.equal(Selection.list(Selection.get(settings,6)),{1,3,5}))
 state=Panel.state(app);assert(state.items[1].selected and not state.items[2].selected and state.items[5].name=='風鈴 🎤')
 command('toggle',3);command('swap');assert(U.equal(Selection.list(Selection.get(settings,6)),{5,1}))
+command('solo',5);assert(U.equal(Selection.list(Selection.get(settings,6)),{5}))
+command('toggle',1);assert(U.equal(Selection.list(Selection.get(settings,6)),{1,5}))
 command('toggle',5);command('toggle',1);assert(app.channel_panel_notice and #Selection.list(Selection.get(settings,6))==1)
+local solo_writes=writes;command('solo',1)
+assert(writes==solo_writes and not app.channel_panel_notice and U.equal(Selection.list(Selection.get(settings,6)),{1}))
 local source=state.source;local before=writes;app.path='/other.wav';command('toggle',2,source);assert(writes==before)
 app.source_channels=128;app:set_channel_selection({127});state=Panel.state(app);assert(state.items[1].channel==121 and state.items[8].channel==128 and not state.next)
 assert(state.paged==true)
 command('previous');assert(Panel.state(app).items[1].channel==113)
+command('solo',113);assert(U.equal(Selection.list(Selection.get(settings,128)),{113}))
 command('next');assert(Panel.state(app).items[1].channel==121)
 command('next');assert(not Panel.state(app).next)
 project={};before=writes;command('toggle',128);assert(writes==before)
@@ -28,6 +35,11 @@ bar:dispatch('channels:close');assert(not app.channel_panel_open)
 project=app.project;app.source_channels=6;app.path='/recording.wav'
 command('all');assert(not Selection.get(settings,6)and not settings.preview_downmix)
 app:set_downmix(true);state=Panel.state(app);assert(state.downmix and state.summary=='Downmix all channels')
+app.source_channels=4;assert(Panel.state(app).mix=='Auto: Discrete')
+command('mode');assert(Panel.state(app).mix=='AmbiX')
+command('mode');assert(Panel.state(app).mix=='Discrete')
+command('mode');assert(Panel.state(app).mix=='Auto: Discrete')
+assert(U.equal(modes,{'ambix','discrete','auto'}))
 app.source_channels=0;state=Panel.state(app);assert(not state.enabled and #state.items==0)
 -- Wave labels are dense and indexed by original file channel, independent of order.
 app.source_channels=6;app:set_channel_selection({5,1});app.r=r

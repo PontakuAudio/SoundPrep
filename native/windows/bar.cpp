@@ -47,7 +47,7 @@ LRESULT dialogControlColor(HWND window,UINT message,WPARAM dc,LPARAM control){
 constexpr UINT_PTR barHook=0x414d4241,focusHook=0x414d4246;
 struct Bar {
   HWND parent=nullptr,list=nullptr,window=nullptr,status=nullptr,focus=nullptr;
-  HFONT font=nullptr;DWORD selectionStart=0,selectionEnd=0;bool hasSelection=false,adjusting=false,paused=false,multichannel=false;
+  HFONT font=nullptr;DWORD selectionStart=0,selectionEnd=0;bool hasSelection=false,adjusting=false,paused=false,multichannel=false,ambisonicsAvailable=false;
   RECT base{},applied{};int height=0;bool hidden=false;Json state=Json::object();
   std::array<HWND,amcontract::control_count> controls{};std::array<HWND,amcontract::max_macros> presets{};
   std::array<std::wstring,amcontract::control_count> controlTips{};HWND tips=nullptr;
@@ -118,8 +118,11 @@ struct Bar {
     int s=static_cast<int>(GetDpiForWindow(parent));auto px=[s](int v){return MulDiv(v,s,96);};
     int width=base.right-base.left,bh=base.bottom-base.top;int logical=MulDiv(width,96,s);
     bool compact=width<px(amcontract::compact_width) || bh<px(amcontract::compact_height),minimal=bh<px(amcontract::minimal_height);
+    auto unavailable=[this](int i) {
+      return (i==amcontract::downmix && !multichannel) || (i==amcontract::ambisonics && !ambisonicsAvailable);
+    };
     int rows=1,x=3;
-    for(int i=1;i<amcontract::control_count;++i){if(i==amcontract::downmix && !multichannel)continue;int cw=compact?amcontract::controls[i].compact_width:amcontract::controls[i].width;if(!cw)continue;if(x+cw>logical-3){++rows;x=3;}x+=cw+3;}
+    for(int i=1;i<amcontract::control_count;++i){if(unavailable(i))continue;int cw=compact?amcontract::controls[i].compact_width:amcontract::controls[i].width;if(!cw)continue;if(x+cw>logical-3){++rows;x=3;}x+=cw+3;}
     height=px(minimal?30:28+rows*26+(compact?0:18));hidden=width<px(amcontract::min_width) || bh<height+px(amcontract::min_list_height);
     if(hidden){ShowWindow(window,SW_HIDE);applied=base;SetWindowPos(list,nullptr,base.left,base.top,width,bh,SWP_NOZORDER|SWP_NOACTIVATE);adjusting=false;return;}
     SetWindowPos(window,nullptr,base.left,base.top,width,height,SWP_NOZORDER|SWP_NOACTIVATE|SWP_SHOWWINDOW);
@@ -144,7 +147,7 @@ struct Bar {
       amwin::text(controls[i],compact?amcontract::controls[i].compact_title:amcontract::controls[i].title);
     x=minimal?logical-78:3;int y=minimal?2:28;
     for(int i=1;i<amcontract::control_count;++i){
-      bool hide=(i==amcontract::downmix && !multichannel) || (minimal?!amcontract::controls[i].minimal:(compact && !amcontract::controls[i].compact_width));ShowWindow(controls[i],hide?SW_HIDE:SW_SHOWNOACTIVATE);if(hide)continue;
+      bool hide=unavailable(i) || (minimal?!amcontract::controls[i].minimal:(compact && !amcontract::controls[i].compact_width));ShowWindow(controls[i],hide?SW_HIDE:SW_SHOWNOACTIVATE);if(hide)continue;
       int toolWidth=compact?amcontract::controls[i].compact_width:amcontract::controls[i].width;const auto &spec=amcontract::controls[i];bool combo=spec.kind==amcontract::ControlKind::popup;
       if(!minimal && x+toolWidth>logical-3){x=3;y+=26;}
       SetWindowPos(controls[i],nullptr,px(x),px(y),px(toolWidth),px(combo?300:24),SWP_NOZORDER|SWP_NOACTIVATE);x+=toolWidth+3;
@@ -159,7 +162,8 @@ struct Bar {
   }
   void update(const Json& next){
     paused=next.at("paused").get<bool>();
-    bool layoutChanged=multichannel!=next.value("multichannel",false);multichannel=next.value("multichannel",false);
+    bool layoutChanged=multichannel!=next.value("multichannel",false) || ambisonicsAvailable!=next.value("ambisonics_available",false);
+    multichannel=next.value("multichannel",false);ambisonicsAvailable=next.value("ambisonics_available",false);
     if(!state.contains("macros") || state["macros"]!=next["macros"]){
       macroIds.clear();presetLabels.clear();
       for(const auto& m:next["macros"]){macroIds.push_back(m.at("id"));presetLabels.push_back(amwin::wide(m.at("label")));}

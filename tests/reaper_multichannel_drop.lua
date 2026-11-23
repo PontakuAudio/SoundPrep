@@ -180,6 +180,14 @@ local ok,err=xpcall(function()
     r.SetMediaItemInfo_Value(item,'D_FADEINLEN',0);r.SetMediaItemInfo_Value(item,'D_FADEOUTLEN',0)
     context.items=J.array{select(2,r.GetSetMediaItemInfo_String(item,'GUID','',false))}
     process('finish');r.Undo_EndBlock2(project,'Multichannel test drop',-1)
+    if case.mode==2 then
+      assert(r.CountTakes(item)==1,'AmbiX monitoring was printed on drop')
+      local _,name=r.GetSetMediaItemTakeInfo_String(r.GetTake(item,0),'P_NAME','',false)
+      assert(name:match('%[Source %+ FX%]$'),'Unexpected AmbiX take name')
+      assert(r.GetExtState(EXT,'message')=='Inserted 1 item(s) · AmbiX downmix is monitoring only; original source retained')
+      r.SelectAllMediaItems(project,false);r.SetMediaItemSelected(item,true)
+      assert(DropRender.selected(r)==1,'Could not bake the live AmbiX drop')
+    end
     local item_gain=require('am.insert').item_volume(snapshot)
     if item_gain then
       assert(r.CountTakes(item)==1 and r.TakeFX_GetCount(take)==0,'Gain-only drop rendered or added FX')

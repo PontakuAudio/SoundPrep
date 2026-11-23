@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "0.11.19",
+  "version": "0.11.20",
   "git_history_included": false,
   "runtime_files": [
     "LICENSE",
@@ -27,7 +27,7 @@
     "docs/license.md",
     "docs/loudness-defaults-2026-10-22.json",
     "docs/loudness-defaults.md",
-    "docs/releases/0.11.19.md",
+    "docs/releases/0.11.20.md",
     "docs/source-distribution.md",
     "docs/windows.md",
     "internal/Process selection.lua",
@@ -145,7 +145,7 @@
     },
     {
       "path": "CMakeLists.txt",
-      "sha256": "a789122f69da50778d6a42fa5f2613fc117931ba4ff9d50d4f28e3bdfc1696f2",
+      "sha256": "68a350d7da9961586507569390b62016695b66eff03bacc744603c8cef42abfc",
       "bytes": 5726
     },
     {
@@ -190,7 +190,7 @@
     },
     {
       "path": "SoundPrep.lua",
-      "sha256": "11724dcfe81b1ed266ae6a2c95893fa5ec89ceda09427d4027e0acc0c0e01abd",
+      "sha256": "f0873b3430ff460e36700392578a0692707e13678a8274fe8879489dea107b8a",
       "bytes": 1899
     },
     {
@@ -245,13 +245,13 @@
     },
     {
       "path": "docs/channel-selection.md",
-      "sha256": "567ed225d25500ef1751f727cedfa6c6af32d67e06fe7862d071ee6af67acfb7",
-      "bytes": 9356
+      "sha256": "2b5a559f862ace0b0383623bc61cb90f845baf5aa3796331866a130cc8a940c9",
+      "bytes": 11194
     },
     {
       "path": "docs/install.md",
-      "sha256": "afc1962e916567f1415f907aefbef50638d554b4978f52aa675960b0d210d9f6",
-      "bytes": 11556
+      "sha256": "736bf6d0cce9c8904040952c3f27290efaca0543d62509e90089c9467ef49e08",
+      "bytes": 12075
     },
     {
       "path": "docs/license-audit-2026-10-22.md",
@@ -284,9 +284,9 @@
       "bytes": 1864
     },
     {
-      "path": "docs/releases/0.11.19.md",
-      "sha256": "2ad715a07780c517f279b3c7fc662aa5cc549c2c03c18d3296bb90445c3730df",
-      "bytes": 1023
+      "path": "docs/releases/0.11.20.md",
+      "sha256": "07fc5b812c3ecb0ffe87b8c37045af947a19ed9460a3f672b92e3d5aa4bdd63a",
+      "bytes": 1530
     },
     {
       "path": "docs/source-distribution.md",
@@ -305,8 +305,8 @@
     },
     {
       "path": "internal/Process waveform drop.lua",
-      "sha256": "ce146ad6d26a2b00cca65ea0b5cfe8e2aece58a8cc7a35c4b3a724c97459640a",
-      "bytes": 10904
+      "sha256": "ebe7eadb45baf5d2f5f2a32995793a1ed84feabce95c2cf533e8970954b7d01f",
+      "bytes": 10905
     },
     {
       "path": "lib/am/action.lua",
@@ -315,13 +315,13 @@
     },
     {
       "path": "lib/am/analysis_policy.lua",
-      "sha256": "be9ec24db64cbf926132e7c5b595e74297ab9854ca0b9f05785fc64daf65884e",
-      "bytes": 4986
+      "sha256": "be38217a2f510770ec00c6df938d39b60d53da4a1c9f9cdc40ebd1e9c8eefd14",
+      "bytes": 4978
     },
     {
       "path": "lib/am/app.lua",
-      "sha256": "0fd67769111d4575d90c7018285c7e18da0050a6916511dcd21f907e43190bee",
-      "bytes": 40881
+      "sha256": "30dcb5898b3e8ee79d1af90f797388fd3ed84a86942bede4bd40d05ef489250e",
+      "bytes": 41949
     },
     {
       "path": "lib/am/bank.lua",
@@ -330,13 +330,13 @@
     },
     {
       "path": "lib/am/bar.lua",
-      "sha256": "7b82c2bcf11e8fff9d4955ca4effe1d532482d6147b9f027e944769ee4649bf7",
-      "bytes": 8775
+      "sha256": "edb7fa4b47a2907452bfeea40b1a69cc4304413a10cca0a3506902eee4128c47",
+      "bytes": 8982
     },
     {
       "path": "lib/am/channel_mix.lua",
-      "sha256": "efb43f96d2321bf67be2df7165a6b561015db42995ee640b4bad468572eea67f",
-      "bytes": 1278
+      "sha256": "959be630f514087ce30f6db4476be03a1aa53fea83e362561bccc1d4d6239194",
+      "bytes": 1659
     },
     {
       "path": "lib/am/channel_names.lua",
@@ -345,8 +345,8 @@
     },
     {
       "path": "lib/am/channel_panel.lua",
-      "sha256": "ddd01c0412f5244ea10e603b0809ee3b5244e0aacee0a0e18e90f20af711a8c9",
-      "bytes": 4321
+      "sha256": "f3a3a7d8f60f4384c9953d6ea3f4c1766e07a38910c33c7e2c892823e4c0c95a",
+      "bytes": 4886
     },
     {
       "path": "lib/am/channel_selection.lua",
@@ -385,8 +385,8 @@
     },
     {
       "path": "lib/am/drop_transaction.lua",
-      "sha256": "90c1621cd42bc6993f37c8322de195ba061cf52afafccc683f545eea8fe5d014",
-      "bytes": 7029
+      "sha256": "4f03c091f2e4fc21e41124a277dc5fbf459a3fa9fe38e6a760199b36e69f15de",
+      "bytes": 7856
     },
     {
       "path": "lib/am/editor_panel.lua",
@@ -400,8 +400,8 @@
     },
     {
       "path": "lib/am/insert.lua",
-      "sha256": "7aba7d35031a3ecb9f4235fdce41c4de8fafbee89bb0aae511e408c640e99877",
-      "bytes": 15229
+      "sha256": "86f83f3ba405cda1b05a977a9156ed161fffd7de6a01e5a5caded1161e99f85c",
+      "bytes": 15280
     },
     {
       "path": "lib/am/json.lua",
@@ -415,13 +415,13 @@
     },
     {
       "path": "lib/am/media_explorer.lua",
-      "sha256": "924852b25bf6fc25a6a183c8baede6739e98d1fa24237ec0b27ded659c0c3159",
-      "bytes": 16087
+      "sha256": "faeda39bd58645f2d9841d60fe14eb9dc2166448b60d43f80b0029c0e92c2fb0",
+      "bytes": 16136
     },
     {
       "path": "lib/am/model.lua",
-      "sha256": "1210b6147f2dfcf646e8734d8029a52d8da9346dbc8eea1e5224c712eec7ccf1",
-      "bytes": 6843
+      "sha256": "0b502e2e7e43b9be30be6bc471358821978b69e9442e00d6db1682d7f760003e",
+      "bytes": 7206
     },
     {
       "path": "lib/am/native.lua",
@@ -430,8 +430,8 @@
     },
     {
       "path": "lib/am/native_contract.lua",
-      "sha256": "346101a71bf41b80001fe2d5aebb3f21531f616647d1950020fb5828ec732cb9",
-      "bytes": 8639
+      "sha256": "ee316c1c9d7c5377bd1037906a6ca755e4d572de65f90635e522043fde8bda6f",
+      "bytes": 9041
     },
     {
       "path": "lib/am/peaks.lua",
@@ -445,8 +445,8 @@
     },
     {
       "path": "lib/am/preview.lua",
-      "sha256": "76e311c61df4a65f5143f9acaf8e5fccb1bb526cbb79bcee840437a5008a26f7",
-      "bytes": 11390
+      "sha256": "179f46ca78200df8a6ece7cced565dc94d0d84262813ea24ac101af3c24af815",
+      "bytes": 11392
     },
     {
       "path": "lib/am/recovery.lua",
@@ -500,8 +500,8 @@
     },
     {
       "path": "native/bar.mm",
-      "sha256": "51328b30903f895f0b3d668a712499317b86ad42b20d38927091c31a4c41f257",
-      "bytes": 29384
+      "sha256": "3c75f788fc6185d99326f303e7bd66a41f6a923f98a8cfa6596a66e2838d16ff",
+      "bytes": 29816
     },
     {
       "path": "native/build-windows.ps1",
@@ -515,8 +515,8 @@
     },
     {
       "path": "native/channel_panel.h",
-      "sha256": "5edb725cec74cf2b1ce0f0726760679a5b8d75638d2876334793244c62a52c12",
-      "bytes": 6943
+      "sha256": "238ffd41928081e1c8b967ee406a3895a0a6f2b04f1158f405a9c19a7fe1ee6e",
+      "bytes": 7413
     },
     {
       "path": "native/channel_subset.h",
@@ -530,8 +530,8 @@
     },
     {
       "path": "native/contract.h",
-      "sha256": "98857fceb2df1151abad11db20d980ff3b6c92587d46394d0984561cf8a012cb",
-      "bytes": 10233
+      "sha256": "9f5c5171f89554fd2b7a01843d64fd29357e9a27ed0dc63287468dfddf883bd8",
+      "bytes": 10543
     },
     {
       "path": "native/cursor.cpp",
@@ -620,8 +620,8 @@
     },
     {
       "path": "native/test_bar.mm",
-      "sha256": "99ce60337c5cf75c177dc4518b476248bd26d9b571f687958fe9dfb66c419733",
-      "bytes": 25413
+      "sha256": "3b18fe51ceb8e9ef89b35e8bb5e41447f53922352a477ce139e465862a9e36fb",
+      "bytes": 26897
     },
     {
       "path": "native/test_bar_contract.h",
@@ -700,13 +700,13 @@
     },
     {
       "path": "native/windows/bar.cpp",
-      "sha256": "cdd19f658bf3fe07a9045e337ce2cf7b570a8884927f83330ce9c5bb7a74eb9b",
-      "bytes": 19420
+      "sha256": "14eed1f71b6d54f506ea8edb8bd91e8ea1ad65d5740b8fe987d2081ccb6fe44f",
+      "bytes": 19680
     },
     {
       "path": "native/windows/channel_panel.h",
-      "sha256": "add447eaae6ef3769382dd412545c36d8d173332f1d211770dab92a6ca2e92b1",
-      "bytes": 8343
+      "sha256": "13e2996171123fe1048d75c882674b51c0bfea44e756d804884cd77375ad0dcd",
+      "bytes": 8784
     },
     {
       "path": "native/windows/common.h",
@@ -775,8 +775,8 @@
     },
     {
       "path": "native/windows/test_windows.cpp",
-      "sha256": "0ca5edd5220546e48c876c61425b26ec38ab66670efb838e7768859296c83fa5",
-      "bytes": 41542
+      "sha256": "6e949bbe48d154d0df4b1093446143bb94c79a0e509baec488fd028f6dda1d90",
+      "bytes": 44252
     },
     {
       "path": "native/windows/wave_label.cpp",
@@ -795,18 +795,18 @@
     },
     {
       "path": "prebuilt/manifest.json",
-      "sha256": "91db2cb204e2cdb5b2f1fad8aa5ba4c8ef8841762174d5233e1f36a3aae7636b",
+      "sha256": "b7d393e9ceaa50db3a172f6551e69fd26add4e9a648185e03395c3cb3b2caf5d",
       "bytes": 491
     },
     {
       "path": "prebuilt/reaper_audition_macro.dll",
-      "sha256": "5d6f5ae098550f6ce9c1c0e3f45964a5b239cd58b5b40b579477ae53a01260ed",
-      "bytes": 820736
+      "sha256": "94316efe2576ef9be1f24cede35dfa3f0d4970b1472e00a4c2bf5d7be0acd465",
+      "bytes": 821248
     },
     {
       "path": "prebuilt/reaper_audition_macro.dylib",
-      "sha256": "a7470fde525408aa64fb4abf2f42fd82a56e605945d297c1e76960afe383d887",
-      "bytes": 1128768
+      "sha256": "2f7881d80aba3eb5331985aad0c8a115a3a5766f59924726f21c64978b00a734",
+      "bytes": 1128784
     },
     {
       "path": "resources/audition_macro_channels_v1.jsfx",
@@ -840,12 +840,12 @@
     },
     {
       "path": "resources/native-contract.json",
-      "sha256": "482ab61304d7e83f23fd906ede6c737ee305b8658780834256743dc35aa7d98a",
-      "bytes": 14348
+      "sha256": "a21da3e53316ca671cf9fb5c57e0735a1d3109299516822f1b898dffbe8830cd",
+      "bytes": 14949
     },
     {
       "path": "resources/public-source-files.json",
-      "sha256": "026a235a774c37d34b89c64c6ecda311dc18c1737b4fb16ba13ab310261cfc0f",
+      "sha256": "0052fc001f87400f125e405320b971c75a2fbed4a8adaa04c69e7e7d8f91b8f4",
       "bytes": 9363
     },
     {
@@ -860,7 +860,7 @@
     },
     {
       "path": "resources/release-manifest.json",
-      "sha256": "d5117315fd460b1a2dc373f2d6da54aac5c19b6c032632363fabfb3586d20c43",
+      "sha256": "0f19db4ee652ebcf660f89f228a951afde1c9d6636bbd048f994c2438939796f",
       "bytes": 2965
     },
     {
@@ -870,8 +870,8 @@
     },
     {
       "path": "tests/ambix.lua",
-      "sha256": "252f9a77e58c183f9ff3652313d871388483e20bf677d5d33164cb773c7bc4af",
-      "bytes": 10048
+      "sha256": "2223da3b093d3ea7dfa2338dac9a07ad56d00ab89ee09cc2c3d8ab6384a290a1",
+      "bytes": 14983
     },
     {
       "path": "tests/analysis_dependencies.lua",
@@ -880,8 +880,8 @@
     },
     {
       "path": "tests/analysis_policy.lua",
-      "sha256": "54028e0ce815f1d7adb6945e5fc7dc9b8325e9a5599f6f2442661a1948482611",
-      "bytes": 5118
+      "sha256": "8609c6f5ebc2cae6252d3c1d38817e0b230204602f953b42f10c9c7c20ea12a0",
+      "bytes": 5121
     },
     {
       "path": "tests/analysis_status.lua",
@@ -900,8 +900,8 @@
     },
     {
       "path": "tests/audition_gestures.lua",
-      "sha256": "6063ae2a8e3fae083bcb2a0c7da5b791bf9cb567dc4418e93060515a03b788f4",
-      "bytes": 4436
+      "sha256": "a930297451505557c0bb81dda4775ec090af50339ce12a479b3932f631a414b8",
+      "bytes": 6674
     },
     {
       "path": "tests/bank_channels.lua",
@@ -935,8 +935,8 @@
     },
     {
       "path": "tests/channel_panel.lua",
-      "sha256": "bf0d18dd3317d91330260c2a2489196456da8cfd9cb6b037c21513790e375ff9",
-      "bytes": 6373
+      "sha256": "6fe9855ad1c22e5ccce949e5725b6a0a2472383771d6d4345bf06e3d3dd9b79b",
+      "bytes": 7205
     },
     {
       "path": "tests/channel_selection.lua",
@@ -995,8 +995,8 @@
     },
     {
       "path": "tests/multichannel_drop.lua",
-      "sha256": "d7dc0098b80741eb0d174f08c3d3a31ae60bdfc5a017169668b79b85c6100652",
-      "bytes": 13074
+      "sha256": "e5d3576d2aed36c509d25b14fe4107d2c636c2d7c1e13661db90991190a6f173",
+      "bytes": 14281
     },
     {
       "path": "tests/multichannel_insert.lua",
@@ -1010,8 +1010,8 @@
     },
     {
       "path": "tests/native-bar-cases.json",
-      "sha256": "2a9c2e148acf181239e5d3d03013247696c70b240c2eb97c7f5a8c27e48a461d",
-      "bytes": 29848
+      "sha256": "ea68112761b666af8fb7c0f23edb65a1601b7249db91781fbdba9dfb323d57e3",
+      "bytes": 30477
     },
     {
       "path": "tests/native-editor-state.json",
@@ -1025,8 +1025,8 @@
     },
     {
       "path": "tests/native.lua",
-      "sha256": "33f7a0e1251f917ff4b849c2a920fe4f29d5f8ca99e42fcfe4ad07f580a7c6be",
-      "bytes": 7910
+      "sha256": "f72b5d7ad0fde21a718dd8e26dee16bf28233437c25c20ec0a73ad47c71325c8",
+      "bytes": 8032
     },
     {
       "path": "tests/native_drop_host.mm",
@@ -1050,8 +1050,8 @@
     },
     {
       "path": "tests/preview_channels.lua",
-      "sha256": "4015bc8d51db3e0395b1a424b388339abac045bb13190de794d31f353533e301",
-      "bytes": 14259
+      "sha256": "77ce5917df139e4b4c5d3f962dd1741e4b54ffa896c0a875ab0a5ac99eabf6d9",
+      "bytes": 13772
     },
     {
       "path": "tests/preview_eof.lua",
@@ -1180,8 +1180,8 @@
     },
     {
       "path": "tests/reaper_multichannel_drop.lua",
-      "sha256": "ca0d4b8e3cd5657290a41abaf6022a80fc350957d675a2752f9b6b50434d5352",
-      "bytes": 23523
+      "sha256": "d4490d1adc31f04c77fe6d92f39016a0f498300814fccd46764408c1ba1bcf3a",
+      "bytes": 24076
     },
     {
       "path": "tests/reaper_multichannel_normalize.lua",

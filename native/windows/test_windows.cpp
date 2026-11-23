@@ -209,7 +209,7 @@ int main(){using namespace test;
   MSG key{};key.hwnd=list;key.message=WM_KEYDOWN;key.wParam='R';
   assert(accel->local && accel->translate(&key,accel)==0 && info(list,0)==0);
   SendMessageW(GetDlgItem(bar,100+amcontract::channels),BM_CLICK,0,0);assert(std::string(AMBarPoll())=="channels");
-  state["channels"]={{"open",true},{"source","/six.wav:6"},{"file","six.wav"},{"summary","Ch 1, 3, 5"},
+  state["channels"]={{"open",true},{"source","/six.wav:6"},{"file","six.wav"},{"summary","Ch 1, 3, 5"},{"mix","Auto: Discrete"},
     {"items",Json::array({{{"channel",1},{"name","Boom & L"},{"selected",true}},{{"channel",2},{"name",""},{"selected",false}},{{"channel",3},{"name","風鈴 🎤"},{"selected",true}}})},
     {"previous",false},{"next",false},{"all",false},{"downmix",false},{"can_downmix",true},{"can_swap",false},{"enabled",true},{"playing",false},{"page","1–6 / 6"},{"notice",""}};
   assert(AMBarSetState(state.dump().c_str()));
@@ -219,8 +219,20 @@ int main(){using namespace test;
   checkControlColor(microphones,GetDlgItem(microphones,2100),WM_CTLCOLORBTN);
   assert(amwin::text(GetDlgItem(microphones,2100))==L"Boom && L\nch 1" && amwin::text(GetDlgItem(microphones,2101))==L"2");
   assert(!IsWindowVisible(GetDlgItem(microphones,2103)) && !IsWindowEnabled(GetDlgItem(microphones,2203)));
+  HWND modeButton=findChild(microphones,L"Button",2206,L"Auto: Discrete");assert(modeButton && IsWindowVisible(modeButton));
+  BYTE keys[256]{};assert(GetKeyboardState(keys));const BYTE originalControl=keys[VK_CONTROL];
+  keys[VK_CONTROL]=0;assert(SetKeyboardState(keys));
   SendMessageW(GetDlgItem(microphones,2102),BM_CLICK,0,0);auto channelEvent=std::string(AMBarPoll());
-  assert(channelEvent.rfind("channels@",0)==0 && Json::parse(channelEvent.substr(9))["channel"]==3);
+  assert(channelEvent.rfind("channels@",0)==0);auto micEvent=Json::parse(channelEvent.substr(9));
+  assert(micEvent["op"]=="toggle" && micEvent["channel"]==3 && micEvent["source"]=="/six.wav:6");
+  keys[VK_CONTROL]=0x80;assert(SetKeyboardState(keys));
+  SendMessageW(GetDlgItem(microphones,2100),BM_CLICK,0,0);channelEvent=AMBarPoll();
+  keys[VK_CONTROL]=originalControl;assert(SetKeyboardState(keys));
+  assert(channelEvent.rfind("channels@",0)==0);micEvent=Json::parse(channelEvent.substr(9));
+  assert(micEvent["op"]=="solo" && micEvent["channel"]==1 && micEvent["source"]=="/six.wav:6");
+  assert(SendMessageW(GetDlgItem(microphones,2100),BM_GETCHECK,0,0)==BST_CHECKED);
+  SendMessageW(modeButton,BM_CLICK,0,0);channelEvent=AMBarPoll();assert(channelEvent.rfind("channels@",0)==0);
+  auto modeEvent=Json::parse(channelEvent.substr(9));assert(modeEvent["op"]=="mode" && modeEvent["source"]=="/six.wav:6");
   SendMessageW(microphones,WM_CLOSE,0,0);assert(std::string(AMBarPoll())=="channels:close");
   state["channels"]["open"]=false;assert(AMBarSetState(state.dump().c_str()));
   std::ifstream settingsFile("tests/native-settings-state.json");state["settings"]=Json::parse(settingsFile);
@@ -373,10 +385,11 @@ int main(){using namespace test;
   settings=FindWindowW(L"SoundPrepAppSettings",nullptr);editor=FindWindowW(L"SoundPrepPresetEditor",nullptr);
   assert(settings && editor && amwin::text(GetDlgItem(editor,4401))==L"Reverse");
   HWND downmix=GetDlgItem(bar,100+amcontract::downmix);assert(downmix && !IsWindowVisible(downmix));
+  HWND ambisonics=GetDlgItem(bar,100+amcontract::ambisonics);assert(ambisonics && !IsWindowVisible(ambisonics));
   assert(SendMessageW(downmix,BM_GETCHECK,0,0)==BST_UNCHECKED);
   assert(Json::parse(AMBarGeometry())["downmix_visible"]==false && Json::parse(AMBarGeometry())["downmix"]==false);
   // At 700 logical pixels the Downmix control wraps to a second row.
-  // At 800 pixels the reduced toolbar fits on one row on both platforms.
+  // At 800 pixels the narrowed popups leave room for Ambisonics on the same row.
   SetWindowPos(list,nullptr,original.left,original.top,amwin::scale(root,700),amwin::scale(root,400),SWP_NOZORDER|SWP_NOACTIVATE);
   assert(Json::parse(AMBarGeometry())["height"]==amwin::scale(root,72));
   state["multichannel"]=true;assert(AMBarSetState(state.dump().c_str()));
@@ -389,8 +402,21 @@ int main(){using namespace test;
   SendMessageW(downmix,BM_CLICK,0,0);assert(std::string(AMBarPoll())=="downmix");
   state["downmix"]=false;assert(AMBarSetState(state.dump().c_str()));
   assert(SendMessageW(downmix,BM_GETCHECK,0,0)==BST_UNCHECKED);
+  SetWindowPos(list,nullptr,original.left,original.top,amwin::scale(root,800),amwin::scale(root,400),SWP_NOZORDER|SWP_NOACTIVATE);
+  assert(!IsWindowVisible(ambisonics) && Json::parse(AMBarGeometry())["height"]==amwin::scale(root,72));
+  state["ambisonics_available"]=true;assert(AMBarSetState(state.dump().c_str()));
+  assert(IsWindowVisible(ambisonics) && amwin::text(ambisonics)==L"AmbiX" && SendMessageW(ambisonics,BM_GETCHECK,0,0)==BST_UNCHECKED);
+  assert(Json::parse(AMBarGeometry())["height"]==amwin::scale(root,72));
+  state["ambisonics"]=true;assert(AMBarSetState(state.dump().c_str()));
+  assert(SendMessageW(ambisonics,BM_GETCHECK,0,0)==BST_CHECKED);
+  SendMessageW(ambisonics,BM_CLICK,0,0);assert(std::string(AMBarPoll())=="ambisonics");
+  state["ambisonics"]=false;assert(AMBarSetState(state.dump().c_str()));
+  assert(SendMessageW(ambisonics,BM_GETCHECK,0,0)==BST_UNCHECKED);
   SetWindowPos(list,nullptr,original.left,original.top,amwin::scale(root,300),amwin::scale(root,129),SWP_NOZORDER|SWP_NOACTIVATE);
   assert(amwin::text(downmix)==L"DM" && Json::parse(AMBarGeometry())["height"]==amwin::scale(root,80));
+  assert(amwin::text(ambisonics)==L"Amb");
+  state["ambisonics_available"]=false;assert(AMBarSetState(state.dump().c_str()));
+  assert(!IsWindowVisible(ambisonics) && IsWindowVisible(downmix));
   state["multichannel"]=false;assert(AMBarSetState(state.dump().c_str()));
   assert(!IsWindowVisible(downmix) && Json::parse(AMBarGeometry())["height"]==amwin::scale(root,80));
   state["multichannel"]=true;assert(AMBarSetState(state.dump().c_str()));
@@ -409,9 +435,10 @@ int main(){using namespace test;
   state["paused"]=false;assert(AMBarSetState(state.dump().c_str()));
   // Exercise both sides of every compact/two-row breakpoint using real HWNDs.
   // Visible controls must fit; narrow docks must keep Edit/Quit reachable.
-  for(bool multichannel:{false,true}) {
-    state["multichannel"]=multichannel;assert(AMBarSetState(state.dump().c_str()));
-    for(int width:{299,300,320,359,360,415,416,736,737,879,880,1000})for(int height:{53,54,87,88,113,114,180}) {
+  for(int channels:{2,6,4}) {
+    bool multichannel=channels>2,ambisonicsAvailable=channels==4;
+    state["multichannel"]=multichannel;state["ambisonics_available"]=ambisonicsAvailable;assert(AMBarSetState(state.dump().c_str()));
+    for(int width:{299,300,320,359,360,415,416,736,737,847,848,879,880,1000})for(int height:{53,54,87,88,113,114,180}) {
       SetWindowPos(list,nullptr,original.left,original.top,amwin::scale(root,width),amwin::scale(root,height),SWP_NOZORDER|SWP_NOACTIVATE);
       auto g=Json::parse(AMBarGeometry());
       assert(g["list_height"].get<int>()>0 && g["height"].get<int>()>=0);
@@ -425,14 +452,16 @@ int main(){using namespace test;
       }
       assert(IsWindowVisible(GetDlgItem(bar,100+amcontract::edit)) && IsWindowVisible(GetDlgItem(bar,100+amcontract::quit)));
       assert(static_cast<bool>(IsWindowVisible(downmix))==(multichannel && height>=amcontract::minimal_height));
+      assert(static_cast<bool>(IsWindowVisible(ambisonics))==(ambisonicsAvailable && height>=amcontract::minimal_height));
       int right=0;
       for(int id=200;id<209;++id){HWND button=GetDlgItem(bar,id);assert(IsWindowVisible(button));auto r=amwin::rect(button,bar);
         assert(r.left>=right && r.right<=client.right && r.top>=0 && r.bottom<=client.bottom);right=r.right;
       }
     }
   }
-  state.erase("downmix");state.erase("multichannel");assert(AMBarSetState(state.dump().c_str()));
+  state.erase("downmix");state.erase("multichannel");state.erase("ambisonics");state.erase("ambisonics_available");assert(AMBarSetState(state.dump().c_str()));
   assert(!IsWindowVisible(downmix) && SendMessageW(downmix,BM_GETCHECK,0,0)==BST_UNCHECKED);
+  assert(!IsWindowVisible(ambisonics) && SendMessageW(ambisonics,BM_GETCHECK,0,0)==BST_UNCHECKED);
   SetWindowPos(list,nullptr,original.left,original.top,original.right-original.left,original.bottom-original.top,SWP_NOZORDER|SWP_NOACTIVATE);
   AMBarDetach();assert(!IsWindow(settings) && !IsWindow(editor));RECT restored=amwin::rect(list,root);assert(EqualRect(&original,&restored));assert(std::string(AMBarGeometry())=="{}");
   HWND arrange=create(L"AMTestArrange",500,550,600,180,root,1000),tcp=create(L"REAPERTCPDisplay",10,550,450,180,root),wave=create(L"AMTestWave",10,750,1000,80,root,1046);assert(tcp);

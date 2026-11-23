@@ -37,7 +37,7 @@
 - (instancetype)initWithSender:(void(*)(NSString*))sender {
   if(!(self=[super init]))return nil;self.send=sender;self.actions=[NSMutableDictionary dictionary];
   self.view=[[AMChannelContent alloc]initWithFrame:NSMakeRect(0,0,520,264)];
-  self.file=[self label:NSMakeRect(12,10,496,18)];self.summary=[self label:NSMakeRect(12,32,496,18)];
+  self.file=[self label:NSMakeRect(12,10,496,18)];self.summary=[self label:NSMakeRect(12,32,330,18)];
   NSMutableArray* buttons=[NSMutableArray array];
   for(int i=0;i<8;++i) {
     NSButton* b=[self button:@"" command:@"toggle" frame:NSMakeRect(12+(i%4)*125,58+(i/4)*46,121,40)];
@@ -52,15 +52,22 @@
     self.actions[item[0]]=[self button:item[1] command:item[0] frame:NSMakeRect(12+i*125,190,121,26)];
   }
   self.actions[@"all"].buttonType=NSButtonTypePushOnPushOff;
+  self.actions[@"mode"]=[self button:@"" command:@"mode" frame:NSMakeRect(354,28,154,26)];
   self.notice=[self label:NSMakeRect(12,230,496,20)];
   self.popover=[NSPopover new];self.popover.contentViewController=self;self.popover.behavior=NSPopoverBehaviorTransient;
   self.popover.animates=NO;self.popover.delegate=self;return self;
 }
 - (void)pressed:(NSButton*)sender {
+  [self pressed:sender modifierFlags:[NSApp currentEvent].modifierFlags];
+}
+- (void)pressed:(NSButton*)sender modifierFlags:(NSEventModifierFlags)flags {
   if([sender.identifier isEqual:@"close"]){[self.popover performClose:nil];return;}
   if(self.paused || ![self.state[@"enabled"] boolValue])return;
   NSMutableDictionary* event=[@{@"op":sender.identifier,@"source":self.state[@"source"]}mutableCopy];
-  if([sender.identifier isEqual:@"toggle"])event[@"channel"]=@(sender.tag);
+  if([sender.identifier isEqual:@"toggle"]){
+    event[@"channel"]=@(sender.tag);
+    if(flags & NSEventModifierFlagCommand){event[@"op"]=@"solo";sender.state=NSControlStateValueOn;}
+  }
   NSData* bytes=[NSJSONSerialization dataWithJSONObject:event options:0 error:nil];
   self.send([@"channels@" stringByAppendingString:[[NSString alloc]initWithData:bytes encoding:NSUTF8StringEncoding]]);
 }
@@ -84,6 +91,7 @@
   [self layoutPaged:state[@"paged"]?[state[@"paged"] boolValue]:(previous || next)];
   self.file.stringValue=state[@"file"];self.file.toolTip=self.file.stringValue;
   self.summary.stringValue=state[@"summary"];self.summary.toolTip=self.summary.stringValue;
+  self.actions[@"mode"].title=state[@"mix"]?:@"";self.actions[@"mode"].hidden=![state[@"can_downmix"] boolValue];
   self.page.stringValue=state[@"page"];self.notice.stringValue=[state[@"notice"] length]?state[@"notice"]:@"Click microphones to add or remove them. Changes apply immediately.";
   self.notice.toolTip=self.notice.stringValue;
   NSArray* items=state[@"items"];

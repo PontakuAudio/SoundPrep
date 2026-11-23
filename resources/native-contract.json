@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "version": "0.11.19",
+  "version": "0.11.20",
   "features": {
     "bar": {
-      "revision": 14,
+      "revision": 15,
       "apis": [
         "AM_BarAttach",
         "AM_BarSetState",
@@ -128,8 +128,8 @@
         "title": "Normalize target",
         "compact_title": "Normalize target",
         "kind": "popup",
-        "width": 156,
-        "compact_width": 156,
+        "width": 138,
+        "compact_width": 138,
         "minimal": false,
         "tooltip": "Source loudness target: LUFS or Zwicker sones. Applies to preview and inserted audio; Zwicker targets open the preset editor."
       },
@@ -138,17 +138,17 @@
         "title": "Monitor volume",
         "compact_title": "Monitor volume",
         "kind": "popup",
-        "width": 138,
+        "width": 120,
         "compact_width": 0,
         "minimal": false,
         "tooltip": "Preview volume only (dB), shared by all presets and Raw. Does not change inserted or exported audio."
       },
       {
         "command": "channels",
-        "title": "Mic Select…",
+        "title": "Select Mics\u2026",
         "compact_title": "Mics",
         "kind": "button",
-        "width": 86,
+        "width": 92,
         "compact_width": 44,
         "minimal": false,
         "tooltip": "Choose microphones in a native Media Explorer panel. Names come from WAV metadata; three or more inputs stay independent."
@@ -164,8 +164,18 @@
         "tooltip": "Preview: ON converts to stereo using the mode in Preset (Auto detects AmbiX filenames); OFF preserves original channels. Output follows project routing."
       },
       {
+        "command": "ambisonics",
+        "title": "AmbiX",
+        "compact_title": "Amb",
+        "kind": "toggle",
+        "width": 54,
+        "compact_width": 40,
+        "minimal": false,
+        "tooltip": "Mark this file as Ambisonics (AmbiX): it previews in stereo with the W/Y decode whatever its name says. The mark is remembered for this file."
+      },
+      {
         "command": "edit",
-        "title": "Preset…",
+        "title": "Preset\u2026",
         "compact_title": "Preset",
         "kind": "button",
         "width": 76,
@@ -175,7 +185,7 @@
       },
       {
         "command": "settings",
-        "title": "Settings…",
+        "title": "Settings\u2026",
         "compact_title": "Settings",
         "kind": "button",
         "width": 86,
@@ -185,8 +195,8 @@
       },
       {
         "command": "quit",
-        "title": "×",
-        "compact_title": "×",
+        "title": "\u00d7",
+        "compact_title": "\u00d7",
         "kind": "button",
         "width": 26,
         "compact_width": 24,
@@ -257,6 +267,16 @@
       },
       {
         "name": "multichannel",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "ambisonics",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "ambisonics_available",
         "type": "boolean",
         "required": false
       },

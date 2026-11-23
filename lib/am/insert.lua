@@ -15,11 +15,16 @@ function M.unprocessed_raw(snapshot)
     m.output_gain_db==0 and snapshot.source_gain_db==0 and not has_fx(snapshot.chain) and
     (not mix or mix.mode==0)
 end
--- Channel-only drops retain the original media and an editable take setting.
-function M.channel_only(snapshot)
+local function live_mix(snapshot,mode)
   local mix=Channels.validate(snapshot);local t=snapshot.macro.source_transform
-  local has_fx=('\n'..C.chain_body(snapshot.chain)):find('\n%s*<')~=nil
-  return mix and mix.mode==3 and not t.reverse and t.pitch_semitones==0 and t.rate==1 and not has_fx
+  local fx=has_fx(snapshot.chain)
+  return mix and mix.mode==mode and not t.reverse and t.pitch_semitones==0 and t.rate==1 and not fx
+end
+function M.channel_only(snapshot)
+  return live_mix(snapshot,3)
+end
+function M.ambix_monitor(snapshot)
+  return live_mix(snapshot,2)
 end
 function M.item_volume(snapshot)
   local m=snapshot.macro;local t=m.source_transform;local mix=Channels.validate(snapshot)
@@ -182,7 +187,7 @@ function M.source(r,project,item,plan,snapshot)
   r.TakeFX_Show(take,0,0)
   for i=0,r.TakeFX_GetCount(take)-1 do r.TakeFX_Show(take,i,2)end
   local name=U.basename(plan.original)..' · '..plan.macro
-  local suffix=plan.channel_only and require('am.channel_selection').label(mix.selection)or 'Source + FX'
+  local suffix=plan.channel_only and mix and mix.selection and require('am.channel_selection').label(mix.selection)or 'Source + FX'
   r.GetSetMediaItemTakeInfo_String(take,'P_NAME',name..' ['..suffix..']',true)
   r.SetMediaItemInfo_Value(item,'D_LENGTH',plan.duration)
   r.SetMediaItemInfo_Value(item,'D_VOL',1);r.SetMediaItemInfo_Value(item,'B_LOOPSRC',0)

@@ -53,6 +53,7 @@ function M:control(id)
   return c
 end
 function M:text(id) local c=self:control(id);return c and self.r.JS_Window_GetTitle(c)end
+function M:directory()return self:text(1002)end
 function M:set_number(id,value)
   local c=assert(self:control(id),'Media Explorer control unavailable: '..id)
   self.r.JS_Window_SetTitle(c,tostring(value))
@@ -290,7 +291,7 @@ function M:selection()
   local name=self.r.JS_ListView_GetItemText(list,index,0)
   local kind=self.r.JS_ListView_GetItemText(list,index,3)
   if name=='' or kind:find('<',1,true)then return nil,'Select an audio file' end
-  local directory=self:text(1002) or ''
+  local directory=self:directory() or ''
   local search=self:text(1015) or ''
   local old=self.selected
   if old and old.index==index and old.name==name and old.kind==kind and old.directory==directory and old.search==search then return old.path end

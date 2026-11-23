@@ -268,6 +268,7 @@ static void enqueue(NSString *value) {
 @property(nonatomic, strong) NSButton *raw;
 @property(nonatomic, strong) NSButton *normalize;
 @property(nonatomic, strong) NSButton *downmix;
+@property(nonatomic, strong) NSButton *ambisonics;
 @property(nonatomic, strong) NSPopUpButton *targets;
 @property(nonatomic, strong) NSPopUpButton *monitor;
 @property(nonatomic, strong) NSTextField *status;
@@ -319,6 +320,7 @@ static void enqueue(NSString *value) {
   self.raw=(NSButton *)controls[amcontract::raw];
   self.normalize=(NSButton *)controls[amcontract::normalize];
   self.downmix=(NSButton *)controls[amcontract::downmix];
+  self.ambisonics=(NSButton *)controls[amcontract::ambisonics];
   self.targets=(NSPopUpButton *)controls[amcontract::target];
   self.monitor=(NSPopUpButton *)controls[amcontract::monitor];
   NSMutableArray<NSButton *> *presets=[NSMutableArray array];
@@ -359,9 +361,13 @@ static void enqueue(NSString *value) {
   // Match Windows: presets share the top row; audition controls wrap below.
   BOOL compact=base.size.width<amcontract::compact_width || base.size.height<amcontract::compact_height;
   BOOL minimal=base.size.height<amcontract::minimal_height;
+  auto unavailable=[self](NSUInteger i) {
+    return (i==amcontract::downmix && ![self.state[@"multichannel"] boolValue]) ||
+      (i==amcontract::ambisonics && ![self.state[@"ambisonics_available"] boolValue]);
+  };
   NSUInteger rows=1; CGFloat x=3;
   for (NSUInteger i=1;i<self.controls.count;i++) {
-    if (i==amcontract::downmix && ![self.state[@"multichannel"] boolValue]) continue;
+    if (unavailable(i)) continue;
     CGFloat width=compact ? amcontract::controls[i].compact_width : amcontract::controls[i].width;
     if (!width) continue;
     if (x+width>base.size.width-3) { rows++; x=3; }
@@ -401,7 +407,7 @@ static void enqueue(NSString *value) {
   x=minimal ? base.size.width-78 : 3; CGFloat y=minimal ? 2 : 28;
   for (NSUInteger i=1;i<self.controls.count;i++) {
     NSControl *c=self.controls[i];
-    c.hidden=(i==amcontract::downmix && ![self.state[@"multichannel"] boolValue]) ||
+    c.hidden=unavailable(i) ||
       (minimal ? !amcontract::controls[i].minimal : (compact && amcontract::controls[i].compact_width==0));
     if (c.hidden) continue;
     CGFloat toolWidth=compact ? amcontract::controls[i].compact_width : amcontract::controls[i].width;
@@ -478,7 +484,8 @@ static void enqueue(NSString *value) {
       b.toolTip=macros[i][@"label"]; b.accessibilityLabel=b.toolTip;
     }
   }
-  if (![previous[@"macros"] isEqual:macros] || [previous[@"multichannel"] boolValue]!=[state[@"multichannel"] boolValue]) [self reflow];
+  if (![previous[@"macros"] isEqual:macros] || [previous[@"multichannel"] boolValue]!=[state[@"multichannel"] boolValue] ||
+      [previous[@"ambisonics_available"] boolValue]!=[state[@"ambisonics_available"] boolValue]) [self reflow];
   for (NSUInteger i=0;i<macros.count;i++) {
     NSButton *b=self.presets[i]; b.enabled=!self.paused;
     b.state=[state[@"active"] isEqual:macros[i][@"id"]] ? NSControlStateValueOn : NSControlStateValueOff;
@@ -486,6 +493,7 @@ static void enqueue(NSString *value) {
   self.raw.state=[state[@"active"] isEqual:@"raw"] ? NSControlStateValueOn : NSControlStateValueOff;
   self.normalize.state=[state[@"normalize"] boolValue] ? NSControlStateValueOn : NSControlStateValueOff;
   self.downmix.state=[state[@"downmix"] boolValue] ? NSControlStateValueOn : NSControlStateValueOff;
+  self.ambisonics.state=[state[@"ambisonics"] boolValue] ? NSControlStateValueOn : NSControlStateValueOff;
   if (![previous[@"target"] isEqual:state[@"target"]] || ![(previous[@"target_label"] ?: @"") isEqual:(state[@"target_label"] ?: @"")]) {
     NSString *target=[NSString stringWithFormat:@"%.1f",[state[@"target"] doubleValue]];
     NSMutableArray *targets=[NSMutableArray array];

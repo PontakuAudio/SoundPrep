@@ -11,7 +11,8 @@ function M.finish(r,project,prepared,item_ids)
       local recording=(r.GetPlayStateEx(project)&4)~=0
       if recording or prepared.auto_render==false then
         for _,entry in ipairs(prepared.entries)do
-          if not Insert.channel_only(entry.snapshot)and not Insert.unprocessed_raw(entry.snapshot)and not Insert.item_volume(entry.snapshot)then
+          if not Insert.channel_only(entry.snapshot)and not Insert.ambix_monitor(entry.snapshot)and
+            not Insert.unprocessed_raw(entry.snapshot)and not Insert.item_volume(entry.snapshot)then
             local _,_,key,stem=Insert.recipe(entry.snapshot,entry.length,prepared.handles)
             if not Insert.cached(r,key,prepared.directory,stem)then prepared.pending=true;break end
           end
@@ -22,7 +23,12 @@ function M.finish(r,project,prepared,item_ids)
       r.SetMediaTrackInfo_Value(input,'D_VOL',0);r.SetExtState(EXT,'busy','1',false)
       prepared.plans={}
       for _,entry in ipairs(prepared.entries)do
-        if Insert.channel_only(entry.snapshot)then
+        if Insert.ambix_monitor(entry.snapshot)then
+          -- Save the recipe for Render selected drops without queuing an automatic render.
+          local plan=Insert.stage(r,entry.snapshot,entry.length,prepared.handles,prepared.directory)
+          plan.channel_only=true;plan.ambix_monitor=true
+          prepared.plans[#prepared.plans+1]=plan
+        elseif Insert.channel_only(entry.snapshot)then
           local plan=Insert.live_plan(entry.snapshot,entry.length,prepared.handles)
           plan.pending=nil;plan.channel_only=true
           prepared.plans[#prepared.plans+1]=plan
@@ -47,7 +53,8 @@ function M.finish(r,project,prepared,item_ids)
     end
     assert(#items==#item_ids,'Dropped items were not found')
     local available=U.copy(prepared.plans)
-    local entries=U.copy(prepared.entries or {});local pending=J.array{};local processed={};local raw_count,volume_count,channel_count=0,0,0
+    local entries=U.copy(prepared.entries or {});local pending=J.array{};local processed={}
+    local raw_count,volume_count,channel_count,ambix_count=0,0,0,0
     for _,item in ipairs(items)do
       local take=assert(r.GetActiveTake(item),'No audio take in dropped item')
       local source=r.GetMediaItemTake_Source(take)
@@ -66,7 +73,8 @@ function M.finish(r,project,prepared,item_ids)
         end
       end
       if plan.channel_only then
-        Insert.source(r,project,item,plan,entry.snapshot);channel_count=channel_count+1
+        Insert.source(r,project,item,plan,entry.snapshot)
+        if plan.ambix_monitor then ambix_count=ambix_count+1 else channel_count=channel_count+1 end
       elseif plan.raw then raw_count=raw_count+1
       elseif plan.item_volume then
         Insert.apply_item_volume(r,project,item,entry.snapshot);volume_count=volume_count+1
@@ -81,7 +89,7 @@ function M.finish(r,project,prepared,item_ids)
       if not plan.raw and not plan.item_volume then processed[#processed+1]=item end
     end
     Insert.build_missing_peaks(r,project,processed,prepared.defer_items)
-    r.SetExtState(EXT,'message',('Inserted %d item(s): Source + FX / Rendered · %s'):format(#processed,
+    r.SetExtState(EXT,'message',('Inserted %d item(s): Source + FX / Rendered · %s'):format(#processed-ambix_count,
       prepared.handles and 'full processed handles retained' or 'range rendered; full Source + FX retained'),false)
     if #pending>0 then
       require('am.drop_pending').enqueue(r,{session=prepared.session,project=tostring(project),directory=prepared.directory,entries=pending})
@@ -91,7 +99,12 @@ function M.finish(r,project,prepared,item_ids)
     end
     if channel_count>0 then
       local message=('Inserted %d item(s) · Selected microphones applied; original source retained'):format(channel_count)
-      if #processed>channel_count then message=r.GetExtState(EXT,'message')..' · '..message end
+      if #processed>channel_count+ambix_count then message=r.GetExtState(EXT,'message')..' · '..message end
+      r.SetExtState(EXT,'message',message,false)
+    end
+    if ambix_count>0 then
+      local message=('Inserted %d item(s) · AmbiX downmix is monitoring only; original source retained'):format(ambix_count)
+      if #processed>ambix_count then message=r.GetExtState(EXT,'message')..' · '..message end
       r.SetExtState(EXT,'message',message,false)
     end
     if volume_count>0 then

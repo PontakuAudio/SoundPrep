@@ -171,20 +171,14 @@ for _,case in ipairs(cases)do
       assert(preview.output_channels==2 and preview.source_channels==channels)
     end
   end
-  local function rejected(path,channels,preference,reason)
-    state.channels=channels;settings.preview_downmix_mode=preference
-    local handle,starts,counts=preview.handle,preview.starts,U.copy(state.counts)
-    local ok,error=preview:start(path,macro,0,settings,case.range,.5)
-    assert(ok==false and error:find(reason,1,true))
-    assert(preview.handle==handle and handle.playing and not handle.stopped and preview.starts==starts)
-    for key,before in pairs(counts)do
-      assert(state.counts[key]==before+((key=='file' or key=='channels' or key=='destroy')and 1 or 0),
-        'Rejected AmbiX replacement changed '..key)
-    end
+  settings.preview_downmix_mode='ambix'
+  for _,channels in ipairs{3,5,6,8,15,128}do
+    state.channels=channels
+    assert(preview:start('/field_Ambix.wav',macro,0,settings,case.range,.5))
+    assert(preview.downmix_mode==1 and preview.handle.downmix_mode==1 and preview.output_channels==2)
   end
-  for _,channels in ipairs{3,5,6,8,15,128}do rejected('/field_Ambix.wav',channels,'ambix','full 3D')end
   -- A selected manual mode never affects unprocessed playback.
-  state.channels=6;settings.preview_downmix=false;settings.preview_downmix_mode='ambix'
+  state.channels=6;settings.preview_downmix=false
   assert(preview:start('/field_Ambix.wav',macro,0,settings,case.range,.5))
   assert(preview.downmix_mode==0 and preview.handle.downmix_mode==0 and preview.output_channels==6)
   preview:stop()

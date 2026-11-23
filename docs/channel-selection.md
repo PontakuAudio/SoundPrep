@@ -1,13 +1,17 @@
 # マルチマイク素材のチャンネル選択
 
-Media Explorerの**SoundPrep操作バーにある Mic Select…**（狭いバーでは **Mics**）を押すと、Media Explorerに付いた**ネイティブのマイク選択パネル**が開きます。macOSはボタンに付いたポップオーバー、WindowsはMedia Explorerが所有する小さなパネルです。ReaImGuiの導入は不要です。
+Media Explorerの**SoundPrep操作バーにある Select Mics…**（狭いバーでは **Mics**）を押すと、Media Explorerに付いた**ネイティブのマイク選択パネル**が開きます。macOSはボタンに付いたポップオーバー、WindowsはMedia Explorerが所有する小さなパネルです。ReaImGuiの導入は不要です。
 
-- **チャンネルボタンをON／OFF**して使うマイクを選びます。1・3・5を押すと、その3chだけが選択されます。もう一度押すと選択から外れます。最後の1chは残し、意図せず全chへ戻ることを防ぎます。
+- **チャンネルボタンをクリック**すると、そのchの選択がON／OFFになります。1・3・5を押すと、その3chだけが選択されます。最後の1chは選択に残ります。
+- **Cmd（macOS）／Ctrl（Windows）を押しながらクリック**すると、そのchだけを選んで試聴できます（ソロ）。同じchをもう一度ソロにしても選択は変わりません。全chに戻すには **All channels** を押します。
 - MixPreなどのWAVに**iXMLのトラック名**が保存されていれば、ボタンにマイク名と小さなch番号を表示します。未設定・空欄のchは通常の番号表示です。ボタンは4列で表示し、長い名前は省略、マウスを置くと全文を確認できます。素材を切り替えると名前も更新します。
 - **1ch選択**は中央のモノ、**2ch選択**は小さい番号からL/R。2chのときだけ表示する **Swap L / R** で左右を交換できます。
 - **3ch以上**は独立したマルチチャンネルを維持します。1・3・5は出力1・2・3chへ詰めて渡し、ミックスしません。選択した原音を保つためステレオMacro FXをバイパスし、実際に聞こえる出力はプロジェクトのMaster／ハードウェアルーティングに従います。
 - 選択中のボタンに色が付き、上部にも選択chを表示します。9ch以上は8chずつ表示し、**Previous 8／Next 8**で移動できます。
 - **All channels**で元の全ch、**Downmix all**で全chのDiscrete／AmbiX変換へ戻れます。最初にボタンを押すと、その1chから選択を始めます。Play／Stop／Replayで試聴し、Doneで閉じても選択を保持します。
+- 3ch以上の素材では、パネル右上の**モードボタン**に現在の素材のDownmix方式を表示します。押すたびに全素材共通の設定が **Auto → AmbiX → Discrete → Auto** の順に切り替わります。Autoでは **Auto: AmbiX**／**Auto: Discrete** でファイル名の判定結果を確認できます。共通モードがAmbiXでも、6chなど構成の合わない素材はDiscreteで試聴できます。
+
+4・9・16…121chの素材では、パネルを開かずに操作バーの **AmbiX**（狭いバーでは **Amb**）を押すと、現在のファイルをAmbisonicsとして登録できます。登録はファイルパスごとに記憶され、共通モードやAutoのファイル名判定より優先されます。登録時はDownmixがONになり、全成分を収録した3D AmbiX（ACN/SN3D）のW/Yでステレオ試聴します。FuMa形式には対応していません。もう一度押すとそのファイルの登録を解除し、DownmixのON／OFFを保ったまま共通モードに戻ります。
 
 名前はWAV内のch位置（iXMLの `INTERLEAVE_INDEX`）に対応づけます。録音機の入力番号とファイル内のch番号が異なる録音や、途中のchだけ名前がない録音にも対応します。選択の保存は従来どおりch番号を使い、元WAVのメタデータは書き換えません。名前の読み取りはWAV／RF64／BW64のiXMLに対応し、未対応形式・読めないメタデータでは番号へ戻ります。
 
@@ -25,13 +29,13 @@ Normalize（LUFS／Zwicker）は**選択したchだけ**を測定します。3ch
 | Monitor、Macro Output、FX、Pitch／Rate／Reverse、選択範囲、レンダー設定 | 原音分析は再利用。試聴・レンダー側の処理だけ更新 |
 | NormalizeのON・OFF | ONなら選択したメーターの測定値を取得。OFFなら自動分析は不要 |
 | Zwickerの目標sones、Max／P95 | NormalizeがONなら、その条件の解を再計算。OFFなら分析条件に含めない |
-| Mic Select、実際のDownmix変換 | 変更後のマッピングの測定値を取得。キャッシュがなければ再分析 |
+| Select Mics、実際のDownmix変換 | 変更後のマッピングの測定値を取得。キャッシュがなければ再分析 |
 | 元ファイルの内容・更新日時・サイズ | 以前の測定値を無効にし、必要なら再分析 |
 | Analyse / refresh | 明示的に現在必要な分析をやり直す |
 
 Zwickerの目標変更時も現在の実装では原音の再読込を伴います。読み取った音声や聴覚フィルターの中間結果を保持して目標探索だけやり直す最適化、および左右入替の測定キャッシュ共通化は、この変更には含めません。
 
-Mic Selectの選択に合わせ、Media Explorerの波形も切り替わります。**1chならその1本、2chなら上段L・下段R、3ch以上なら選んだchの波形だけ**を表示します。各段には表示高が確保できる範囲で**マイク名とch番号**を表示し、未命名なら従来のch番号を表示します。日本語の名前にも対応します。停止中でも切り替わり、ズーム・横スクロール・範囲選択・波形からのD&Dはそのまま使えます。名前のあるWAVはAll channels／Downmixでも元の全chに名前を付けて表示します。音声の入力選択は変えません。名前のない素材でAll channels／Downmixへ戻すか、SoundPrepを終了すると標準の波形へ戻ります。表示するのは選択した原音の波形です。Macro FX・音量・Pitch／Rateの加工結果を描くものではありません。
+Select Micsの選択に合わせ、Media Explorerの波形も切り替わります。**1chならその1本、2chなら上段L・下段R、3ch以上なら選んだchの波形だけ**を表示します。各段には表示高が確保できる範囲で**マイク名とch番号**を表示し、未命名なら従来のch番号を表示します。日本語の名前にも対応します。停止中でも切り替わり、ズーム・横スクロール・範囲選択・波形からのD&Dはそのまま使えます。名前のあるWAVはAll channels／Downmixでも元の全chに名前を付けて表示します。音声の入力選択は変えません。名前のない素材でAll channels／Downmixへ戻すか、SoundPrepを終了すると標準の波形へ戻ります。表示するのは選択した原音の波形です。Macro FX・音量・Pitch／Rateの加工結果を描くものではありません。
 
 選択波形の背景・波形・文字・再生カーソルはREAPERの現在のテーマに合わせます。左右の波形を独自色に分けず、範囲選択もテーマの色・透明度・合成方式を使います。停止中のテーマ変更にも追従します。macOSではRetina解像度で波形とマイク名を描画し、標準の時間目盛りを残します。表示段が低いときはマイク名を省略して波形の領域を確保します。この表示修正の反映にはNative helperの更新とREAPERの再起動が必要です。
 
@@ -39,7 +43,9 @@ D&Dはドラッグ開始時の選択を固定します。チャンネル選択�
 
 Macro FXやPitch／Rate／Reverseを使う場合は、Source + FX／Renderedの両方へ選択を反映します。Take FXによる選択はPitch／Rateの後に行うため、変換順が異なるPreviewとの完全一致は保証しません。以前のドロップに保存したFXマッピングは変更しません。
 
-この機能には新しいNative helperが必要です。開発ツリーでは `sh native/build.sh` でビルドし、REAPERを終了後に `sh tools/install_native.sh` で更新して、REAPERを起動し直してください。Windowsは更新したDLLが必要です。互換性はpreview revision 5、analysis revision 3、bar revision 6、waveform revision 4で判定します。任意ペアには `AuditionMacro/channels_v2`、3ch以上には `channels_v3` を初回利用時に自動配置します。既存プロジェクト用のv1／v2の内容は変更しません。
+AmbiXのW/Yダウンミックスだけなら、D&Dでは元の全チャンネルを持つ `Source + FX` テイクを1つ配置します。試聴用のデコードは編集可能なTake FX（JSFX）に残り、必要なときに **Render selected drops** で焼き込めます。Discreteダウンミックス（5.1／7.1素材など）と、Macro FXやPitch／Rate／Reverseを使うAmbiXは、従来どおりレンダー設定に従って `Rendered` テイクを作成します。
+
+この機能には新しいNative helperが必要です。開発ツリーでは `sh native/build.sh` でビルドし、REAPERを終了後に `sh tools/install_native.sh` で更新して、REAPERを起動し直してください。Windowsは更新したDLLが必要です。マイク選択にはpreview revision 5、analysis revision 3、bar revision 6、waveform revision 4以上、操作バーのAmbisonicsボタンにはbar revision 15以上が必要です。任意ペアには `AuditionMacro/channels_v2`、3ch以上には `channels_v3` を初回利用時に自動配置します。既存プロジェクト用のv1／v2の内容は変更しません。
 
 ## 検証
 

@@ -45,6 +45,7 @@ function M.new(r,root,data)
     self.explorer:set_transform(self.macro.source_transform)
     -- The selection already present at launch is state, not an audition gesture.
     -- Capture it now so a later user selection still follows autoplay normally.
+    self.last_directory=self.explorer:directory()
     self:select_source(self.explorer:selection())
     self.drop=require('am.drop').new(r,self)
     if not self.drop then self.message='Processed waveform D&D needs native helper v0.3. Update the helper with REAPER closed, then restart.'end
@@ -200,7 +201,7 @@ function M:play(position,immediate)
   local started,reason=self.preview:start(path,macro,gain,settings,self.range,position)
   if started==false then
     self.message=reason
-    local _,mix_error=Mix.resolve(path,self.source_channels,settings.preview_downmix_mode)
+    local _,mix_error=Mix.resolve(path,self.source_channels,Mix.preference(settings,path))
     self.downmix_error=reason==mix_error and reason or nil
     return false
   end
@@ -245,7 +246,7 @@ function M:update_normalization(now)
   local selection=Selection.get(self.definition.settings,self.source_channels)
   if not U.equal(preview.channel_selection,selection)then return false end
   if not selection and self.source_channels>2 and self.definition.settings.preview_downmix then
-    mode=Mix.resolve(self.path,self.source_channels,self.definition.settings.preview_downmix_mode)
+    mode=Mix.effective(self.path,self.source_channels,Mix.preference(self.definition.settings,self.path))
   end
   if preview.downmix_mode~=mode or not preview:playing(true)then return false end
   local measurement=self:measurement()
@@ -312,13 +313,10 @@ end
 local function set_downmix_setting(self,key,value,selection_change)
   assert(self.r.EnumProjects(-1)==self.project,'Return to the project where SoundPrep started')
   local settings=self.definition.settings
-  local enabled=settings.preview_downmix
-  if key=='preview_downmix'then enabled=value end
-  local preference=key=='preview_downmix_mode' and value or settings.preview_downmix_mode
-  local selected=key=='channel_selections' and value[tostring(self.source_channels)]or
-    (key~='channel_selections' and Selection.get(settings,self.source_channels))
-  if enabled and not selected and (self.source_channels or 0)>2 then
-    local mode,reason=Mix.resolve(self.path,self.source_channels,preference)
+  local candidate=setmetatable({[key]=value},{__index=settings})
+  local enabled=candidate.preview_downmix
+  if enabled and not Selection.get(candidate,self.source_channels) and (self.source_channels or 0)>2 then
+    local mode,reason=Mix.resolve(self.path,self.source_channels,Mix.preference(candidate,self.path))
     if not mode then self.message=reason;self.downmix_error=reason;return false,reason end
   end
   if U.equal(settings[key],value)then clear_downmix_error(self);return true end
@@ -331,7 +329,7 @@ local function set_downmix_setting(self,key,value,selection_change)
   clear_downmix_error(self)
   if not selection_change and (self.source_channels or 0)<=2 then return true end
   if self.identity and self:effective().normalization.enabled then self:request_analysis()end
-  if not selection_change and (Selection.get(settings,self.source_channels)or key=='preview_downmix_mode' and not enabled)then
+  if not selection_change and (Selection.get(settings,self.source_channels)or key~='preview_downmix' and not enabled)then
     if self.identity then self:refresh_processing()end
     return true
   end
@@ -353,7 +351,7 @@ function M:set_downmix(enabled)
   if Selection.get(self.definition.settings,self.source_channels)then
     local settings=self.definition.settings;local previous=settings.preview_downmix
     if enabled and self.source_channels>2 then
-      local mode,reason=Mix.resolve(self.path,self.source_channels,settings.preview_downmix_mode)
+      local mode,reason=Mix.resolve(self.path,self.source_channels,Mix.preference(settings,self.path))
       if not mode then self.message=reason;return false,reason end
     end
     settings.preview_downmix=enabled
@@ -366,6 +364,21 @@ end
 function M:set_downmix_mode(mode)
   assert(mode=='auto' or mode=='discrete' or mode=='ambix','Invalid preview downmix mode')
   return set_downmix_setting(self,'preview_downmix_mode',mode)
+end
+function M:toggle_ambisonics()
+  local path=self.path
+  local mode,reason=Mix.resolve(path,self.source_channels,'ambix')
+  if not mode then self.message=reason;self.downmix_error=reason;return false,reason end
+  local settings=self.definition.settings
+  local files=U.copy(settings.ambisonics_files)
+  local marking=not files[path]
+  files[path]=marking or nil
+  local saved,err=set_downmix_setting(self,'ambisonics_files',files)
+  if not saved then return false,err end
+  if marking and (not settings.preview_downmix or Selection.get(settings,self.source_channels))then
+    return self:set_downmix(true)
+  end
+  return true
 end
 function M:ab()
   if self.selected_id then self.previous_id=self.selected_id;self:activate(nil)
@@ -681,9 +694,18 @@ function M:tick()
   if now-self.last_poll>=self.definition.settings.poll_ms/1000 or
       self.explorer.selection_changed and self.explorer:selection_changed()then
     self.last_poll=now
+    local directory=self.explorer.directory and self.explorer:directory()
     local path,reason=self.explorer:selection()
-    if path~=self.path then
-      local autoplay=self.definition.settings.autoplay or self.advance_path==path
+    if directory and self.last_directory and directory~=self.last_directory then
+      -- Navigation can deliver a selected file or an empty list. Remember either.
+      self.navigation_selection={path=path}
+    elseif self.navigation_selection and (not directory or path~=self.navigation_selection.path)then
+      self.navigation_selection=nil
+    end
+    self.last_directory=directory
+    local advance=path and self.advance_path==path
+    if path~=self.path and (not self.navigation_selection or advance)then
+      local autoplay=self.definition.settings.autoplay or advance
       -- play() starts audio before submitting uncached analysis (decoder open,
       -- job-file writes). Do not do that work twice or ahead of the first block.
       self:select_source(path,reason,autoplay)
@@ -693,7 +715,7 @@ function M:tick()
           local ok,e=pcall(self.play,self);if not ok then self.message=tostring(e)end
         end
       end
-    elseif path and now-(self.last_stat or 0)>.5 then
+    elseif path and path==self.path and now-(self.last_stat or 0)>.5 then
       self.last_stat=now;local identity=Loudness.identity(self.r,path)
       if not Loudness.same(identity,self.identity)then
         self:clear_source();self.identity=identity;self.paused_position=nil;self.paused_source=nil;self.paused_length=nil;self.last_seek=nil

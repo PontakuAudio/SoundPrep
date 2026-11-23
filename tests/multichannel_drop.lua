@@ -1,5 +1,6 @@
 local U=require('am.util');local J=require('am.json');local L=require('am.loudness');local Model=require('am.model')
 local Analysis=require('am.analysis_policy')
+local Insert=require('am.insert')
 local Drop=require('am.drop');local E=require('am.export');local Render=require('am.render_item');local Explorer=require('am.media_explorer')
 local read,snapshot,stamp,explorer,reaper_before=U.read,E.snapshot,Render.stamp,Explorer.new,reaper
 local files,ext,context,ack,console={},{},nil,nil,''
@@ -107,6 +108,24 @@ local ok,err=xpcall(function()
     s.settings.preview_downmix=false;s.settings.preview_downmix_mode='discrete'
     assert(value.channel_mix.mode==mode,'Captured channel mapping was not frozen')
   end
+
+  -- A list drag resolves the mark for each path, even with identical channel counts.
+  local field=file('field.wav',4);local room=file('room.wav',4)
+  local batch=state(room,true,'discrete');batch.settings.ambisonics_files[field]=true
+  ready(batch);cached(field,batch)
+  local entries=assert(invoke(batch,{field,room})).entries
+  assert(entries[1].snapshot.channel_mix.mode==2 and entries[1].snapshot.channel_mix.preference=='ambix')
+  assert(entries[1].snapshot.analysis.basis=='downmix_ambix')
+  assert(entries[2].snapshot.channel_mix.mode==1 and entries[2].snapshot.analysis.basis=='downmix_discrete')
+  local monitor=entries[1].snapshot;local discrete=entries[2].snapshot
+  assert(Insert.ambix_monitor(monitor) and not Insert.channel_only(monitor))
+  assert(not Insert.ambix_monitor(discrete) and not Insert.channel_only(discrete))
+  for key,setting in pairs{reverse=true,pitch_semitones=1,rate=.8}do
+    local transformed=U.copy(monitor);transformed.macro.source_transform[key]=setting
+    assert(not Insert.ambix_monitor(transformed))
+  end
+  monitor.chain='BYPASS 0 0 0\n<JS utility/volume_pan ""\n0 0 0\n>\nWAK 0 0\n'
+  assert(not Insert.ambix_monitor(monitor))
 
   -- The current Macro track may have deliberately wide FX pin mappings.
   local s=ready(state(ambix,true));s.track='macro';s.macro.output_gain_db=-3;s.macro.source_transform.rate=.8

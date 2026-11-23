@@ -68,9 +68,9 @@ function M.resolve(path,channels,settings,normalization,include_disabled)
   end
   if channels<=2 then return meter and {revision=2,source_channels=channels,basis='source',meter=meter}or nil end
   settings=settings or {}
-  local preference=settings.preview_downmix_mode or 'auto';local basis
+  local preference=Mix.preference(settings,path);local basis
   if settings.preview_downmix then
-    local mode,reason=Mix.resolve(path,channels,preference)
+    local mode,reason=Mix.effective(path,channels,preference)
     if not mode then return nil,reason end
     basis=mode==2 and 'downmix_ambix' or 'downmix_discrete'
   else

@@ -26,6 +26,8 @@ for _,os in ipairs{'Win64','macOS-arm64'}do
   assert(not N.inspect(r),'Helper requiring the previous Normalize editor fields was accepted')
   info.features.bar=13
   assert(not N.inspect(r),'Helper requiring the previous preset editor fields was accepted')
+  info.features.bar=14
+  assert(not N.inspect(r),'Helper without the Ambisonics button was accepted')
   info.version='999.0.0'
   info.features.bar=C.features.bar.revision
   info.features.preview=1;assert(not N.inspect(r),'Old helper silently accepted multichannel preview')
@@ -116,7 +118,7 @@ local project={}
 local app={project=project,definition={settings={}},bank={activate=function()end},
   search_session={command=function()end},save=function()end,
   effective=function()return {source_transform={preserve_pitch=false},normalization={enabled=false},output_gain_db=0}end}
-for _,name in ipairs{'activate','ab','reverse','set_preserve_pitch','set_normalization','set_downmix'}do app[name]=function()end end
+for _,name in ipairs{'activate','ab','reverse','set_preserve_pitch','set_normalization','set_downmix','toggle_ambisonics'}do app[name]=function()end end
 local bar=require('am.bar').new({EnumProjects=function()return project end},app)
 for _,control in ipairs(C.bar.controls)do
   local command=control.command

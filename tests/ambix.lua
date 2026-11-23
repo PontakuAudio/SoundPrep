@@ -3,15 +3,24 @@ local Preview=require('am.preview');local Bar=require('am.bar');local U=require(
 local J=require('am.json');local Time=require('am.timeline')
 
 assert(Model.defaults().settings.preview_downmix_mode=='auto')
-local old=Model.defaults();old.settings.preview_downmix_mode=nil
+assert(next(Model.defaults().settings.ambisonics_files)==nil)
+local old=Model.defaults();old.settings.preview_downmix_mode=nil;old.settings.ambisonics_files=nil
 assert(Model.validate(old).settings.preview_downmix_mode=='auto')
+assert(next(old.settings.ambisonics_files)==nil and Mix.preference({},'/field.wav')=='auto')
 for _,mode in ipairs{'auto','discrete','ambix'}do
   local definition=Model.defaults();definition.settings.preview_downmix_mode=mode
-  assert(Model.validate(J.decode(J.encode(definition))).settings.preview_downmix_mode==mode)
+  definition.settings.ambisonics_files['/recordings/field.wav']=true
+  local settings=Model.validate(J.decode(J.encode(definition))).settings
+  assert(settings.preview_downmix_mode==mode and settings.ambisonics_files['/recordings/field.wav']==true)
+  assert(Mix.preference(settings,'/recordings/field.wav')=='ambix' and Mix.preference(settings,'/other/field.wav')==mode)
 end
 for _,invalid in ipairs{false,true,0,'AmbiX','fuma',{},''}do
   local definition=Model.defaults();definition.settings.preview_downmix_mode=invalid
   assert(not pcall(Model.validate,definition),'Invalid downmix mode was accepted')
+end
+for _,invalid in ipairs{false,J.null,J.array{},{true},{['/field.wav']=false},{['/field.wav']=1}}do
+  local definition=Model.defaults();definition.settings.ambisonics_files=invalid
+  assert(not pcall(Model.validate,definition),'Invalid Ambisonics file map was accepted')
 end
 
 -- Count and basename are independent evidence; neither a parent directory,
@@ -37,6 +46,14 @@ for _,count in ipairs{0,1,2,3,5,6,8,15,24,128,144,256,4.5}do
   assert(mode==nil and reason:find('full 3D',1,true))
 end
 assert(not Mix.detected(nil,4)and not Mix.valid_channels(nil))
+assert(Mix.effective('x.wav',6,'ambix')==1)
+assert(Mix.effective('x.wav',16,'ambix')==2)
+assert(Mix.effective('x.wav',4,'ambix')==2)
+assert(Mix.effective('take ambix.wav',9,'auto')==2)
+assert(Mix.effective('x.wav',6,'auto')==1)
+assert(Mix.effective('x.wav',16,'discrete')==1)
+local mode,reason=Mix.effective('x.wav',6,'unknown')
+assert(mode==nil and reason=='Unknown preview downmix mode.')
 assert(Mix.describe('field_Ambix.wav',4,'auto')=='Auto: AmbiX')
 assert(Mix.describe('field.wav',4,'auto')=='Auto: Discrete')
 assert(Mix.describe('field.wav',4,'ambix')=='AmbiX')
@@ -63,10 +80,76 @@ local function fixture(playing,enabled)
     set_channels=function(_,count)state.widths[#state.widths+1]=count end}
   app.play=function(self,at,immediate)
     assert(immediate);state.starts=state.starts+1;state.position=at
-    state.mode=self.definition.settings.preview_downmix and Mix.resolve(self.path,self.source_channels,self.definition.settings.preview_downmix_mode)or 0
+    local settings=self.definition.settings
+    state.mode=settings.preview_downmix and Mix.effective(self.path,self.source_channels,Mix.preference(settings,self.path))or 0
     preview.handle={};preview.macro=U.copy(self:effective());return true
   end
   return app,state
+end
+
+local function playback_fixture(path,channels,enabled)
+  local app,state=fixture(false,enabled)
+  app.play=nil
+  local function noop()end
+  local function success()return true end
+  app.explorer={selection=function()return path end,ensure_waveform=noop,preview_range=noop}
+  app.bank.activate=noop;app.loudness.get=noop;app.transform_override.reverse=false
+  local r,preview=app.r,app.preview
+  r.JS_File_Stat=function()return 0,100,0,1 end
+  r.PCM_Source_CreateFromFile=function(selected)assert(selected==path);return selected end
+  r.GetMediaSourceNumChannels=function()return channels end
+  r.GetMediaSourceLength=function()return 10,false end
+  r.PCM_Source_Destroy=noop;r.ValidatePtr2=success;r.APIExists=function()return false end
+  r.AM_Preview_CreateWithDownmix=function(_,_,_,downmix_mode)return {downmix_mode=downmix_mode}end
+  r.AM_Preview_BindControls=noop
+  preview.r=r;preview.multichannel=true;preview.downmix_modes=true;preview.starts=0
+  preview.set_value=success;preview.play_handle=success
+  return app,state
+end
+
+-- Keep the saved AmbiX choice when playback opens a new six-channel source.
+do
+  local app,state=playback_fixture('/six.wav',6,true)
+  assert(app:set_downmix_mode('ambix') and app:play(nil,true))
+  assert(app.path=='/six.wav' and app.preview.handle.downmix_mode==1 and app.downmix_error==nil)
+  assert(app.definition.settings.preview_downmix_mode=='ambix' and app:update_normalization(1))
+  local saves=state.saves
+  local ok,reason=app:toggle_ambisonics()
+  assert(ok==false and reason:find('full 3D',1,true) and app.message==reason and state.saves==saves)
+  assert(Bar.new(app.r,app):state().ambisonics_available==false)
+end
+
+for _,enabled in ipairs{true,false}do
+  local app,state=playback_fixture('/field.wav',4,enabled)
+  assert(app:play(nil,true) and app.preview.handle.downmix_mode==(enabled and 1 or 0))
+  local bar=Bar.new(app.r,app);local before=bar:state()
+  assert(before.ambisonics_available and before.ambisonics==false)
+  bar:dispatch('ambisonics')
+  local saved=Model.validate(J.decode(state.saved)).settings
+  assert(saved.preview_downmix_mode=='auto' and saved.preview_downmix and saved.ambisonics_files[app.path])
+  assert(app.preview.starts==2 and app.preview.handle.downmix_mode==2 and app:update_normalization(1))
+  assert(app:analysis_spec().basis=='downmix_ambix')
+  local marked=bar:state()
+  assert(marked.ambisonics and marked.downmix and marked.status:find('AmbiX (W/Y M/S)',1,true))
+  assert(app:toggle_ambisonics())
+  assert(app.preview.starts==3 and app.preview.handle.downmix_mode==1 and app:update_normalization(1))
+  assert(app:analysis_spec().basis=='downmix_discrete' and bar:state().ambisonics==false)
+  assert(Model.validate(J.decode(state.saved)).settings.ambisonics_files[app.path]==nil)
+end
+
+do
+  local app=fixture(false,true);app.path='/field.wav'
+  assert(app:set_channel_selection({1}) and app:toggle_ambisonics())
+  local bar=Bar.new(app.r,app);assert(bar:state().downmix and bar:state().ambisonics)
+  assert(app:set_downmix_mode('discrete') and app:analysis_spec().basis=='downmix_ambix')
+  app.channel_panel_open=true
+  assert(bar:state().channels.mix=='AmbiX')
+  app.path='/other/field.wav'
+  local other=bar:state();assert(other.ambisonics==false and other.ambisonics_available and other.channels.mix=='Discrete')
+  app.path='/field.wav';assert(bar:state().ambisonics)
+  assert(app:set_downmix(false) and app:analysis_spec().basis=='ambix_w')
+  assert(app:toggle_ambisonics() and not app.definition.settings.preview_downmix)
+  assert(app:analysis_spec().basis=='loudest_channel')
 end
 
 -- Mode changes retain source coordinates after a live native rate change,
@@ -174,4 +257,6 @@ do
   assert(status:find('AmbiX (W/Y M/S)',1,true)and not status:find('Auto:',1,true))
   app.definition.settings.preview_downmix=false;status=bar:state().status
   assert(status:find('4ch',1,true)and not status:find('→ 2ch',1,true)and not status:find('W/Y',1,true))
+  app.definition.settings.preview_downmix=true;app.source_channels=6;status=bar:state().status
+  assert(status:find('6ch → 2ch',1,true)and status:find('AmbiX: unavailable',1,true)and not status:find('W/Y',1,true))
 end

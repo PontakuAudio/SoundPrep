@@ -18,7 +18,9 @@
       "open": false
     },
     "downmix": false,
-    "multichannel": false
+    "multichannel": false,
+    "ambisonics": false,
+    "ambisonics_available": false
   },
   "cases": [
     {
@@ -33,10 +35,12 @@
       "accept": true
     },
     {
-      "name": "optional Downmix fields omitted",
+      "name": "optional Downmix and Ambisonics fields omitted",
       "remove": [
         "downmix",
-        "multichannel"
+        "multichannel",
+        "ambisonics",
+        "ambisonics_available"
       ],
       "accept": true
     },
@@ -47,6 +51,30 @@
         "multichannel": true
       },
       "accept": true
+    },
+    {
+      "name": "Ambisonics file marked",
+      "set": {
+        "multichannel": true,
+        "downmix": true,
+        "ambisonics_available": true,
+        "ambisonics": true
+      },
+      "accept": true
+    },
+    {
+      "name": "ambisonics rejects numeric boolean",
+      "set": {
+        "ambisonics": 1
+      },
+      "accept": false
+    },
+    {
+      "name": "ambisonics_available rejects null",
+      "set": {
+        "ambisonics_available": null
+      },
+      "accept": false
     },
     {
       "name": "downmix rejects numeric boolean",

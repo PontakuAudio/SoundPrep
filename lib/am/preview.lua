@@ -71,7 +71,7 @@ function M:start(path,macro,gain_db,settings,range,position)
   local downmix_mode=0
   if not selection and channels>2 and settings.preview_downmix then
     local reason
-    downmix_mode,reason=Mix.resolve(path,channels,settings.preview_downmix_mode)
+    downmix_mode,reason=Mix.effective(path,channels,Mix.preference(settings,path))
     if not downmix_mode or (downmix_mode==2 and not self.downmix_modes)then
       r.PCM_Source_Destroy(source)
       return false,reason or 'AmbiX stereo preview requires the updated native helper. Update it with REAPER closed, then restart.'

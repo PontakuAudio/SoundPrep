@@ -113,6 +113,7 @@ int main(){@autoreleasepool {
   [value removeObjectForKey:@"search"];
   // Source-channel changes must reflow even when the macro list is unchanged.
   assert(bar.downmix.hidden && bar.downmix.state==NSControlStateValueOff);
+  assert(bar.ambisonics && bar.ambisonics.hidden && bar.ambisonics.state==NSControlStateValueOff);
   assert(nlohmann::json::parse(AMBarGeometry())["downmix_visible"]==false && nlohmann::json::parse(AMBarGeometry())["downmix"]==false);
   resize(700,400);assert(bar.frame.size.height==72);
   value[@"multichannel"]=@YES;update(value);
@@ -123,13 +124,23 @@ int main(){@autoreleasepool {
   assert(nlohmann::json::parse(AMBarGeometry())["downmix_visible"]==true && nlohmann::json::parse(AMBarGeometry())["downmix"]==true);
   [bar.downmix performClick:nil];assert(std::string(AMBarPoll())=="downmix");
   value[@"downmix"]=@NO;update(value);assert(bar.downmix.state==NSControlStateValueOff);
+  resize(800,400);assert(bar.ambisonics.hidden && bar.frame.size.height==72);
+  value[@"ambisonics_available"]=@YES;update(value);
+  assert(!bar.ambisonics.hidden && bar.ambisonics.state==NSControlStateValueOff && bar.frame.size.height==72);
+  assert([bar.ambisonics.title isEqual:@"AmbiX"]);
+  value[@"ambisonics"]=@YES;update(value);assert(bar.ambisonics.state==NSControlStateValueOn);
+  [bar.ambisonics performClick:nil];assert(std::string(AMBarPoll())=="ambisonics");
+  value[@"ambisonics"]=@NO;update(value);assert(bar.ambisonics.state==NSControlStateValueOff);
   resize(300,129);assert(bar.frame.size.height==80 && [bar.downmix.title isEqual:@"DM"]);checkLayout(3);
+  assert([bar.ambisonics.title isEqual:@"Amb"]);
+  value[@"ambisonics_available"]=@NO;update(value);assert(bar.ambisonics.hidden && !bar.downmix.hidden);
   value[@"multichannel"]=@NO;update(value);assert(bar.downmix.hidden && bar.frame.size.height==80);checkLayout(3);
-  value[@"multichannel"]=@YES;update(value);
-  for (CGFloat width : {980.,737.,736.,680.,540.,416.,360.,359.,300.}) {
+  value[@"multichannel"]=@YES;value[@"ambisonics_available"]=@YES;update(value);
+  for (CGFloat width : {980.,848.,847.,737.,736.,680.,540.,416.,360.,359.,300.}) {
     for (CGFloat height : {400.,129.,79.,54.}) {
       resize(width,height);checkLayout(3);
       assert(bar.downmix.hidden==(height<80));
+      assert(bar.ambisonics.hidden==(height<80));
     }
   }
   resize(980,400);
@@ -147,13 +158,14 @@ int main(){@autoreleasepool {
   assert([bar.presets[0].toolTip isEqual:@"🎧音声  素材"] && [bar.presets[0].accessibilityLabel isEqual:bar.presets[0].toolTip]);
   value=state(3);update(value);resize(980,400);
   assert(bar.downmix.hidden && bar.downmix.state==NSControlStateValueOff);
+  assert(bar.ambisonics.hidden && bar.ambisonics.state==NSControlStateValueOff);
   NSTextField *search=[[NSTextField alloc]initWithFrame:NSMakeRect(12,20,300,24)];[host addSubview:search];
   search.stringValue=@"metal slam";assert([window makeFirstResponder:search]);
   NSTextView *editor=(NSTextView *)search.currentEditor;assert(editor);editor.selectedRange=NSMakeRange(2,4);
   [bar rememberFocus];[chosen performClick:nil];assert(std::string(AMBarPoll())=="macro:macro_1");
   assert(window.firstResponder==editor && NSEqualRanges(editor.selectedRange,NSMakeRange(2,4)));
   // A native popover belongs to the Media Explorer bar, with distinct mic IDs.
-  NSMutableDictionary* panel=[@{@"open":@YES,@"source":@"/six.wav:6",@"file":@"six.wav",@"summary":@"Ch 1, 3, 5",
+  NSMutableDictionary* panel=[@{@"open":@YES,@"source":@"/six.wav:6",@"file":@"six.wav",@"summary":@"Ch 1, 3, 5",@"mix":@"Auto: Discrete",
     @"items":@[@{@"channel":@1,@"name":@"Boom & L",@"selected":@YES},@{@"channel":@2,@"name":@"",@"selected":@NO},
       @{@"channel":@3,@"name":@"風鈴 🎤",@"selected":@YES},@{@"channel":@4,@"name":@"Boom & L",@"selected":@NO}],
     @"previous":@NO,@"next":@NO,@"all":@NO,@"downmix":@NO,@"can_downmix":@YES,@"can_swap":@NO,
@@ -161,10 +173,14 @@ int main(){@autoreleasepool {
   [window orderFront:nil];value[@"channels"]=panel;update(value);
   AMChannelPanel* picker=bar.channelPanel;
   assert(picker.popover.shown);
+  assert([picker.actions[@"mode"].title isEqual:@"Auto: Discrete"] && !picker.actions[@"mode"].hidden);
   assert([picker.microphones[0].title isEqual:@"Boom & L\nch 1"] && [picker.microphones[1].title isEqual:@"2"]);
   assert([picker.microphones[2].toolTip isEqual:@"ch 3 — 風鈴 🎤"] && picker.microphones[4].hidden);
   [picker.microphones[3] performClick:nil];auto event=std::string(AMBarPoll());assert(event.rfind("channels@",0)==0);
-  auto parsed=nlohmann::json::parse(event.substr(9));assert(parsed["channel"]==4 && parsed["source"]=="/six.wav:6");
+  auto parsed=nlohmann::json::parse(event.substr(9));assert(parsed["op"]=="toggle" && parsed["channel"]==4 && parsed["source"]=="/six.wav:6");
+  [picker pressed:picker.microphones[1] modifierFlags:NSEventModifierFlagCommand];event=AMBarPoll();
+  assert(event.rfind("channels@",0)==0);parsed=nlohmann::json::parse(event.substr(9));
+  assert(parsed["op"]=="solo" && parsed["channel"]==2 && parsed["source"]=="/six.wav:6" && picker.microphones[1].state==NSControlStateValueOn);
   for(NSButton* b in picker.microphones)if(!b.hidden)assert(NSContainsRect(picker.view.bounds,b.frame));
   for(NSButton* b in picker.actions.allValues)assert(NSContainsRect(picker.view.bounds,b.frame));
   NSString* longName=[@"長いマイク名 🎤 " stringByPaddingToLength:200 withString:@"長いマイク名 🎤 " startingAtIndex:0];

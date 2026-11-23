@@ -54,14 +54,15 @@ function M:state()
   -- or a completed measurement. Preserve unrelated application notices.
   local analysis_notice=a.message:match('^Unmeasured:')or a.message:match('^Drop cancelled: Analysis ')
   if a.message~='' and not (analysis_notice and (measured or analysis_active or analysis_queued or analysis_error))then label=a.message end
-  local selection=Selection.get(a.definition.settings,a.source_channels)
+  local setting=a.definition.settings
+  local selection=Selection.get(setting,a.source_channels)
   if selection then
     label=label..(' · %dch → %s'):format(a.source_channels,Selection.label(selection))
   elseif (a.source_channels or 0)>2 then
-    local setting=a.definition.settings
-    local mix,reason=ChannelMix.describe(a.path,a.source_channels,setting.preview_downmix_mode)
-    local mode=ChannelMix.resolve(a.path,a.source_channels,setting.preview_downmix_mode)
-    label=label..(' · %dch%s'):format(a.source_channels,setting.preview_downmix and not reason and ' → 2ch' or '')
+    local preference=ChannelMix.preference(setting,a.path)
+    local mix=ChannelMix.describe(a.path,a.source_channels,preference)
+    local mode=ChannelMix.effective(a.path,a.source_channels,preference)
+    label=label..(' · %dch%s'):format(a.source_channels,setting.preview_downmix and mode~=nil and ' → 2ch' or '')
     if setting.preview_downmix then label=label..' · '..mix..(mode==2 and ' (W/Y M/S)' or '')end
     if spec then label=label..' · Normalize: '..Analysis.label(spec)end
     if not setting.preview_downmix then label=label..' · Macro FX bypassed'end
@@ -74,7 +75,9 @@ function M:state()
   return {active=a.selected_id or 'raw',macros=macros,reverse=m.source_transform.reverse,preserve_pitch=m.source_transform.preserve_pitch,
     normalize=m.normalization.enabled,target=m.normalization.target_lufs,
     target_label=m.normalization.metric~='lufs_m_max' and ('Norm %.2f sones'):format(m.normalization.target_sones) or nil,
-    downmix=not selection and a.definition.settings.preview_downmix==true,multichannel=(a.source_channels or 0)>2,
+    downmix=not selection and setting.preview_downmix==true,multichannel=(a.source_channels or 0)>2,
+    ambisonics=(setting.ambisonics_files and setting.ambisonics_files[a.path])==true,
+    ambisonics_available=ChannelMix.valid_channels(a.source_channels or 0),
     monitor=a.definition.settings.monitor_gain_db,status=label,paused=paused,
     -- Omitted panel state closes the native view. Only build its contents while
     -- open, so hidden diagnostics/microphone pages do not drive bar updates.
@@ -96,6 +99,7 @@ function M:dispatch(command)
   elseif command=='reverse' then a:reverse()
   elseif command=='preserve_pitch' then a:set_preserve_pitch(not a:effective().source_transform.preserve_pitch)
   elseif command=='downmix' then a:set_downmix(Selection.get(a.definition.settings,a.source_channels)~=nil or not a.definition.settings.preview_downmix)
+  elseif command=='ambisonics' then a:toggle_ambisonics()
   elseif command=='channels' or command:match('^channels@')then Channels.dispatch(a,command)
   elseif command=='normalize' then a:set_normalization(not a:effective().normalization.enabled)
   elseif command=='target:custom' then Editor.open(a,1)

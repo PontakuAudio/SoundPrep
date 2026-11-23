@@ -89,14 +89,15 @@ local ok,err=xpcall(function()
       local channel_mix,source_processing,measurement,analysis_pending
       local selection=Selection.get(state.settings,channels)
       if channels>2 or selection then
+        local preference=Mix.preference(state.settings,path)
         local mode,reason=selection and 3 or 0
-        if not selection and state.settings.preview_downmix then mode,reason=Mix.resolve(path,channels,state.settings.preview_downmix_mode)end
+        if not selection and state.settings.preview_downmix then mode,reason=Mix.resolve(path,channels,preference)end
         if not mode then reject(U.basename(path)..': '..reason)end
         local output=selection and Selection.output(selection)or mode==0 and channels or 2
         local bypass=mode==0 or output>2
         local width=math.max(2,math.ceil(output/2)*2,bypass and 2 or macro_channels)
         channel_mix={revision=selection and (selection.channels and 4 or 3)or 1,selection=U.copy(selection),source_channels=channels,output_channels=output,mode=mode,
-          preference=state.settings.preview_downmix_mode or 'auto',fx_channels=width}
+          preference=preference,fx_channels=width}
         source_processing={fx_bypassed=bypass,bypass_reason=bypass and (selection and 'independent_microphones' or 'multichannel_downmix_off')or nil}
         -- Keep original channels independent of stereo Macro FX, just as the
         -- audition does. Source transforms and the Macro output gain remain.

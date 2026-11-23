@@ -1,4 +1,8 @@
 local M={}
+function M.preference(settings,path)
+  if settings.ambisonics_files and settings.ambisonics_files[path]then return 'ambix' end
+  return settings.preview_downmix_mode or 'auto'
+end
 function M.valid_channels(channels)
   if type(channels)~='number' or channels<4 or channels>121 then return false end
   local order=math.floor(math.sqrt(channels))
@@ -21,6 +25,12 @@ function M.resolve(path,channels,preference)
   end
   if preference~='auto'then return nil,'Unknown preview downmix mode.'end
   return M.detected(path,channels)and 2 or 1
+end
+function M.effective(path,channels,preference)
+  local mode,reason=M.resolve(path,channels,preference)
+  if mode then return mode end
+  if preference=='ambix' then return 1 end
+  return nil,reason
 end
 function M.describe(path,channels,preference)
   local mode,reason=M.resolve(path,channels,preference)

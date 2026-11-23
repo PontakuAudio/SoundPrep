@@ -1,5 +1,5 @@
 -- Shared state for the native Media Explorer microphone panel and waveform.
-local J=require('am.json');local Names=require('am.channel_names');local Selection=require('am.channel_selection');local U=require('am.util')
+local J=require('am.json');local Mix=require('am.channel_mix');local Names=require('am.channel_names');local Selection=require('am.channel_selection');local U=require('am.util')
 local M={}
 function M.names(app)
   app.channel_name_cache=app.channel_name_cache or {}
@@ -36,6 +36,7 @@ function M.state(app)
   local downmix=not selected and count>2 and app.definition.settings.preview_downmix==true
   return {open=app.channel_panel_open==true,source=key,file=app.path and U.basename(app.path)or 'Select an audio file in Media Explorer.',
     summary=selected and Selection.label(selected)or downmix and 'Downmix all channels'or 'All source channels',
+    mix=Mix.describe(app.path,count,Mix.preference(app.definition.settings,app.path)),
     items=items,paged=count>8,previous=page>0,next=(page+1)*8<count,all=not selected and not downmix,downmix=downmix,
     can_downmix=count>2,can_swap=#list==2,enabled=count>0,playing=app.preview:playing(true)==true,
     page=count>0 and ('%d–%d / %d'):format(page*8+1,math.min(count,(page+1)*8),count)or '',notice=app.channel_panel_notice or ''}
@@ -59,7 +60,13 @@ function M.dispatch(app,text)
   if event.source~=(app.path or '')..':'..(app.source_channels or 0)then return end
   local op=event.op;local ok,reason=true
   if op=='toggle'then ok,reason=M.toggle(app,event.channel)
+  elseif op=='solo'then
+    local channels={event.channel};local selected=Selection.get(app.definition.settings,app.source_channels)
+    if not selected or not U.equal(Selection.list(selected),channels)then ok,reason=app:set_channel_selection(channels)end
   elseif op=='all'then ok,reason=app:set_downmix(false)
+  elseif op=='mode'then
+    local cycle={auto='ambix',ambix='discrete',discrete='auto'}
+    ok,reason=app:set_downmix_mode(cycle[app.definition.settings.preview_downmix_mode or 'auto'])
   elseif op=='swap'then
     local s=Selection.get(app.definition.settings,app.source_channels);local list=s and Selection.list(s)or {}
     if #list==2 then ok,reason=app:set_channel_selection({list[2],list[1]})end

@@ -18,7 +18,7 @@ function M.defaults()
   local rev=M.macro('reverse','Reverse');rev.source_transform.reverse=true
   return {schema_version=1,defaults_migrated_0113=true,raw=M.raw_settings(),macros=J.array{heavy,dark,rev},
     settings={autoplay=true,loop=false,keep_fx_running=false,monitor_gain_db=-6,fade_ms=5,preview_fade_ms=0,
-      normalize_fade_ms=M.DEFAULT_NORMALIZE_FADE_MS,preview_downmix=false,preview_downmix_mode='auto',
+      normalize_fade_ms=M.DEFAULT_NORMALIZE_FADE_MS,preview_downmix=false,preview_downmix_mode='auto',ambisonics_files={},
       python='',ffmpeg='',cache_directory='',poll_ms=20,analysis_timeout_seconds=180,insert_handles=false,prepare_drops=false,auto_render_drops=true}}
 end
 local function number(v,a,b,name)
@@ -70,6 +70,11 @@ function M.validate(bank)
   s.normalize_fade_ms=U.clamp(s.normalize_fade_ms,0,2000)
   if s.preview_downmix==nil then s.preview_downmix=false end
   if s.preview_downmix_mode==nil then s.preview_downmix_mode='auto' end
+  if s.ambisonics_files==nil then s.ambisonics_files={} end
+  assert(type(s.ambisonics_files)=='table' and s.ambisonics_files~=J.null and getmetatable(s.ambisonics_files)==nil,'Invalid Ambisonics file map')
+  for path,marked in pairs(s.ambisonics_files)do
+    assert(type(path)=='string' and marked==true,'Invalid Ambisonics file mark')
+  end
   if s.channel_selections==nil then s.channel_selections={} end
   require('am.channel_selection').validate(s.channel_selections)
   boolean(s.preview_downmix,'Preview downmix')

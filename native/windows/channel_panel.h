@@ -1,10 +1,10 @@
 // Owned native popup, anchored to Media Explorer. No global keyboard hooks.
 struct ChannelPanel {
-  HWND window=nullptr,anchor=nullptr,file=nullptr,summary=nullptr,page=nullptr,notice=nullptr,tips=nullptr;
+  HWND window=nullptr,anchor=nullptr,file=nullptr,summary=nullptr,mode=nullptr,page=nullptr,notice=nullptr,tips=nullptr;
   HFONT font=nullptr;bool paused=false,closing=false,paged=false;
   Json state=Json::object();std::array<HWND,8> microphones{};std::array<std::wstring,8> labels{};
   std::array<int,8> indices{};std::array<HWND,6> actions{};
-  static constexpr const char* commands[]={"previous","next","all","swap","play","close"};
+  static constexpr const char* commands[]={"previous","next","all","swap","play","close","mode"};
   ~ChannelPanel(){close(false);}
   HWND child(const wchar_t* cls,const wchar_t* text,DWORD style,int id,int x,int y,int w,int h){
     HWND c=CreateWindowExW(0,cls,text,WS_CHILD|WS_VISIBLE|style,amwin::scale(anchor,x),amwin::scale(anchor,y),amwin::scale(anchor,w),amwin::scale(anchor,h),window,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),amwin::module(),nullptr);
@@ -23,7 +23,8 @@ struct ChannelPanel {
     window=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_CONTROLPARENT,wc.lpszClassName,L"Select microphones",WS_POPUP|WS_CAPTION|WS_SYSMENU|WS_CLIPCHILDREN,0,0,1,1,GetAncestor(anchor,GA_ROOT),nullptr,wc.hInstance,this);
     if(!window)throw std::runtime_error("Cannot create microphone controls");position();
     file=child(L"STATIC",L"",SS_ENDELLIPSIS|SS_NOPREFIX,0,12,10,496,18);
-    summary=child(L"STATIC",L"",SS_ENDELLIPSIS|SS_NOPREFIX,0,12,32,496,18);
+    summary=child(L"STATIC",L"",SS_ENDELLIPSIS|SS_NOPREFIX,0,12,32,330,18);
+    mode=child(L"BUTTON",L"",WS_TABSTOP,2206,354,28,154,26);
     tips=CreateWindowExW(WS_EX_TOPMOST,TOOLTIPS_CLASSW,nullptr,WS_POPUP|TTS_ALWAYSTIP|TTS_NOPREFIX,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,window,nullptr,wc.hInstance,nullptr);
     SendMessageW(tips,TTM_SETMAXTIPWIDTH,0,500);
     for(int i=0;i<8;++i){
@@ -55,6 +56,7 @@ struct ChannelPanel {
     if(newPaged!=paged){close(false);paged=newPaged;}
     const bool fresh=!window;if(fresh)create(a,f);bool enabled=next.at("enabled");
     amwin::text(file,next.at("file"));amwin::text(summary,next.at("summary"));amwin::text(page,next.at("page"));
+    amwin::text(mode,next.value("mix",""));ShowWindow(mode,next.at("can_downmix").get<bool>()?SW_SHOWNOACTIVATE:SW_HIDE);EnableWindow(mode,enabled);
     amwin::text(notice,next.at("notice").get<std::string>().empty()?"Click microphones to add or remove them. Changes apply immediately.":next.at("notice").get<std::string>());
     const auto& items=next.at("items");
     for(int i=0;i<8;++i){HWND b=microphones[i];bool visible=i<static_cast<int>(items.size());ShowWindow(b,visible?SW_SHOWNOACTIVATE:SW_HIDE);if(!visible){indices[i]=0;continue;}
@@ -77,6 +79,11 @@ struct ChannelPanel {
     if(paused || !state.value("enabled",false))return;
     Json event={{"op",op},{"source",state.at("source")}};if(channel)event["channel"]=channel;enqueue("channels@"+event.dump());
   }
+  void clickMicrophone(int slot,bool controlDown){
+    if(!indices[slot])return;
+    if(controlDown)SendMessageW(microphones[slot],BM_SETCHECK,BST_CHECKED,0);
+    send(controlDown?"solo":"toggle",indices[slot]);
+  }
   void close(bool notify){
     if(!window || closing)return;closing=true;HWND old=window;window=nullptr;DestroyWindow(old);tips=nullptr;closing=false;
     if(notify)enqueue("channels:close");
@@ -96,8 +103,8 @@ struct ChannelPanel {
     if(m==WM_CTLCOLORSTATIC || m==WM_CTLCOLORBTN)return dialogControlColor(w,m,p,l);
     if(self && (m==WM_CLOSE || (m==WM_ACTIVATE && LOWORD(p)==WA_INACTIVE))){self->close(true);return 0;}
     if(self && m==WM_COMMAND && HIWORD(p)==BN_CLICKED){
-      try{int id=LOWORD(p);if(id>=2100 && id<2108){if(self->indices[id-2100])self->send("toggle",self->indices[id-2100]);}
-        else if(id>=2200 && id<2206){if(id==2205)self->close(true);else self->send(commands[id-2200]);}
+      try{int id=LOWORD(p);if(id>=2100 && id<2108)self->clickMicrophone(id-2100,(GetKeyState(VK_CONTROL)&0x8000)!=0);
+        else if(id>=2200 && id<2207){if(id==2205)self->close(true);else self->send(commands[id-2200]);}
       }catch(...){}return 0;
     }
     return DefWindowProcW(w,m,p,l);

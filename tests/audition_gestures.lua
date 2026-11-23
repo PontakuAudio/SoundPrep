@@ -69,3 +69,47 @@ for _,key in ipairs{'paused_source','paused_position','paused_length','last_seek
 end
 app:tick();assert(not playing and starts==4,'Range polling restarted a completed drop')
 range={3,9};app:tick();assert(playing and starts==5,'A later range gesture did not play')
+
+-- The list can select a row on navigation while the waveform still shows the old file.
+do
+  local a1,a2='/A/one.wav','/A/two.wav'
+  local b1,b2='/B/one.wav','/B/two.wav'
+  local directory,selected='/A',a1
+  local starts,stops=0,0
+  local function noop()end
+  local preview={playing=function(self)return self.path~=nil end,
+    stop=function(self)self.path=nil;stops=stops+1 end}
+  local browser=setmetatable({r=r,project=project,session='current',path=selected,last_directory=directory,last_poll=now,last_stat=now,
+    definition={settings={poll_ms=20,autoplay=true}},bank=app.bank,loudness=app.loudness,preview=preview,
+    explorer={directory=function()return directory end,selection=function()return selected end,
+      preview_range=noop,wave_event=noop,transport_event=noop},
+    select_source=function(self,path)self.preview:stop();self.path=path;self.identity=path and {path=path}end,
+    play=function(self)self.preview.path=selected;starts=starts+1 end,
+    publish=noop,sync_transform=noop},App)
+  local function poll(location,path)
+    directory,selected=location,path
+    now=now+1
+    browser:tick()
+  end
+
+  poll('/A',a2)
+  assert(browser.path==a2 and preview.path==a2 and starts==1,'Same-directory selection did not autoplay')
+  local before=stops
+  poll('/B',b1);poll('/B',b1)
+  assert(browser.path==a2 and preview.path==a2 and starts==1 and stops==before,'Navigation interrupted the preview')
+  poll('/B',b2)
+  assert(browser.path==b2 and preview.path==b2 and starts==2,'Selecting another row after navigation did not autoplay')
+  poll('/B',b1)
+  assert(browser.path==b1 and preview.path==b1 and starts==3,'Returning to the navigation row did not autoplay')
+
+  preview:stop();before=stops
+  poll('/A',a1);poll('/A',a1)
+  assert(browser.path==b1 and not preview:playing() and starts==3 and stops==before,'Idle navigation adopted the selection')
+  poll('Empty database',nil);poll('Empty database',nil)
+  assert(browser.path==b1 and stops==before,'Navigation to an empty database cleared the source')
+
+  browser.definition.settings.autoplay=false
+  browser.advance_path=a1
+  poll('/A',a1)
+  assert(browser.path==a1 and preview.path==a1 and starts==4 and not browser.advance_path,'Navigation swallowed an EOF advance')
+end
